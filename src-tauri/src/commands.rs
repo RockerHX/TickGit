@@ -45,8 +45,8 @@ pub fn get_current_repository(
 }
 
 #[tauri::command]
-pub fn get_branch_status(repo_path: String, branch: Option<String>) -> AppResult<BranchStatus> {
-    git::get_branch_status(&repo_path, branch)
+pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
+    git::get_branch_status(&repo_path)
 }
 
 #[tauri::command]

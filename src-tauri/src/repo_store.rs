@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::{
     error::{AppError, AppResult},
+    git,
     models::{RepositoryConfig, RepositorySummary},
 };
 
@@ -69,23 +70,62 @@ fn repository_name(path: &Path) -> String {
         .unwrap_or_else(|| path.to_string_lossy().to_string())
 }
 
-fn normalize_path(path: &str) -> AppResult<PathBuf> {
-    let repository_path = PathBuf::from(path);
+fn sort_repositories(repositories: &mut [RepositorySummary]) {
+    repositories.sort_by(|left, right| right.last_opened_at.cmp(&left.last_opened_at));
+}
 
-    if !repository_path.is_dir() {
-        return Err(AppError::new("invalid_repository", "拖入的路径不是文件夹"));
+fn find_current_repository(store: &RepositoryConfig) -> Option<RepositorySummary> {
+    store.current_path.as_ref().and_then(|path| {
+        store
+            .repositories
+            .iter()
+            .find(|repository| &repository.path == path)
+            .cloned()
+    })
+}
+
+fn add_repository_to_store(
+    store: &mut RepositoryConfig,
+    repository_path: &Path,
+    opened_at: i64,
+) -> AppResult<RepositorySummary> {
+    let normalized_path = repository_path.to_string_lossy().to_string();
+
+    if store
+        .repositories
+        .iter()
+        .any(|repository| repository.path == normalized_path)
+    {
+        return Err(AppError::new("repository_exists", "该仓库已存在于列表中"));
     }
 
-    if !repository_path.join(".git").exists() {
-        return Err(AppError::new(
-            "invalid_repository",
-            "未检测到有效的 Git 仓库",
-        ));
-    }
+    let repository = RepositorySummary {
+        name: repository_name(repository_path),
+        path: normalized_path.clone(),
+        last_opened_at: opened_at,
+    };
 
-    repository_path
-        .canonicalize()
-        .map_err(|error| AppError::new("invalid_repository", error.to_string()))
+    store.repositories.push(repository.clone());
+    store.current_path = Some(normalized_path);
+
+    Ok(repository)
+}
+
+fn set_current_repository_in_store(
+    store: &mut RepositoryConfig,
+    path: &str,
+    opened_at: i64,
+) -> AppResult<()> {
+    let repository = store
+        .repositories
+        .iter_mut()
+        .find(|repository| repository.path == path)
+        .ok_or_else(|| AppError::new("repository_not_found", "仓库不存在"))?;
+
+    repository.last_opened_at = opened_at;
+    store.current_path = Some(path.to_string());
+
+    Ok(())
 }
 
 pub fn list_repositories(
@@ -95,7 +135,7 @@ pub fn list_repositories(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let path = store_path(app)?;
     let mut repositories = read_store(&path)?.repositories;
-    repositories.sort_by(|left, right| right.last_opened_at.cmp(&left.last_opened_at));
+    sort_repositories(&mut repositories);
     Ok(repositories)
 }
 
@@ -107,27 +147,9 @@ pub fn add_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
-    let normalized = normalize_path(&path)?;
-    let normalized_str = normalized.to_string_lossy().to_string();
-
-    if store
-        .repositories
-        .iter()
-        .any(|repository| repository.path == normalized_str)
-    {
-        return Err(AppError::new("repository_exists", "该仓库已存在于列表中"));
-    }
-
-    let repository = RepositorySummary {
-        name: repository_name(&normalized),
-        path: normalized_str.clone(),
-        last_opened_at: now_millis(),
-    };
-
-    store.repositories.push(repository.clone());
-    store.current_path = Some(normalized_str);
+    let repository_path = git::resolve_repository_path(&path)?;
+    let repository = add_repository_to_store(&mut store, &repository_path, now_millis())?;
     write_store(&config_path, &store)?;
-
     Ok(repository)
 }
 
@@ -139,15 +161,7 @@ pub fn set_current_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
-
-    let repository = store
-        .repositories
-        .iter_mut()
-        .find(|repository| repository.path == path)
-        .ok_or_else(|| AppError::new("repository_not_found", "仓库不存在"))?;
-
-    repository.last_opened_at = now_millis();
-    store.current_path = Some(path);
+    set_current_repository_in_store(&mut store, &path, now_millis())?;
     write_store(&config_path, &store)
 }
 
@@ -158,11 +172,177 @@ pub fn get_current_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let store = read_store(&config_path)?;
+    Ok(find_current_repository(&store))
+}
 
-    Ok(store.current_path.as_ref().and_then(|path| {
-        store
-            .repositories
-            .into_iter()
-            .find(|repository| &repository.path == path)
-    }))
+#[cfg(test)]
+mod tests {
+    use super::{
+        add_repository_to_store, find_current_repository, read_store,
+        set_current_repository_in_store, sort_repositories, write_store,
+    };
+    use crate::models::{RepositoryConfig, RepositorySummary};
+    use std::{
+        env, fs,
+        path::{Path, PathBuf},
+        process::Command,
+        sync::atomic::{AtomicUsize, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    static NEXT_TEST_ID: AtomicUsize = AtomicUsize::new(1);
+
+    struct TestDir {
+        path: PathBuf,
+    }
+
+    impl TestDir {
+        fn new(prefix: &str) -> Self {
+            let suffix = NEXT_TEST_ID.fetch_add(1, Ordering::SeqCst);
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default();
+            let path = env::temp_dir().join(format!(
+                "tickgit-{prefix}-{}-{timestamp}-{suffix}",
+                std::process::id()
+            ));
+
+            fs::create_dir_all(&path).expect("create temp test directory");
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn run_git(path: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(path)
+            .args(args)
+            .output()
+            .expect("run git command");
+
+        if !output.status.success() {
+            panic!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+
+    fn init_repo() -> TestDir {
+        let repo = TestDir::new("repo-store");
+        run_git(&repo.path, &["init"]);
+        run_git(&repo.path, &["config", "user.name", "TickGit Tests"]);
+        run_git(
+            &repo.path,
+            &["config", "user.email", "tickgit-tests@example.com"],
+        );
+        repo
+    }
+
+    fn repository(path: &str, last_opened_at: i64) -> RepositorySummary {
+        RepositorySummary {
+            name: Path::new(path)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            path: path.to_string(),
+            last_opened_at,
+        }
+    }
+
+    #[test]
+    fn reads_and_writes_store_file() {
+        let temp = TestDir::new("store-file");
+        let store_path = temp.path.join("repositories.json");
+        let store = RepositoryConfig {
+            repositories: vec![repository("/tmp/repo-a", 20)],
+            current_path: Some("/tmp/repo-a".to_string()),
+        };
+
+        write_store(&store_path, &store).unwrap();
+        let loaded = read_store(&store_path).unwrap();
+
+        assert_eq!(loaded.repositories.len(), 1);
+        assert_eq!(loaded.current_path.as_deref(), Some("/tmp/repo-a"));
+    }
+
+    #[test]
+    fn sorts_repositories_by_last_opened_at_descending() {
+        let mut repositories = vec![
+            repository("/tmp/repo-a", 10),
+            repository("/tmp/repo-b", 30),
+            repository("/tmp/repo-c", 20),
+        ];
+
+        sort_repositories(&mut repositories);
+
+        let paths = repositories
+            .iter()
+            .map(|repository| repository.path.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(paths, vec!["/tmp/repo-b", "/tmp/repo-c", "/tmp/repo-a"]);
+    }
+
+    #[test]
+    fn rejects_duplicate_repository_paths() {
+        let repo = init_repo();
+        let mut store = RepositoryConfig::default();
+        let opened_at = 100;
+
+        add_repository_to_store(&mut store, &repo.path, opened_at).unwrap();
+        let error = add_repository_to_store(&mut store, &repo.path, opened_at).unwrap_err();
+
+        assert_eq!(error.code, "repository_exists");
+        assert_eq!(error.message, "该仓库已存在于列表中");
+    }
+
+    #[test]
+    fn tracks_current_repository_after_add_and_set() {
+        let repo_a = init_repo();
+        let repo_b = init_repo();
+        let mut store = RepositoryConfig::default();
+
+        let repo_a_summary = add_repository_to_store(&mut store, &repo_a.path, 10).unwrap();
+        let repo_b_summary = add_repository_to_store(&mut store, &repo_b.path, 20).unwrap();
+
+        assert_eq!(
+            find_current_repository(&store).map(|repository| repository.path),
+            Some(repo_b_summary.path.clone())
+        );
+
+        set_current_repository_in_store(&mut store, &repo_a_summary.path, 30).unwrap();
+
+        let current = find_current_repository(&store).unwrap();
+        assert_eq!(current.path, repo_a_summary.path);
+        assert_eq!(current.last_opened_at, 30);
+    }
+
+    #[test]
+    fn returns_none_when_current_repository_missing() {
+        let store = RepositoryConfig {
+            repositories: vec![repository("/tmp/repo-a", 10)],
+            current_path: Some("/tmp/missing".to_string()),
+        };
+
+        assert!(find_current_repository(&store).is_none());
+    }
+
+    #[test]
+    fn rejects_setting_unknown_current_repository() {
+        let mut store = RepositoryConfig {
+            repositories: vec![repository("/tmp/repo-a", 10)],
+            current_path: None,
+        };
+
+        let error = set_current_repository_in_store(&mut store, "/tmp/repo-b", 20).unwrap_err();
+
+        assert_eq!(error.code, "repository_not_found");
+        assert_eq!(error.message, "仓库不存在");
+    }
 }
