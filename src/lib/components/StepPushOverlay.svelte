@@ -13,17 +13,17 @@
     class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4"
   >
     <div
-      class="w-full max-w-xl rounded-md border border-[#3d444d] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/30"
+      class="w-full max-w-xl rounded-sm border border-[#444c56] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/35"
     >
       <div class="flex items-center justify-between gap-4">
         <div>
           <div class="text-sm font-semibold text-white">
             {#if state.status === "finished"}
-              分步提交已完成
+              Step push finished
             {:else if state.status === "failed"}
-              分步提交失败
+              Step push failed
             {:else}
-              正在分步提交 Commit
+              Step pushing commits
             {/if}
           </div>
           <div class="mt-1 text-xs text-slate-400">
@@ -46,7 +46,7 @@
         </div>
       </div>
 
-      <div class="mt-4 h-2 overflow-hidden rounded-sm bg-[#22272e]">
+      <div class="mt-4 h-2 overflow-hidden rounded-sm bg-[#24292f]">
         <div
           class={`h-full rounded-sm transition-all duration-300 ${
             state.status === "failed"

@@ -10,7 +10,7 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background: #1f2428;
+  background: #2b3036;
   color: #e6edf3;
 }
 
@@ -24,7 +24,7 @@ body,
 body {
   min-height: 100vh;
   overflow: hidden;
-  background: #1f2428;
+  background: #2b3036;
 }
 
 button,
@@ -48,15 +48,15 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #22272e;
+  background: #2d333b;
 }
 
 ::-webkit-scrollbar-thumb {
-  border: 2px solid #22272e;
+  border: 2px solid #2d333b;
   border-radius: 999px;
-  background: #4b5563;
+  background: #545d68;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #6e7681;
 }
