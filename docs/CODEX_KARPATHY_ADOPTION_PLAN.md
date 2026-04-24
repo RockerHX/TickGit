@@ -2,6 +2,8 @@
 
 ## 1. 文档目的
 
+https://github.com/forrestchang/andrej-karpathy-skills
+
 本文档用于规划 TickGit 项目中对 `andrej-karpathy-skills` 思路的引入方式，目标是：
 
 - 先在真实项目中低成本试用
