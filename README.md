@@ -23,6 +23,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 ## 技术栈
 
 - 前端：SvelteKit + TypeScript + TailwindCSS 4
+- 前端适配：使用 `@sveltejs/adapter-static`，产物以纯静态资源方式提供，不依赖 Node.js SSR 运行时
 - 桌面壳：Tauri 2
 - 后端：Rust
 - Git 执行方式：Rust 使用 `std::process::Command` 调用系统原生 `git`
