@@ -15,14 +15,14 @@
   $: diffLines = diffText ? diffText.split("\n") : [];
 </script>
 
-<div
-  class="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/70"
->
-  <div class="border-b border-slate-800 px-6 py-5">
+<div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#22272e]">
+  <div class="border-b border-[#30363d] bg-[#22272e] px-5 py-4">
     {#if commit}
       <div class="flex items-start justify-between gap-6">
         <div class="min-w-0">
-          <div class="text-xl font-semibold text-white">{commit.summary}</div>
+          <div class="text-[1.6rem] font-semibold text-[#f0f6fc]">
+            {commit.summary}
+          </div>
           <div
             class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-400"
           >
@@ -32,12 +32,14 @@
           </div>
         </div>
         <div
-          class="rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-right"
+          class="min-w-[280px] rounded-md border border-[#30363d] bg-[#1f2428] px-3 py-2 text-right"
         >
-          <div class="text-[11px] uppercase tracking-[0.24em] text-slate-500">
+          <div class="text-[11px] uppercase tracking-[0.22em] text-slate-500">
             Commit
           </div>
-          <div class="mt-1 font-mono text-sm text-slate-200">{commit.hash}</div>
+          <div class="mt-1 truncate font-mono text-sm text-slate-200">
+            {commit.hash}
+          </div>
         </div>
       </div>
     {:else}
@@ -45,40 +47,40 @@
     {/if}
   </div>
 
-  <div class="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)]">
-    <div class="min-h-0 border-r border-slate-800">
+  <div class="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)]">
+    <div class="flex min-h-0 flex-col border-r border-[#30363d] bg-[#22272e]">
       <div
-        class="border-b border-slate-800 px-4 py-3 text-sm font-semibold text-white"
+        class="border-b border-[#30363d] px-4 py-3 text-sm font-semibold text-[#f0f6fc]"
       >
-        变更文件
+        {files.length} changed files
       </div>
-      <div class="h-full overflow-y-auto p-3">
+      <div class="min-h-0 flex-1 overflow-y-auto">
         {#if loadingFiles}
-          <div class="px-2 py-4 text-sm text-slate-400">正在读取文件变更…</div>
+          <div class="px-4 py-4 text-sm text-slate-400">正在读取文件变更…</div>
         {:else if files.length === 0}
           <div
-            class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 px-4 py-8 text-center text-sm text-slate-500"
+            class="m-4 border border-dashed border-[#3d444d] bg-[#1f2428] px-4 py-8 text-center text-sm text-slate-500"
           >
             当前 Commit 没有可展示的文件变更
           </div>
         {:else}
-          <div class="space-y-2">
+          <div>
             {#each files as file (file.path + file.status)}
               <button
-                class={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                class={`w-full border-b border-[#30363d] px-4 py-3 text-left transition ${
                   selectedFilePath === file.path
-                    ? "border-sky-400/40 bg-sky-500/10"
-                    : "border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-900/80"
+                    ? "bg-[#1f6feb]/20"
+                    : "bg-transparent hover:bg-[#2d333b]"
                 }`}
                 on:click={() => dispatch("selectFile", { path: file.path })}
               >
                 <div class="flex items-start gap-3">
                   <span
-                    class={`rounded-full border px-2 py-1 text-[11px] font-medium ${statusTone(file.status)}`}
+                    class={`mt-0.5 rounded-sm border px-2 py-0.5 text-[11px] font-medium ${statusTone(file.status)}`}
                   >
                     {file.status}
                   </span>
-                  <span class="break-all text-sm text-slate-200"
+                  <span class="break-all text-sm leading-5 text-slate-200"
                     >{file.displayPath}</span
                   >
                 </div>
@@ -89,32 +91,39 @@
       </div>
     </div>
 
-    <div class="min-h-0 overflow-y-auto">
+    <div class="flex min-h-0 flex-col bg-[#1f2428]">
       <div
-        class="border-b border-slate-800 px-4 py-3 text-sm font-semibold text-white"
+        class="flex items-center justify-between gap-3 border-b border-[#30363d] px-4 py-3 text-sm"
       >
-        Diff
+        <div class="truncate font-semibold text-[#f0f6fc]">
+          {selectedFilePath ?? "Diff"}
+        </div>
+        <div class="shrink-0 text-xs uppercase tracking-[0.18em] text-slate-500">
+          Diff
+        </div>
       </div>
-      <div class="p-4">
+      <div class="min-h-0 flex-1 overflow-auto">
         {#if loadingDiff}
-          <div class="text-sm text-slate-400">正在加载 Diff…</div>
+          <div class="px-4 py-4 text-sm text-slate-400">正在加载 Diff…</div>
         {:else if !selectedFilePath}
           <div
-            class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 px-4 py-10 text-center text-sm text-slate-500"
+            class="m-4 border border-dashed border-[#3d444d] bg-[#22272e] px-4 py-10 text-center text-sm text-slate-500"
           >
             选择一个文件查看具体代码差异
           </div>
         {:else if !diffText}
           <div
-            class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 px-4 py-10 text-center text-sm text-slate-500"
+            class="m-4 border border-dashed border-[#3d444d] bg-[#22272e] px-4 py-10 text-center text-sm text-slate-500"
           >
             当前文件没有可显示的 Diff 内容
           </div>
         {:else}
           <pre
-            class="overflow-x-auto rounded-3xl border border-slate-800 bg-[#020617] p-4 text-[12px] leading-6">
+            class="min-h-full overflow-x-auto bg-[#1f2428] text-[12px] leading-6 text-slate-300">
             {#each diffLines as line}
-              <div class={`px-3 ${diffLineClass(line)}`}>{line || " "}</div>
+              <div class={`border-b border-[#2d333b]/70 px-4 py-0.5 ${diffLineClass(line)}`}>
+                {line || " "}
+              </div>
             {/each}
           </pre>
         {/if}

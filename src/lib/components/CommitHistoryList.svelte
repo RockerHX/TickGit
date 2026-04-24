@@ -38,11 +38,24 @@
   }
 </script>
 
-<div
-  class="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/70"
->
-  <div class="border-b border-slate-800 px-5 py-4">
-    <div class="text-sm font-semibold text-white">Commit 历史</div>
+<div class="flex h-full min-h-0 flex-col overflow-hidden border-r border-[#30363d] bg-[#22272e]">
+  <div class="border-b border-[#30363d]">
+    <div class="grid grid-cols-2">
+      <div
+        class="border-b border-[#30363d] px-4 py-3 text-center text-sm font-medium text-slate-500"
+      >
+        Changes
+      </div>
+      <div
+        class="border-b-2 border-[#2f81f7] px-4 py-3 text-center text-sm font-semibold text-[#f0f6fc]"
+      >
+        History
+      </div>
+    </div>
+  </div>
+
+  <div class="border-b border-[#30363d] px-4 py-3">
+    <div class="text-sm font-semibold text-[#f0f6fc]">Commit 历史</div>
     <div class="mt-1 text-xs text-slate-400">
       {#if branchStatus?.pushAvailable}
         未推送 {branchStatus.aheadCount} 条 · 落后 {branchStatus.behindCount} 条
@@ -53,33 +66,31 @@
   </div>
 
   <div
-    class="min-h-0 flex-1 overflow-y-auto px-3 py-3"
+    class="min-h-0 flex-1 overflow-y-auto"
     on:scroll={handleScroll}
   >
     {#if commits.length === 0 && !loading}
       <div
-        class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 px-4 py-10 text-center text-sm text-slate-500"
+        class="m-4 border border-dashed border-[#3d444d] bg-[#1f2428] px-4 py-10 text-center text-sm text-slate-500"
       >
         当前仓库暂无提交记录
       </div>
     {/if}
 
-    <div class="space-y-2">
+    <div>
       {#each commits as commit (commit.hash)}
         <button
-          class={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+          class={`w-full border-b border-[#30363d] px-4 py-3 text-left transition ${
             selectedHash === commit.hash
-              ? "border-sky-400/50 bg-sky-500/10 shadow-lg shadow-sky-950/20"
-              : commit.isPushed
-                ? "border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/80"
-                : "border-amber-500/30 bg-amber-500/10 hover:border-amber-400/40 hover:bg-amber-500/14"
+              ? "bg-[#1f6feb]/30"
+              : "bg-transparent hover:bg-[#2d333b]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <div class="truncate text-sm font-semibold text-white">
+              <div class="truncate text-sm font-semibold text-[#f0f6fc]">
                 {commit.summary}
               </div>
               <div
@@ -89,15 +100,15 @@
                 <span>•</span>
                 <span>{formatRelativeDate(commit.committedAt)}</span>
                 <span>•</span>
-                <span class="font-mono">{commit.shortHash}</span>
+                <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
             </div>
 
             <span
-              class={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${
+              class={`mt-0.5 shrink-0 rounded-sm border px-2 py-0.5 text-[11px] font-medium ${
                 commit.isPushed
-                  ? "bg-slate-800 text-slate-300"
-                  : "bg-amber-500/20 text-amber-200"
+                  ? "border-[#3d444d] bg-[#2d333b] text-slate-300"
+                  : "border-[#8b6d1f] bg-[#3d2d13] text-[#f2cc60]"
               }`}
             >
               {commit.isPushed ? "已推送" : "未推送"}
@@ -108,7 +119,7 @@
     </div>
 
     {#if loading}
-      <div class="px-2 py-4 text-center text-xs text-slate-400">
+      <div class="px-4 py-4 text-center text-xs text-slate-400">
         正在加载提交历史…
       </div>
     {/if}
