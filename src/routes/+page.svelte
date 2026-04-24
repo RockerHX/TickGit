@@ -58,6 +58,8 @@
 
   let dragActive = false;
   let isPushing = false;
+  let isResizingLayout = false;
+  let leftPaneWidth = 360;
 
   let toasts: ToastItem[] = [];
   let toastId = 1;
@@ -69,6 +71,9 @@
     y: 0,
     commit: null as CommitListItem | null,
   };
+
+  const MIN_LEFT_PANE_WIDTH = 320;
+  const MAX_LEFT_PANE_WIDTH = 760;
 
   function notify(
     title: string,
@@ -344,6 +349,19 @@
     }
   }
 
+  function clampLeftPaneWidth(value: number) {
+    return Math.min(Math.max(value, MIN_LEFT_PANE_WIDTH), MAX_LEFT_PANE_WIDTH);
+  }
+
+  function startLayoutResize(event: MouseEvent) {
+    isResizingLayout = true;
+    applyLayoutResize(event.clientX);
+  }
+
+  function applyLayoutResize(pointerX: number) {
+    leftPaneWidth = clampLeftPaneWidth(pointerX);
+  }
+
   onMount(() => {
     const disposers: Array<() => void> = [];
 
@@ -401,6 +419,21 @@
       );
     })();
 
+    const handlePointerMove = (event: MouseEvent) => {
+      if (!isResizingLayout) {
+        return;
+      }
+
+      applyLayoutResize(event.clientX);
+    };
+
+    const stopLayoutResize = () => {
+      isResizingLayout = false;
+    };
+
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("mouseup", stopLayoutResize);
+
     const closeMenu = () => closeContextMenu();
     window.addEventListener("click", closeMenu);
 
@@ -408,6 +441,8 @@
       for (const dispose of disposers) {
         dispose();
       }
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("mouseup", stopLayoutResize);
       window.removeEventListener("click", closeMenu);
     };
   });
@@ -435,16 +470,11 @@
 <main class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200">
   <header class="shrink-0 border-b border-[#1f2328] bg-[#24292f]">
     <div
-      class="grid grid-cols-[minmax(0,1.45fr)_minmax(300px,0.82fr)_auto] items-stretch"
+      class="grid items-stretch"
+      style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) 1px minmax(280px,max-content) auto;`}
     >
       <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
         <div class="flex items-center gap-3">
-          <div class="flex h-9 w-9 items-center justify-center text-slate-300">
-            <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current" aria-hidden="true">
-              <path d="M2.5 3.75A1.75 1.75 0 0 1 4.25 2h7.5A1.75 1.75 0 0 1 13.5 3.75v8.5A1.75 1.75 0 0 1 11.75 14h-7.5A1.75 1.75 0 0 1 2.5 12.25Zm1.5 0v8.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-7.5a.25.25 0 0 0-.25.25Z"></path>
-              <path d="M5.25 4.75A.75.75 0 0 1 6 4h4a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75Z"></path>
-            </svg>
-          </div>
           <div class="min-w-0 flex-1">
             <div
               class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
@@ -459,6 +489,15 @@
           </div>
         </div>
       </div>
+
+      <button
+        class={`w-px cursor-col-resize bg-[#1f2328] transition hover:bg-[#2f81f7] ${
+          isResizingLayout ? "bg-[#2f81f7]" : ""
+        }`}
+        type="button"
+        aria-label="Resize repository and history panels"
+        on:mousedown={startLayoutResize}
+      ></button>
 
       <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
         <div class="flex items-center gap-3">
@@ -483,7 +522,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3 px-4 py-3">
+      <div class="flex items-center px-4 py-3">
         <button
           class="flex h-9 min-w-[176px] items-center gap-2 rounded-sm border border-[#1b6ac9] bg-[#2f81f7] px-3 text-left text-[#f0f6fc] transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#444c56] disabled:bg-[#373e47] disabled:text-slate-500"
           disabled={!branchStatus?.pushAvailable ||
@@ -518,7 +557,10 @@
     {/if}
   </header>
 
-  <section class="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] bg-[#2b3036]">
+  <section
+    class="grid min-h-0 flex-1 bg-[#2b3036]"
+    style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) minmax(0,1fr);`}
+  >
     <CommitHistoryList
       {commits}
       selectedHash={selectedCommit?.hash ?? null}
