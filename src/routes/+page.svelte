@@ -14,8 +14,20 @@
     listenStepPushFinished,
     listenStepPushProgress,
   } from "$lib/tauri/events";
+  import {
+    fetchCommitDetails,
+    fetchRepositoryIndex,
+    fetchRepositorySnapshot,
+  } from "$lib/tickgit/page-data";
+  import {
+    buildStepPushHashes,
+    createToastItem,
+    getErrorMessage,
+    toFailedStepPushState,
+    toFinishedStepPushState,
+    toRunningStepPushState,
+  } from "$lib/tickgit/page-helpers";
   import type {
-    AppError,
     BranchStatus,
     CommitFileChange,
     CommitListItem,
@@ -64,37 +76,19 @@
     tone: ToastItem["tone"] = "info",
   ) {
     const id = toastId++;
-    toasts = [...toasts, { id, title, message, tone }];
+    toasts = [...toasts, createToastItem(id, title, message, tone)];
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
-  }
-
-  function getErrorMessage(error: unknown) {
-    if (typeof error === "string") {
-      return error;
-    }
-
-    if (error && typeof error === "object") {
-      const appError = error as Partial<AppError>;
-      if (typeof appError.message === "string") {
-        return appError.message;
-      }
-
-      if ("toString" in error && typeof error.toString === "function") {
-        return error.toString();
-      }
-    }
-
-    return "未知错误";
   }
 
   async function bootstrap() {
     loadingRepository = true;
 
     try {
-      repositories = await api.listRepositories();
-      currentRepository = await api.getCurrentRepository();
+      const repositoryIndex = await fetchRepositoryIndex(api);
+      repositories = repositoryIndex.repositories;
+      currentRepository = repositoryIndex.currentRepository;
 
       if (currentRepository) {
         await loadRepositoryState(currentRepository.path);
@@ -107,8 +101,9 @@
   }
 
   async function refreshRepositories() {
-    repositories = await api.listRepositories();
-    currentRepository = await api.getCurrentRepository();
+    const repositoryIndex = await fetchRepositoryIndex(api);
+    repositories = repositoryIndex.repositories;
+    currentRepository = repositoryIndex.currentRepository;
   }
 
   async function switchRepository(path: string) {
@@ -128,36 +123,22 @@
     loadingRepository = true;
 
     try {
-      branchStatus = await api.getBranchStatus(path);
-      commits = [];
-      nextSkip = 0;
-      hasMore = false;
-      await loadHistory(false);
+      const snapshot = await fetchRepositorySnapshot(
+        api,
+        path,
+        PAGE_SIZE,
+        keepSelection,
+        selectedCommit?.hash ?? null,
+      );
 
-      while (
-        branchStatus?.aheadCount &&
-        commits.length < branchStatus.aheadCount &&
-        hasMore
-      ) {
-        await loadHistory(true);
-      }
-
-      if (!keepSelection) {
-        selectedCommit = commits[0] ?? null;
-      } else if (selectedCommit) {
-        selectedCommit =
-          commits.find((item) => item.hash === selectedCommit?.hash) ??
-          commits[0] ??
-          null;
-      }
-
-      if (selectedCommit) {
-        await loadCommitFiles(selectedCommit.hash);
-      } else {
-        commitFiles = [];
-        selectedFilePath = null;
-        diffText = "";
-      }
+      branchStatus = snapshot.branchStatus;
+      commits = snapshot.commits;
+      nextSkip = snapshot.nextSkip;
+      hasMore = snapshot.hasMore;
+      selectedCommit = snapshot.selectedCommit;
+      commitFiles = snapshot.commitFiles;
+      selectedFilePath = snapshot.selectedFilePath;
+      diffText = snapshot.diffText;
     } catch (error) {
       notify("读取仓库失败", getErrorMessage(error), "error");
     } finally {
@@ -203,12 +184,14 @@
     diffText = "";
 
     try {
-      commitFiles = await api.getCommitFiles(currentRepository.path, hash);
-      selectedFilePath = commitFiles[0]?.path ?? null;
-
-      if (selectedFilePath) {
-        await loadDiff(selectedFilePath);
-      }
+      const details = await fetchCommitDetails(
+        api,
+        currentRepository.path,
+        hash,
+      );
+      commitFiles = details.commitFiles;
+      selectedFilePath = details.selectedFilePath;
+      diffText = details.diffText;
     } catch (error) {
       notify("读取 Commit 详情失败", getErrorMessage(error), "error");
     } finally {
@@ -334,20 +317,12 @@
       return;
     }
 
-    const unpushedCommits = commits.filter((item) => !item.isPushed);
-    const targetIndex = unpushedCommits.findIndex(
-      (item) => item.hash === commit.hash,
-    );
+    const hashes = buildStepPushHashes(commits, commit.hash);
 
-    if (targetIndex === -1) {
+    if (!hashes) {
       notify("无法分步提交", "目标 Commit 不在未推送列表中", "error");
       return;
     }
-
-    const hashes = unpushedCommits
-      .slice(targetIndex)
-      .reverse()
-      .map((item) => item.hash);
 
     try {
       const started = await api.startStepPush({
@@ -391,25 +366,13 @@
 
       disposers.push(
         await listenStepPushProgress((payload) => {
-          stepPushState = {
-            jobId: payload.jobId,
-            current: payload.current,
-            total: payload.total,
-            hash: payload.hash,
-            status: "running",
-          };
+          stepPushState = toRunningStepPushState(payload);
         }),
       );
 
       disposers.push(
         await listenStepPushFinished((payload) => {
-          stepPushState = {
-            jobId: payload.jobId,
-            current: payload.total,
-            total: payload.total,
-            hash: stepPushState?.hash ?? "",
-            status: "finished",
-          };
+          stepPushState = toFinishedStepPushState(payload, stepPushState);
 
           notify("分步提交完成", "所有目标 Commit 已按顺序推送", "success");
 
@@ -427,14 +390,7 @@
 
       disposers.push(
         await listenStepPushFailed((payload) => {
-          stepPushState = {
-            jobId: payload.jobId,
-            current: payload.current,
-            total: payload.total,
-            hash: payload.hash,
-            status: "failed",
-            message: payload.message,
-          };
+          stepPushState = toFailedStepPushState(payload);
 
           notify("分步提交失败", payload.message, "error");
 
