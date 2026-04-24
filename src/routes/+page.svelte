@@ -432,25 +432,25 @@
   on:close={closeContextMenu}
 />
 
-<main class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#1f2428] text-slate-200">
-  <header class="shrink-0 border-b border-[#30363d] bg-[#24292f]">
+<main class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200">
+  <header class="shrink-0 border-b border-[#1f2328] bg-[#24292f]">
     <div
-      class="grid grid-cols-[minmax(0,1.35fr)_minmax(260px,0.7fr)_auto] items-stretch"
+      class="grid grid-cols-[minmax(0,1.45fr)_minmax(300px,0.82fr)_auto] items-stretch"
     >
-      <div class="min-w-0 border-r border-[#30363d] px-5 py-3">
-        <div class="flex items-center gap-4">
-          <div class="min-w-0">
-            <div
-              class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
-            >
-              TickGit
-            </div>
-            <div class="mt-0.5 truncate text-xl font-semibold text-[#f0f6fc]">
-              {currentRepository?.name ?? "未选择仓库"}
-            </div>
+      <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center text-slate-300">
+            <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current" aria-hidden="true">
+              <path d="M2.5 3.75A1.75 1.75 0 0 1 4.25 2h7.5A1.75 1.75 0 0 1 13.5 3.75v8.5A1.75 1.75 0 0 1 11.75 14h-7.5A1.75 1.75 0 0 1 2.5 12.25Zm1.5 0v8.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-7.5a.25.25 0 0 0-.25.25Z"></path>
+              <path d="M5.25 4.75A.75.75 0 0 1 6 4h4a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75Z"></path>
+            </svg>
           </div>
-
           <div class="min-w-0 flex-1">
+            <div
+              class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+            >
+              Current Repository
+            </div>
             <RepositorySwitcher
               {repositories}
               currentPath={currentRepository?.path ?? null}
@@ -460,49 +460,65 @@
         </div>
       </div>
 
-      <div class="min-w-0 border-r border-[#30363d] px-5 py-3">
-        <div
-          class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
-        >
-          Current Branch
-        </div>
-        <div class="mt-0.5 truncate text-base font-semibold text-[#f0f6fc]">
-          {branchStatus?.branch ?? "N/A"}
-        </div>
-        <div class="mt-1 truncate text-xs text-slate-400">
-          {branchStatus?.upstream ?? "未配置 upstream"}
+      <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center text-slate-300">
+            <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current" aria-hidden="true">
+              <path d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"></path>
+            </svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div
+              class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+            >
+              Current Branch
+            </div>
+            <div class="mt-0.5 truncate text-[1.05rem] font-semibold text-[#f0f6fc]">
+              {branchStatus?.branch ?? "N/A"}
+            </div>
+            <div class="mt-0.5 truncate text-xs text-slate-400">
+              {branchStatus?.upstream ?? "No upstream configured"}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-3 px-5 py-3">
+      <div class="flex items-center gap-3 px-4 py-3">
         <button
-          class="flex h-11 min-w-[170px] flex-col items-start justify-center rounded-md border border-[#0969da] bg-[#2f81f7] px-4 text-left text-[#f0f6fc] transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#3d444d] disabled:bg-[#2d333b] disabled:text-slate-500"
+          class="flex h-9 min-w-[176px] items-center gap-2 rounded-sm border border-[#1b6ac9] bg-[#2f81f7] px-3 text-left text-[#f0f6fc] transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#444c56] disabled:bg-[#373e47] disabled:text-slate-500"
           disabled={!branchStatus?.pushAvailable ||
             branchStatus.aheadCount === 0 ||
             isPushing ||
             stepPushState?.status === "running"}
           on:click={pushCurrentBranch}
         >
+          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" aria-hidden="true">
+            <path d="M8 1.75a.75.75 0 0 1 .75.75v7.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22V2.5A.75.75 0 0 1 8 1.75Z"></path>
+          </svg>
           <span class="text-sm font-semibold">
             {isPushing ? "Pushing…" : "Push origin"}
           </span>
-          <span class="text-[11px] text-slate-100/80">
-            未推送 {branchStatus?.aheadCount ?? 0} 条
-          </span>
+          {#if branchStatus?.aheadCount}
+            <span
+              class="ml-1 rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-semibold text-slate-100"
+            >
+              {branchStatus.aheadCount}
+            </span>
+          {/if}
         </button>
       </div>
     </div>
 
     {#if branchStatus && !branchStatus.pushAvailable}
       <div
-        class="border-t border-[#30363d] bg-[#2d1f20] px-5 py-2 text-sm text-amber-100"
+        class="border-t border-[#1f2328] bg-[#48322a] px-4 py-2 text-sm text-amber-100"
       >
         {branchStatus.disabledReason}
       </div>
     {/if}
   </header>
 
-  <section class="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
+  <section class="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] bg-[#2b3036]">
     <CommitHistoryList
       {commits}
       selectedHash={selectedCommit?.hash ?? null}
