@@ -1,0 +1,92 @@
+use tauri::{AppHandle, State};
+
+use crate::{
+    error::AppResult,
+    git, jobs,
+    models::{
+        BranchStatus, CommitFileChange, CommitHistoryPage, RepositorySummary, StepPushJobStarted,
+        StepPushRequest,
+    },
+    repo_store::{self, RepositoryStoreState},
+};
+
+#[tauri::command]
+pub fn list_repositories(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+) -> AppResult<Vec<RepositorySummary>> {
+    repo_store::list_repositories(&app, state)
+}
+
+#[tauri::command]
+pub fn add_repository(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    path: String,
+) -> AppResult<RepositorySummary> {
+    repo_store::add_repository(&app, state, path)
+}
+
+#[tauri::command]
+pub fn set_current_repository(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    path: String,
+) -> AppResult<()> {
+    repo_store::set_current_repository(&app, state, path)
+}
+
+#[tauri::command]
+pub fn get_current_repository(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+) -> AppResult<Option<RepositorySummary>> {
+    repo_store::get_current_repository(&app, state)
+}
+
+#[tauri::command]
+pub fn get_branch_status(repo_path: String, branch: Option<String>) -> AppResult<BranchStatus> {
+    git::get_branch_status(&repo_path, branch)
+}
+
+#[tauri::command]
+pub fn get_commit_history(
+    repo_path: String,
+    skip: usize,
+    limit: usize,
+) -> AppResult<CommitHistoryPage> {
+    git::get_commit_history(&repo_path, skip, limit)
+}
+
+#[tauri::command]
+pub fn get_commit_files(repo_path: String, hash: String) -> AppResult<Vec<CommitFileChange>> {
+    git::get_commit_files(&repo_path, &hash)
+}
+
+#[tauri::command]
+pub fn get_commit_file_diff(
+    repo_path: String,
+    hash: String,
+    file_path: String,
+) -> AppResult<String> {
+    git::get_commit_file_diff(&repo_path, &hash, &file_path)
+}
+
+#[tauri::command]
+pub fn push_current_branch(repo_path: String) -> AppResult<()> {
+    git::push_current_branch(&repo_path)
+}
+
+#[tauri::command]
+pub fn push_to_commit(repo_path: String, branch: String, hash: String) -> AppResult<()> {
+    git::push_to_commit(&repo_path, &branch, &hash)
+}
+
+#[tauri::command]
+pub fn start_step_push(
+    app: AppHandle,
+    jobs: State<'_, jobs::StepPushManager>,
+    request: StepPushRequest,
+) -> AppResult<StepPushJobStarted> {
+    jobs::start_step_push(app, jobs, request)
+}
