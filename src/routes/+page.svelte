@@ -432,74 +432,77 @@
   on:close={closeContextMenu}
 />
 
-<main class="flex h-screen flex-col bg-transparent px-5 py-5 text-slate-200">
-  <header
-    class="mb-5 rounded-[28px] border border-slate-800/80 bg-slate-950/70 px-5 py-4 shadow-2xl shadow-slate-950/50 backdrop-blur"
-  >
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-4">
-        <div>
-          <div
-            class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500"
-          >
-            TickGit
+<main class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#1f2428] text-slate-200">
+  <header class="shrink-0 border-b border-[#30363d] bg-[#24292f]">
+    <div
+      class="grid grid-cols-[minmax(0,1.35fr)_minmax(260px,0.7fr)_auto] items-stretch"
+    >
+      <div class="min-w-0 border-r border-[#30363d] px-5 py-3">
+        <div class="flex items-center gap-4">
+          <div class="min-w-0">
+            <div
+              class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+            >
+              TickGit
+            </div>
+            <div class="mt-0.5 truncate text-xl font-semibold text-[#f0f6fc]">
+              {currentRepository?.name ?? "未选择仓库"}
+            </div>
           </div>
-          <div class="mt-1 text-2xl font-semibold text-white">
-            {currentRepository?.name ?? "未选择仓库"}
+
+          <div class="min-w-0 flex-1">
+            <RepositorySwitcher
+              {repositories}
+              currentPath={currentRepository?.path ?? null}
+              on:change={(event) => switchRepository(event.detail.path)}
+            />
           </div>
         </div>
-
-        <RepositorySwitcher
-          {repositories}
-          currentPath={currentRepository?.path ?? null}
-          on:change={(event) => switchRepository(event.detail.path)}
-        />
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="min-w-0 border-r border-[#30363d] px-5 py-3">
         <div
-          class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3"
+          class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
         >
-          <div
-            class="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500"
-          >
-            Branch
-          </div>
-          <div class="mt-1 text-sm font-medium text-white">
-            {branchStatus?.branch ?? "N/A"}
-          </div>
-          {#if branchStatus?.upstream}
-            <div class="mt-1 text-xs text-slate-400">
-              {branchStatus.upstream}
-            </div>
-          {/if}
+          Current Branch
         </div>
+        <div class="mt-0.5 truncate text-base font-semibold text-[#f0f6fc]">
+          {branchStatus?.branch ?? "N/A"}
+        </div>
+        <div class="mt-1 truncate text-xs text-slate-400">
+          {branchStatus?.upstream ?? "未配置 upstream"}
+        </div>
+      </div>
 
+      <div class="flex items-center gap-3 px-5 py-3">
         <button
-          class="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+          class="flex h-11 min-w-[170px] flex-col items-start justify-center rounded-md border border-[#0969da] bg-[#2f81f7] px-4 text-left text-[#f0f6fc] transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#3d444d] disabled:bg-[#2d333b] disabled:text-slate-500"
           disabled={!branchStatus?.pushAvailable ||
             branchStatus.aheadCount === 0 ||
             isPushing ||
             stepPushState?.status === "running"}
           on:click={pushCurrentBranch}
         >
-          {isPushing
-            ? "Pushing…"
-            : `Push${branchStatus?.aheadCount ? ` (${branchStatus.aheadCount})` : ""}`}
+          <span class="text-sm font-semibold">
+            {isPushing ? "Pushing…" : "Push origin"}
+          </span>
+          <span class="text-[11px] text-slate-100/80">
+            未推送 {branchStatus?.aheadCount ?? 0} 条
+          </span>
         </button>
       </div>
     </div>
 
     {#if branchStatus && !branchStatus.pushAvailable}
       <div
-        class="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+        class="border-t border-[#30363d] bg-[#2d1f20] px-5 py-2 text-sm text-amber-100"
       >
         {branchStatus.disabledReason}
       </div>
     {/if}
   </header>
 
-  <section class="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)] gap-5">
+  <section class="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
     <CommitHistoryList
       {commits}
       selectedHash={selectedCommit?.hash ?? null}
