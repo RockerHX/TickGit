@@ -13,7 +13,7 @@
     class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4"
   >
     <div
-      class="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-4 shadow-2xl shadow-slate-950/70"
+      class="w-full max-w-xl rounded-md border border-[#3d444d] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/30"
     >
       <div class="flex items-center justify-between gap-4">
         <div>
@@ -34,21 +34,21 @@
           {/if}
         </div>
         <div
-          class={`rounded-full px-3 py-1 text-xs font-medium ${
+          class={`rounded-sm border px-3 py-1 text-xs font-medium ${
             state.status === "failed"
-              ? "bg-rose-500/15 text-rose-200"
+              ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
               : state.status === "finished"
-                ? "bg-emerald-500/15 text-emerald-200"
-                : "bg-sky-500/15 text-sky-200"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                : "border-sky-500/40 bg-sky-500/10 text-sky-200"
           }`}
         >
           {Math.round(progress)}%
         </div>
       </div>
 
-      <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+      <div class="mt-4 h-2 overflow-hidden rounded-sm bg-[#22272e]">
         <div
-          class={`h-full rounded-full transition-all duration-300 ${
+          class={`h-full rounded-sm transition-all duration-300 ${
             state.status === "failed"
               ? "bg-rose-400"
               : state.status === "finished"

@@ -3,12 +3,10 @@
 </script>
 
 {#if active}
-  <div
-    class="pointer-events-none fixed inset-0 z-40 bg-sky-500/12 backdrop-blur-[2px]"
-  >
+  <div class="pointer-events-none fixed inset-0 z-40 bg-black/35">
     <div class="flex h-full items-center justify-center p-6">
       <div
-        class="rounded-3xl border border-sky-400/40 bg-slate-950/90 px-10 py-8 text-center shadow-2xl shadow-sky-950/60"
+        class="rounded-lg border border-dashed border-[#2f81f7] bg-[#22272e] px-10 py-8 text-center shadow-lg shadow-black/30"
       >
         <div
           class="text-sm font-semibold uppercase tracking-[0.3em] text-sky-300"

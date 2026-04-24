@@ -22,11 +22,11 @@
     on:click={() => dispatch("close")}
   ></button>
   <div
-    class="fixed z-30 min-w-[220px] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/95 p-1 shadow-2xl shadow-slate-950/70"
+    class="fixed z-30 min-w-[240px] overflow-hidden rounded-md border border-[#3d444d] bg-[#2d333b] p-1 shadow-lg shadow-black/30"
     style={`left:${x}px; top:${y}px;`}
   >
     <button
-      class="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex w-full items-start gap-3 rounded-sm px-3 py-2 text-left transition hover:bg-[#3d444d] disabled:cursor-not-allowed disabled:opacity-40"
       {disabled}
       on:click={() => dispatch("pushToCommit")}
     >
@@ -38,7 +38,7 @@
     </button>
 
     <button
-      class="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex w-full items-start gap-3 rounded-sm px-3 py-2 text-left transition hover:bg-[#3d444d] disabled:cursor-not-allowed disabled:opacity-40"
       {disabled}
       on:click={() => dispatch("stepPush")}
     >

@@ -9,12 +9,12 @@
 >
   {#each toasts as toast (toast.id)}
     <div
-      class={`rounded-2xl border px-4 py-3 shadow-xl backdrop-blur ${
+      class={`rounded-md border px-4 py-3 shadow-lg shadow-black/25 ${
         toast.tone === "error"
-          ? "border-rose-500/30 bg-rose-950/80"
+          ? "border-rose-500/40 bg-[#3a2024]"
           : toast.tone === "success"
-            ? "border-emerald-500/30 bg-emerald-950/70"
-            : "border-slate-700 bg-slate-900/85"
+            ? "border-emerald-500/35 bg-[#1f3328]"
+            : "border-[#3d444d] bg-[#2d333b]"
       }`}
     >
       <div class="text-sm font-semibold text-white">{toast.title}</div>
