@@ -61,6 +61,7 @@
 
 - UI 组件：`src/lib/components/*`
 - 页面编排：`src/routes/+page.svelte`
+- 页面逻辑辅助与纯函数：`src/lib/tickgit/*`
 - Tauri command / event 封装：`src/lib/tauri/*`
 - Git 逻辑：`src-tauri/src/git.rs`
 - 后台任务：`src-tauri/src/jobs.rs`
@@ -84,6 +85,8 @@
 代码改动后，默认按需执行：
 
 ```bash
+pnpm test:run
+cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 pnpm typecheck
 pnpm build
@@ -93,6 +96,12 @@ pnpm format:check
 如果任务非常局部，可以减少验证，但需要在总结中说明原因。
 
 文档改动只需做内容自检和 diff 检查。
+
+当前默认要求：
+
+- 前端纯 TypeScript 逻辑优先补 `Vitest` 单元测试
+- Rust 核心逻辑优先补 `cargo test` 单元测试
+- 不要求为当前项目默认加入 Svelte 组件测试，除非任务明确需要
 
 ---
 

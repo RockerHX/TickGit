@@ -64,10 +64,12 @@ pnpm tauri dev
 ### 常用命令
 
 ```bash
+pnpm test:run
 pnpm typecheck
 pnpm build
 pnpm format
 pnpm format:check
+cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
@@ -79,6 +81,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 │   ├── lib/
 │   │   ├── components/   # UI 组件
 │   │   ├── tauri/        # invoke / event 封装
+│   │   ├── tickgit/      # 页面逻辑辅助与纯函数测试
 │   │   ├── types.ts      # 前后端共享 DTO 对应前端类型
 │   │   └── utils.ts      # 前端展示工具函数
 │   └── routes/+page.svelte
@@ -99,6 +102,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 - 前端只通过 Tauri command / event 与后端通信
 - 不引入复杂 Git C 库或 `libgit2` 方案
 - 修改接口时必须同步更新前后端类型
+- 默认需要同时维护前端纯逻辑单元测试与 Rust 单元测试
 - 只有当规范本身发生变化时才更新文档
 
 ## 后续开发要求
