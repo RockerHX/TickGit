@@ -524,26 +524,36 @@
 
       <div class="flex items-center px-4 py-3">
         <button
-          class="flex h-9 min-w-[176px] items-center gap-2 rounded-sm border border-[#1b6ac9] bg-[#2f81f7] px-3 text-left text-[#f0f6fc] transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#444c56] disabled:bg-[#373e47] disabled:text-slate-500"
+          class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
           disabled={!branchStatus?.pushAvailable ||
             branchStatus.aheadCount === 0 ||
             isPushing ||
             stepPushState?.status === "running"}
           on:click={pushCurrentBranch}
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" aria-hidden="true">
+          <svg
+            viewBox="0 0 16 16"
+            class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
+            aria-hidden="true"
+          >
             <path d="M8 1.75a.75.75 0 0 1 .75.75v7.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22V2.5A.75.75 0 0 1 8 1.75Z"></path>
           </svg>
-          <span class="text-sm font-semibold">
-            {isPushing ? "Pushing…" : "Push origin"}
-          </span>
-          {#if branchStatus?.aheadCount}
-            <span
-              class="ml-1 rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-semibold text-slate-100"
-            >
-              {branchStatus.aheadCount}
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[0.95rem] font-semibold">
+              {isPushing ? "Pushing…" : "Push origin"}
             </span>
-          {/if}
+            <span class="mt-0.5 block truncate text-xs text-slate-400">
+              {branchStatus?.aheadCount
+                ? `Ahead ${branchStatus.aheadCount} commits`
+                : "Everything up to date"}
+            </span>
+          </span>
+          <span class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]">
+            <span>{branchStatus?.aheadCount ?? 0}</span>
+            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
+              <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 0 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
+            </svg>
+          </span>
         </button>
       </div>
     </div>
