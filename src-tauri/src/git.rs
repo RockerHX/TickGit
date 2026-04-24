@@ -13,8 +13,11 @@ const REMOTE_NAME: &str = "origin";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
+    // 只关心命令成功/失败，不消费 stdout 文本。
     Command,
+    // 保留完整文本，适合 diff 这类需要保留换行的输出。
     Text,
+    // 返回裁剪后的纯文本，适合分支名、计数、hash 列表等解析场景。
     TrimmedText,
 }
 
@@ -94,6 +97,7 @@ fn parse_unpushed_hashes(output: &str) -> HashSet<String> {
 
 fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitListItem> {
     output
+        // git log 使用 record separator / unit separator，避免正文里的普通换行或空格干扰解析。
         .split('\u{1e}')
         .filter(|record| !record.trim().is_empty())
         .filter_map(|record| {
@@ -251,6 +255,7 @@ pub fn resolve_repository_path(repo_path: &str) -> AppResult<PathBuf> {
         .canonicalize()
         .map_err(|error| AppError::new("invalid_repository", error.to_string()))?;
 
+    // 不依赖 `.git` 目录是否直接存在，统一交给 git 自己判断当前路径是否落在有效 work tree 内。
     let inside_work_tree = git_trimmed(&canonical_path, &["rev-parse", "--is-inside-work-tree"])
         .map_err(map_repository_check_error)?;
 

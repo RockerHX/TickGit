@@ -84,6 +84,7 @@ export async function fetchRepositorySnapshot(
     nextSkip = page.nextSkip;
     hasMore = page.hasMore;
   } while (
+    // aheadCount 可能大于第一页大小；这里预先补齐全部未推送 commit，避免右键推送/分步推送只拿到局部列表。
     branchStatus.aheadCount > 0 &&
     commits.length < branchStatus.aheadCount &&
     hasMore
