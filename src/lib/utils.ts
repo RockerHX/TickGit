@@ -6,7 +6,7 @@ export function formatRelativeDate(value: string | number) {
   }
 
   const diff = date.getTime() - Date.now();
-  const rtf = new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
   const units = [
     { unit: "day", ms: 24 * 60 * 60 * 1000 },
     { unit: "hour", ms: 60 * 60 * 1000 },
@@ -19,14 +19,39 @@ export function formatRelativeDate(value: string | number) {
     }
   }
 
-  return date.toLocaleString("zh-CN");
+  return date.toLocaleString("en-US");
 }
 
 export function formatAbsoluteDate(value: string | number) {
   const date = typeof value === "number" ? new Date(value) : new Date(value);
   return Number.isNaN(date.getTime())
     ? "Unknown time"
-    : date.toLocaleString("zh-CN");
+    : date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+}
+
+export function getInitials(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "?";
+  }
+
+  const words = trimmed
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean);
+
+  if (words.length >= 2) {
+    return `${words[0]}${words[1]}`.toUpperCase();
+  }
+
+  return trimmed.slice(0, 2).toUpperCase();
 }
 
 export function diffLineClass(line: string) {
@@ -48,14 +73,14 @@ export function diffLineClass(line: string) {
 export function statusTone(status: string) {
   switch (status[0]) {
     case "A":
-      return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+      return "border-emerald-400/25 bg-emerald-400/10 text-emerald-200";
     case "M":
-      return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+      return "border-amber-300/25 bg-amber-300/10 text-amber-100";
     case "D":
-      return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+      return "border-rose-400/25 bg-rose-400/10 text-rose-200";
     case "R":
-      return "bg-sky-500/15 text-sky-300 border-sky-500/30";
+      return "border-sky-400/25 bg-sky-400/10 text-sky-200";
     default:
-      return "bg-slate-500/15 text-slate-300 border-slate-500/30";
+      return "border-slate-400/25 bg-slate-400/10 text-slate-200";
   }
 }
