@@ -7,8 +7,8 @@ https://github.com/forrestchang/andrej-karpathy-skills
 本文档用于规划 TickGit 项目中对 `andrej-karpathy-skills` 思路的引入方式，目标是：
 
 - 先在真实项目中低成本试用
-- 再逐步抽象为可复用的 Codex skill
-- 最后视验证结果决定是否做成通用 plugin，并向上游仓库提交 PR
+- 再逐步抽象为可复用的 Codex skill / plugin 资产
+- 最后视验证结果决定是否向上游仓库提交 Codex 适配 PR
 
 本文档是**分阶段采用计划**，不是当前项目的正式长期规范。正式开发规范仍以以下文档为准：
 
@@ -35,6 +35,12 @@ https://github.com/forrestchang/andrej-karpathy-skills
 
 而不是产品功能代码。
 
+进一步阅读原仓库后，可以更明确地判断：
+
+- 上游的“核心资产”首先是一份通用行为指南
+- `CLAUDE.md`、skills、plugin 只是不同平台或不同入口的包装方式
+- 因此在 Codex 中应优先迁移“内容核心”，再决定采用哪种 Codex 原生包装形式
+
 对 Codex 来说，这套内容具备天然适配性，因为 Codex 本身就支持：
 
 - `AGENTS.md`：长期默认生效的规范
@@ -44,7 +50,7 @@ https://github.com/forrestchang/andrej-karpathy-skills
 当前判断是：
 
 - 这套思想**适合 Codex**
-- 但需要结合 Codex 的原生机制来落地
+- 但需要结合 Codex 的原生机制来落地，而不是机械地把上游文件名直接平移
 - 不应一开始就做成“大而全”的通用方案
 
 ---
@@ -54,7 +60,7 @@ https://github.com/forrestchang/andrej-karpathy-skills
 采用策略分为三个阶段：
 
 1. **先在 TickGit 本地试点**
-2. **再抽成 TickGit 内部可复用的 Codex skill**
+2. **再抽成独立于 TickGit 私有上下文的 Codex 资产**
 3. **最后视效果做成通用 plugin / upstream PR**
 
 原则：
@@ -77,10 +83,16 @@ https://github.com/forrestchang/andrej-karpathy-skills
 
 优先通过仓库级 `AGENTS.md` 引入 Karpathy 风格行为规则，使其作为默认工作方式生效。
 
+这里的关键要求是：
+
+- `AGENTS.md` 应保持通用
+- 只承载行为原则，不重复 TickGit 私有规范
+- TickGit 的正式约束仍留在现有项目文档中
+
 ### 交付物
 
 - 本文档：`docs/CODEX_KARPATHY_ADOPTION_PLAN.md`
-- 仓库级 `AGENTS.md`（新增或补充 Karpathy 风格约束）
+- 仓库级 `AGENTS.md`（新增或补充通用 Karpathy 风格约束）
 - 一轮真实任务试用记录
 
 ### 试点范围建议
@@ -108,6 +120,11 @@ https://github.com/forrestchang/andrej-karpathy-skills
 - 不借题发挥扩大改动范围
 - 完成后明确说明验证结果与残余风险
 
+同时要求：
+
+- 不把 TickGit 私有约束再写进 `AGENTS.md`
+- 私有约束继续由 `README.md`、`docs/ARCHITECTURE.md`、`docs/AI_DEVELOPMENT.md` 承载
+
 ### 成功标准
 
 满足以下条件即可认为 Phase 1 有价值：
@@ -129,15 +146,21 @@ https://github.com/forrestchang/andrej-karpathy-skills
 
 ---
 
-## 4.2 Phase 2：抽成仓库内可复用 skill
+## 4.2 Phase 2：抽成可复用的 Codex 内容资产
 
 ### 目标
 
-将 Phase 1 中验证有效的内容，提炼为可在 Codex 中显式调用的 skill。
+将 Phase 1 中验证有效的内容，提炼为可在 Codex 中复用、且不强依赖 TickGit 上下文的资产。
 
 ### 形式
 
-在仓库内新增：
+优先抽离“内容层”，再决定使用哪种 Codex 包装形式。可选形式包括：
+
+1. 仓库内 `SKILL.md`
+2. plugin 内 skill 目录
+3. 独立仓库中的 Codex plugin 资产
+
+如果当前阶段选择仓库内 skill，建议路径为：
 
 ```text
 .agents/skills/karpathy-guidelines/SKILL.md
@@ -152,8 +175,8 @@ https://github.com/forrestchang/andrej-karpathy-skills
 
 此阶段要明确区分 `AGENTS.md` 与 skill 的职责：
 
-- `AGENTS.md`：默认长期生效的底线规范
-- `SKILL.md`：在复杂任务中显式增强的工作流
+- `AGENTS.md`：默认长期生效的通用行为底线
+- `SKILL.md` / plugin skill：在复杂任务中显式增强的工作流
 
 也就是说，skill 不应只是重复 `AGENTS.md`，而应更强调：
 
@@ -164,7 +187,7 @@ https://github.com/forrestchang/andrej-karpathy-skills
 
 ### 交付物
 
-- `.agents/skills/karpathy-guidelines/SKILL.md`
+- 一份可复用的 Karpathy 风格 Codex skill 内容
 - 简短使用说明
 - 至少一次显式 skill 调用验证
 
@@ -190,14 +213,20 @@ https://github.com/forrestchang/andrej-karpathy-skills
 2. 整理 Codex 使用说明
 3. 向上游仓库提交最小可接受 PR
 
+需要注意：
+
+- 上游仓库当前主要面向 Claude Code / Cursor
+- 因此 upstream PR 应优先贡献 Codex 使用说明与内容映射方式
+- 是否直接提交 `.codex-plugin/plugin.json`，应以可维护性和上游接受度为前提
+
 ### 推荐最小 PR 范围
 
 优先做小而清晰的贡献，不做过度包装。建议 PR 内容包括：
 
 - 增加 Codex 使用说明
-- 增加 `.codex-plugin/plugin.json`
 - 说明如何作为 `AGENTS.md` 使用
 - 说明如何作为 Codex skill 使用
+- 如上游接受，再考虑增加 `.codex-plugin/plugin.json`
 
 ### 不建议一开始做的事
 
@@ -233,7 +262,7 @@ https://github.com/forrestchang/andrej-karpathy-skills
 当前建议按以下顺序推进：
 
 1. 完成本文档
-2. 在仓库中增加或补充 `AGENTS.md`
+2. 在仓库中增加或补充通用 `AGENTS.md`
 3. 选择一个小任务作为第一轮试点
 4. 记录试点观察结果
 5. 再决定是否进入 skill 抽象
