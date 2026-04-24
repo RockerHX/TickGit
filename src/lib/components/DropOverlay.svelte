@@ -19,7 +19,7 @@
           将 Git 仓库文件夹拖入这里
         </div>
         <div class="mt-2 text-sm text-slate-400">
-          GitPulse 会自动校验 .git 并加入仓库列表
+          TickGit 会自动校验 .git 并加入仓库列表
         </div>
       </div>
     </div>

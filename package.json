@@ -1,7 +1,7 @@
 {
-  "name": "gitpulse",
+  "name": "tickgit",
   "version": "0.1.0",
-  "description": "GitPulse - Git history and push workflow desktop client",
+  "description": "TickGit - Git history and push workflow desktop client",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

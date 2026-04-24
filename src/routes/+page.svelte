@@ -261,7 +261,7 @@
       if (currentRepository) {
         await loadRepositoryState(currentRepository.path);
       }
-      notify("仓库已添加", "新的 Git 仓库已加入 GitPulse", "success");
+      notify("仓库已添加", "新的 Git 仓库已加入 TickGit", "success");
     }
   }
 
@@ -458,7 +458,7 @@
 </script>
 
 <svelte:head>
-  <title>GitPulse</title>
+  <title>TickGit</title>
 </svelte:head>
 
 <DropOverlay active={dragActive} />
@@ -486,7 +486,7 @@
           <div
             class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500"
           >
-            GitPulse
+            TickGit
           </div>
           <div class="mt-1 text-2xl font-semibold text-white">
             {currentRepository?.name ?? "未选择仓库"}
