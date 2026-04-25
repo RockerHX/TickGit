@@ -45,7 +45,16 @@ jobs:
 
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          CARGO_VERSION="$(sed -n '0,/^version = \"\\([^\"]*\\)\"/s//\\1/p' src-tauri/Cargo.toml)"
+          CARGO_VERSION="$(awk '
+            /^\[package\]$/ { in_package = 1; next }
+            /^\[/ && in_package { exit }
+            in_package && /^version = "/ {
+              gsub(/^version = "/, "", $0)
+              gsub(/"$/, "", $0)
+              print
+              exit
+            }
+          ' src-tauri/Cargo.toml)"
           EXPECTED_TAG="v${PACKAGE_VERSION}"
 
           if [[ -z "${CARGO_VERSION}" ]]; then
