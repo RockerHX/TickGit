@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { createEventDispatcher } from "svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import {
@@ -29,8 +30,13 @@
   let isResizingFilesPane = false;
   let filesPaneWidth = DEFAULT_FILES_PANE_WIDTH;
   let panelElement: HTMLDivElement | null = null;
+  let copiedCommitHash: string | null = null;
+  let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: diffLines = diffText ? diffText.split("\n") : [];
+  $: if (commit && copiedCommitHash !== commit.hash) {
+    copiedCommitHash = null;
+  }
 
   function clampFilesPaneWidth(value: number) {
     if (!panelElement) {
@@ -58,6 +64,47 @@
     const bounds = panelElement.getBoundingClientRect();
     filesPaneWidth = clampFilesPaneWidth(pointerX - bounds.left);
   }
+
+  async function copyCommitHash(hash: string) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(hash);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = hash;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+
+        if (!copied) {
+          throw new Error("document.execCommand(copy) failed");
+        }
+      }
+
+      copiedCommitHash = hash;
+
+      if (copyResetTimer) {
+        clearTimeout(copyResetTimer);
+      }
+
+      copyResetTimer = setTimeout(() => {
+        copiedCommitHash = null;
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy commit hash:", error);
+      copiedCommitHash = null;
+    }
+  }
+
+  onDestroy(() => {
+    if (copyResetTimer) {
+      clearTimeout(copyResetTimer);
+    }
+  });
 </script>
 
 <svelte:window
@@ -125,10 +172,24 @@
             <path d="M1.75 8a2.75 2.75 0 1 1 5.18 1.28h2.14a2.751 2.751 0 0 1 5.18-1.28 2.75 2.75 0 1 1-5.18 1.28H6.93A2.75 2.75 0 1 1 1.75 8Zm2.75-1.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm7 0a1.25 1.25 0 1 0 .001 2.501A1.25 1.25 0 0 0 11.5 6.75Z"></path>
           </svg>
           <span class="font-mono">{commit.hash}</span>
-          <svg viewBox="0 0 16 16" class="ml-1 h-4 w-4 shrink-0 fill-[#f0f6fc]" aria-hidden="true">
-            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path>
-            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-          </svg>
+          <button
+            type="button"
+            class="ml-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-[#f0f6fc] transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
+            title={copiedCommitHash === commit.hash ? "已复制 Commit Hash" : "复制 Commit Hash"}
+            aria-label={copiedCommitHash === commit.hash ? "已复制 Commit Hash" : "复制 Commit Hash"}
+            on:click={() => copyCommitHash(commit.hash)}
+          >
+            {#if copiedCommitHash === commit.hash}
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current text-emerald-300" aria-hidden="true">
+                <path d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"></path>
+              </svg>
+            {:else}
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" aria-hidden="true">
+                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path>
+                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+              </svg>
+            {/if}
+          </button>
           <span class="text-slate-400">{formatAbsoluteDate(commit.committedAt)}</span>
         </div>
 
