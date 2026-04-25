@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { RepositorySummary } from "$lib/types";
-  import { formatRelativeDate } from "$lib/utils";
 
   export let repositories: RepositorySummary[] = [];
   export let currentPath: string | null = null;
@@ -63,11 +62,6 @@
     <span class="min-w-0 flex-1 pr-4">
       <span class="block truncate text-[1rem] font-semibold text-[#f0f6fc]">
         {currentRepository?.name ?? "Select repository"}
-        {#if currentRepository}
-          <span class="font-normal text-slate-300">
-            · {formatRelativeDate(currentRepository.lastOpenedAt)}
-          </span>
-        {/if}
       </span>
     </span>
 
@@ -137,13 +131,6 @@
 
               <span class="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
                 {repository.name}
-                <span
-                  class={`font-normal ${
-                    repository.path === currentPath ? "text-white/90" : "text-slate-300"
-                  }`}
-                >
-                  · {formatRelativeDate(repository.lastOpenedAt)}
-                </span>
               </span>
             </button>
           {/each}
