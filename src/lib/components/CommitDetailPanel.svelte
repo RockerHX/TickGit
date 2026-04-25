@@ -22,74 +22,67 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2b3036]">
-  <div class="border-b border-[#1f2328] bg-[#2d333b] px-5 py-4">
+  <div class="border-b border-[#1f2328] bg-[#2d333b] px-5 py-3">
     {#if commit}
-      <div class="flex items-start justify-between gap-6">
-        <div class="flex min-w-0 items-start gap-3">
-          <div
-            class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#444c56] bg-[#373e47] text-xs font-semibold text-[#f0f6fc]"
-          >
-            {getInitials(commit.authorName)}
-          </div>
-
-          <div class="min-w-0">
-            <div class="truncate text-[1.35rem] font-semibold text-[#f0f6fc]">
+      <div class="min-w-0">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-[1.15rem] font-semibold text-[#f0f6fc]">
               {commit.summary}
             </div>
             {#if commitMeta?.body}
-              <div class="mt-2 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200">
+              <div class="mt-1 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200">
                 {commitMeta.body}
               </div>
             {/if}
-            <div
-              class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
-            >
-              <span class="font-medium text-slate-300">{commit.authorName}</span>
-              <span>&lt;{commit.authorEmail}&gt;</span>
-              <span>•</span>
-              <span class="font-mono text-slate-300">{commit.hash}</span>
-              <span>•</span>
-              <span>{formatAbsoluteDate(commit.committedAt)}</span>
-            </div>
-            {#if commitMeta}
-              <div
-                class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
-              >
-                <span class="font-medium text-emerald-300">
-                  {commitMeta.additions} added lines
-                </span>
-                <span class="font-medium text-rose-300">
-                  {commitMeta.deletions} removed lines
-                </span>
-              </div>
-            {/if}
-            <div
-              class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
-            >
-              {#if !commit.isPushed}
-                <span
-                  class="flex items-center gap-1 rounded-full bg-[#6e7681] px-2 py-0.5 text-[11px] font-semibold text-[#f0f6fc]"
-                >
-                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
-                    <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
-                  </svg>
-                  Local
-                </span>
-              {/if}
-            </div>
           </div>
+          {#if !commit.isPushed}
+            <span
+              class="mt-0.5 flex shrink-0 items-center text-[#f0f6fc]"
+              title="Local commit"
+            >
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" aria-hidden="true">
+                <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
+              </svg>
+            </span>
+          {/if}
         </div>
 
-        <div
-          class="min-w-[300px] rounded-sm border border-[#444c56] bg-[#2b3036] px-3 py-2 text-right"
-        >
-          <div class="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-            Commit
+        <div class="mt-3 flex items-center gap-2 text-[13px] text-[#f0f6fc]">
+          <div
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#444c56] bg-[#373e47] text-[10px] font-semibold"
+          >
+            {getInitials(commit.authorName)}
           </div>
-          <div class="mt-1 truncate font-mono text-sm text-slate-200">
-            {commit.hash}
-          </div>
+          <span class="truncate font-medium">{commit.authorName}</span>
+          <span class="truncate text-slate-300">&lt;{commit.authorEmail}&gt;</span>
         </div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#f0f6fc]">
+          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" aria-hidden="true">
+            <path d="M1.75 8a2.75 2.75 0 1 1 5.18 1.28h2.14a2.751 2.751 0 0 1 5.18-1.28 2.75 2.75 0 1 1-5.18 1.28H6.93A2.75 2.75 0 1 1 1.75 8Zm2.75-1.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm7 0a1.25 1.25 0 1 0 .001 2.501A1.25 1.25 0 0 0 11.5 6.75Z"></path>
+          </svg>
+          <span class="font-mono">{commit.hash}</span>
+          <svg viewBox="0 0 16 16" class="ml-1 h-4 w-4 shrink-0 fill-[#f0f6fc]" aria-hidden="true">
+            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path>
+            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+          </svg>
+          <span class="text-slate-400">{formatAbsoluteDate(commit.committedAt)}</span>
+        </div>
+
+        {#if commitMeta}
+          <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[#f0f6fc]" aria-hidden="true">
+              <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5Z"></path>
+            </svg>
+            <span class="font-medium text-emerald-300">
+              {commitMeta.additions} added lines
+            </span>
+            <span class="font-medium text-rose-300">
+              {commitMeta.deletions} removed lines
+            </span>
+          </div>
+        {/if}
       </div>
     {:else}
       <div class="text-sm text-slate-500">Select a commit to inspect its details</div>
