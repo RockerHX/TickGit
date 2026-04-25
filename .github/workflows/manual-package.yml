@@ -28,7 +28,7 @@ jobs:
       release_notes: ${{ steps.meta.outputs.release_notes }}
     steps:
       - name: Checkout target ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
@@ -87,17 +87,17 @@ jobs:
             tauri-args: ''
     steps:
       - name: Checkout target ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.ref_name }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -171,7 +171,7 @@ jobs:
           done
 
       - name: Upload bundled artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform.label }}
           path: release-assets/*
@@ -185,7 +185,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Download all bundled artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist-artifacts
 
