@@ -6,6 +6,7 @@
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
+  import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
@@ -30,6 +31,12 @@
     toFinishedStepPushState,
     toRunningStepPushState,
   } from "$lib/tickgit/page-helpers";
+  import {
+    MAX_LEFT_PANE_WIDTH,
+    MIN_BRANCH_PANE_WIDTH,
+    MIN_LEFT_PANE_WIDTH,
+    RESIZE_DIVIDER_LINE_WIDTH,
+  } from "$lib/tickgit/layout";
   import type {
     BranchStatus,
     CommitMeta,
@@ -64,7 +71,7 @@
 
   let dragActive = false;
   let isPushing = false;
-  let isResizingLayout = false;
+  let activeResizeTarget: "header" | "history" | null = null;
   let leftPaneWidth = 360;
 
   let toasts: ToastItem[] = [];
@@ -78,9 +85,6 @@
     y: 0,
     commit: null as CommitListItem | null,
   };
-
-  const MIN_LEFT_PANE_WIDTH = 320;
-  const MAX_LEFT_PANE_WIDTH = 760;
 
   function notify(
     title: string,
@@ -373,8 +377,8 @@
     return Math.min(Math.max(value, MIN_LEFT_PANE_WIDTH), MAX_LEFT_PANE_WIDTH);
   }
 
-  function startLayoutResize(event: MouseEvent) {
-    isResizingLayout = true;
+  function startLayoutResize(target: "header" | "history", event: MouseEvent) {
+    activeResizeTarget = target;
     applyLayoutResize(event.clientX);
   }
 
@@ -491,7 +495,7 @@
     })();
 
     const handlePointerMove = (event: MouseEvent) => {
-      if (!isResizingLayout) {
+      if (!activeResizeTarget) {
         return;
       }
 
@@ -499,7 +503,7 @@
     };
 
     const stopLayoutResize = () => {
-      isResizingLayout = false;
+      activeResizeTarget = null;
     };
 
     window.addEventListener("mousemove", handlePointerMove);
@@ -543,9 +547,9 @@
   <header class="shrink-0 border-b border-[#1f2328] bg-[#24292f]">
     <div
       class="grid items-stretch"
-      style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) 1px minmax(280px,max-content) auto;`}
+      style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,max-content) auto;`}
     >
-      <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
+      <div class="min-w-0 px-4 py-3">
         <div class="flex items-center gap-3">
           <div class="min-w-0 flex-1">
             <div
@@ -562,14 +566,11 @@
         </div>
       </div>
 
-      <button
-        class={`w-px cursor-col-resize bg-[#1f2328] transition hover:bg-[#2f81f7] ${
-          isResizingLayout ? "bg-[#2f81f7]" : ""
-        }`}
-        type="button"
-        aria-label="Resize repository and history panels"
-        on:mousedown={startLayoutResize}
-      ></button>
+      <ResizeHandle
+        active={activeResizeTarget === "header" || activeResizeTarget === "history"}
+        ariaLabel="Resize repository and history panels"
+        on:mousedown={(event) => startLayoutResize("header", event.detail)}
+      />
 
       <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
         <div class="flex items-center gap-3">
@@ -641,7 +642,7 @@
 
   <section
     class="grid min-h-0 flex-1 bg-[#2b3036]"
-    style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) minmax(0,1fr);`}
+    style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
   >
     <CommitHistoryList
       {commits}
@@ -653,6 +654,12 @@
       on:loadMore={() => loadHistory(true)}
       on:openMenu={(event) =>
         openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
+    />
+
+    <ResizeHandle
+      active={activeResizeTarget === "header" || activeResizeTarget === "history"}
+      ariaLabel="Resize history and details panels"
+      on:mousedown={(event) => startLayoutResize("history", event.detail)}
     />
 
     <CommitDetailPanel

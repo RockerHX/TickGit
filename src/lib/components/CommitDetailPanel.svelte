@@ -1,5 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import ResizeHandle from "$lib/components/ResizeHandle.svelte";
+  import {
+    DEFAULT_FILES_PANE_WIDTH,
+    MAX_FILES_PANE_WIDTH,
+    MIN_FILES_PANE_WIDTH,
+    MIN_BRANCH_PANE_WIDTH,
+    RESIZE_DIVIDER_LINE_WIDTH,
+  } from "$lib/tickgit/layout";
   import type { CommitFileChange, CommitListItem, CommitMeta } from "$lib/types";
   import {
     diffLineClass,
@@ -18,10 +26,52 @@
 
   const dispatch = createEventDispatcher<{ selectFile: { path: string } }>();
 
+  let isResizingFilesPane = false;
+  let filesPaneWidth = DEFAULT_FILES_PANE_WIDTH;
+  let panelElement: HTMLDivElement | null = null;
+
   $: diffLines = diffText ? diffText.split("\n") : [];
+
+  function clampFilesPaneWidth(value: number) {
+    if (!panelElement) {
+      return Math.min(Math.max(value, MIN_FILES_PANE_WIDTH), MAX_FILES_PANE_WIDTH);
+    }
+
+    const maxWidth = Math.min(
+      MAX_FILES_PANE_WIDTH,
+      Math.max(MIN_FILES_PANE_WIDTH, panelElement.clientWidth - MIN_BRANCH_PANE_WIDTH),
+    );
+
+    return Math.min(Math.max(value, MIN_FILES_PANE_WIDTH), maxWidth);
+  }
+
+  function startFilesPaneResize(event: MouseEvent) {
+    isResizingFilesPane = true;
+    applyFilesPaneResize(event.clientX);
+  }
+
+  function applyFilesPaneResize(pointerX: number) {
+    if (!panelElement) {
+      return;
+    }
+
+    const bounds = panelElement.getBoundingClientRect();
+    filesPaneWidth = clampFilesPaneWidth(pointerX - bounds.left);
+  }
 </script>
 
-<div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2b3036]">
+<svelte:window
+  on:mousemove={(event) => {
+    if (isResizingFilesPane) {
+      applyFilesPaneResize(event.clientX);
+    }
+  }}
+  on:mouseup={() => {
+    isResizingFilesPane = false;
+  }}
+/>
+
+<div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2b3036]" bind:this={panelElement}>
   <div class="border-b border-[#1f2328] bg-[#2d333b] px-5 py-3">
     {#if commit}
       <div class="min-w-0">
@@ -89,8 +139,11 @@
     {/if}
   </div>
 
-  <div class="grid min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)]">
-    <div class="flex min-h-0 flex-col border-r border-[#1f2328] bg-[#2d333b]">
+  <div
+    class="grid min-h-0 flex-1"
+    style={`grid-template-columns: minmax(${MIN_FILES_PANE_WIDTH}px, ${filesPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,1fr);`}
+  >
+    <div class="flex min-h-0 flex-col bg-[#2d333b]">
       <div
         class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
       >
@@ -135,7 +188,13 @@
       </div>
     </div>
 
-    <div class="flex min-h-0 flex-col border-l border-[#373e47] bg-[#2b3036]">
+    <ResizeHandle
+      active={isResizingFilesPane}
+      ariaLabel="Resize changed files and diff panels"
+      on:mousedown={(event) => startFilesPaneResize(event.detail)}
+    />
+
+    <div class="flex min-h-0 flex-col bg-[#2b3036]">
       <div
         class="flex items-center justify-between gap-3 border-b border-[#1f2328] bg-[#2d333b] px-4 py-3 text-sm"
       >

@@ -38,7 +38,7 @@
   }
 </script>
 
-<div class="flex h-full min-h-0 flex-col overflow-hidden border-r border-[#1f2328] bg-[#2d333b]">
+<div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
     <div class="text-sm font-semibold text-[#f0f6fc]">History</div>
     <div class="mt-1 text-xs text-slate-400">
