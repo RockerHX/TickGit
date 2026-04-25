@@ -21,6 +21,7 @@ export type CommitListItem = {
   authorName: string;
   authorEmail: string;
   committedAt: string;
+  tags: string[];
   parents: string[];
   isPushed: boolean;
 };

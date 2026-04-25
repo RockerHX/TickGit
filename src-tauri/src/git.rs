@@ -95,6 +95,16 @@ fn parse_unpushed_hashes(output: &str) -> HashSet<String> {
         .collect()
 }
 
+fn parse_commit_tags(decorations: &str) -> Vec<String> {
+    decorations
+        .split(',')
+        .filter_map(|part| part.trim().strip_prefix("tag: "))
+        .map(str::trim)
+        .filter(|tag| !tag.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
 fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitListItem> {
     output
         // git log 使用 record separator / unit separator，避免正文里的普通换行或空格干扰解析。
@@ -102,7 +112,7 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
         .filter(|record| !record.trim().is_empty())
         .filter_map(|record| {
             let fields: Vec<&str> = record.split('\u{1f}').collect();
-            if fields.len() < 7 {
+            if fields.len() < 8 {
                 return None;
             }
 
@@ -114,7 +124,8 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
                 author_name: fields[3].trim().to_string(),
                 author_email: fields[4].trim().to_string(),
                 committed_at: fields[5].trim().to_string(),
-                parents: fields[6]
+                tags: parse_commit_tags(fields[6]),
+                parents: fields[7]
                     .split_whitespace()
                     .map(ToOwned::to_owned)
                     .collect(),
@@ -324,7 +335,8 @@ pub fn get_commit_history(
             "-n",
             &limit.to_string(),
             "--date=iso-strict",
-            "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%P%x1e",
+            "--decorate=short",
+            "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1e",
             "HEAD",
         ],
     )?;
@@ -506,8 +518,8 @@ mod tests {
     fn parses_commit_history_records() {
         let unpushed = HashSet::from([String::from("hash-2")]);
         let output = concat!(
-            "hash-1\x1fshort-1\x1fInitial commit\x1fAlice\x1falice@example.com\x1f2026-04-25T10:00:00Z\x1f\x1e",
-            "hash-2\x1fshort-2\x1fAdd file\x1fBob\x1fbob@example.com\x1f2026-04-25T11:00:00Z\x1fhash-1\x1e",
+            "hash-1\x1fshort-1\x1fInitial commit\x1fAlice\x1falice@example.com\x1f2026-04-25T10:00:00Z\x1ftag: v1.0.0\x1f\x1e",
+            "hash-2\x1fshort-2\x1fAdd file\x1fBob\x1fbob@example.com\x1f2026-04-25T11:00:00Z\x1fHEAD -> main, tag: v1.1.0, origin/main, tag: latest\x1fhash-1\x1e",
         );
 
         let items = parse_commit_history(output, &unpushed);
@@ -515,9 +527,11 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].hash, "hash-1");
         assert!(items[0].is_pushed);
+        assert_eq!(items[0].tags, vec!["v1.0.0"]);
         assert_eq!(items[0].parents, Vec::<String>::new());
         assert_eq!(items[1].hash, "hash-2");
         assert!(!items[1].is_pushed);
+        assert_eq!(items[1].tags, vec!["v1.1.0", "latest"]);
         assert_eq!(items[1].parents, vec!["hash-1"]);
     }
 

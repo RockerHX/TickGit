@@ -80,6 +80,18 @@
             <div class="truncate text-[1.15rem] font-semibold text-[#f0f6fc]">
               {commit.summary}
             </div>
+            {#if commit.tags.length > 0}
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                {#each commit.tags as tag}
+                  <span
+                    class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200"
+                    title={tag}
+                  >
+                    {tag}
+                  </span>
+                {/each}
+              </div>
+            {/if}
             {#if commitMeta?.body}
               <div class="mt-1 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200">
                 {commitMeta.body}

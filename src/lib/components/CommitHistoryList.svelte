@@ -94,6 +94,18 @@
                   <div class="truncate text-[13px] font-semibold text-[#f0f6fc]">
                     {commit.summary}
                   </div>
+                  {#if commit.tags.length > 0}
+                    <div class="mt-1 flex flex-wrap items-center gap-1">
+                      {#each commit.tags as tag}
+                        <span
+                          class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
+                          title={tag}
+                        >
+                          {tag}
+                        </span>
+                      {/each}
+                    </div>
+                  {/if}
                 </div>
 
                 <div class="mt-0.5 flex shrink-0 items-center gap-1.5">

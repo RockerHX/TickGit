@@ -29,6 +29,7 @@ pub struct CommitListItem {
     pub author_name: String,
     pub author_email: String,
     pub committed_at: String,
+    pub tags: Vec<String>,
     pub parents: Vec<String>,
     pub is_pushed: bool,
 }
