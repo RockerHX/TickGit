@@ -29,10 +29,10 @@ if git rev-parse --verify --quiet "${TAG}" >/dev/null; then
   exit 1
 fi
 
-node <<'EOF' "${VERSION}"
+VERSION="${VERSION}" node <<'EOF'
 const fs = require("fs");
 
-const version = process.argv[1];
+const version = process.env.VERSION;
 const packagePath = "package.json";
 const tauriPath = "src-tauri/tauri.conf.json";
 const cargoPath = "src-tauri/Cargo.toml";
