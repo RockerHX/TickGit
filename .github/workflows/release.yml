@@ -225,11 +225,11 @@ jobs:
             exit 1
           fi
 
-          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
-            gh release edit "${TAG_NAME}" --title "${RELEASE_NAME}" --notes "${RELEASE_NOTES}"
+          if gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" --title "${RELEASE_NAME}" --notes "${RELEASE_NOTES}"
           else
-            gh release create "${TAG_NAME}" "${FILES[@]}" --title "${RELEASE_NAME}" --notes "${RELEASE_NOTES}"
+            gh release create "${TAG_NAME}" "${FILES[@]}" --repo "${GITHUB_REPOSITORY}" --title "${RELEASE_NAME}" --notes "${RELEASE_NOTES}"
             exit 0
           fi
 
-          gh release upload "${TAG_NAME}" "${FILES[@]}" --clobber
+          gh release upload "${TAG_NAME}" "${FILES[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
