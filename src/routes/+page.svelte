@@ -541,7 +541,7 @@
             class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
             aria-hidden="true"
           >
-            <path d="M8 1.75a.75.75 0 0 1 .75.75v7.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22V2.5A.75.75 0 0 1 8 1.75Z"></path>
+            <path d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"></path>
           </svg>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[0.95rem] font-semibold">
@@ -556,7 +556,7 @@
           <span class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]">
             <span>{branchStatus?.aheadCount ?? 0}</span>
             <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
-              <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 0 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
+              <path d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"></path>
             </svg>
           </span>
         </button>
