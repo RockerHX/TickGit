@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   BranchStatus,
+  CommitMeta,
   CommitFileChange,
   CommitHistoryPage,
   RepositorySummary,
@@ -22,6 +23,8 @@ export const api = {
     invoke<CommitHistoryPage>("get_commit_history", { repoPath, skip, limit }),
   getCommitFiles: (repoPath: string, hash: string) =>
     invoke<CommitFileChange[]>("get_commit_files", { repoPath, hash }),
+  getCommitMeta: (repoPath: string, hash: string) =>
+    invoke<CommitMeta>("get_commit_meta", { repoPath, hash }),
   getCommitFileDiff: (repoPath: string, hash: string, filePath: string) =>
     invoke<string>("get_commit_file_diff", { repoPath, hash, filePath }),
   pushCurrentBranch: (repoPath: string) =>

@@ -29,6 +29,7 @@
   } from "$lib/tickgit/page-helpers";
   import type {
     BranchStatus,
+    CommitMeta,
     CommitFileChange,
     CommitListItem,
     RepositorySummary,
@@ -45,6 +46,7 @@
 
   let commits: CommitListItem[] = [];
   let selectedCommit: CommitListItem | null = null;
+  let selectedCommitMeta: CommitMeta | null = null;
   let commitFiles: CommitFileChange[] = [];
   let selectedFilePath: string | null = null;
   let diffText = "";
@@ -141,6 +143,7 @@
       nextSkip = snapshot.nextSkip;
       hasMore = snapshot.hasMore;
       selectedCommit = snapshot.selectedCommit;
+      selectedCommitMeta = snapshot.commitMeta;
       commitFiles = snapshot.commitFiles;
       selectedFilePath = snapshot.selectedFilePath;
       diffText = snapshot.diffText;
@@ -194,10 +197,12 @@
         currentRepository.path,
         hash,
       );
+      selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
       selectedFilePath = details.selectedFilePath;
       diffText = details.diffText;
     } catch (error) {
+      selectedCommitMeta = null;
       notify("读取 Commit 详情失败", getErrorMessage(error), "error");
     } finally {
       loadingFiles = false;
@@ -585,6 +590,7 @@
 
     <CommitDetailPanel
       commit={selectedCommit}
+      commitMeta={selectedCommitMeta}
       files={commitFiles}
       {loadingFiles}
       {loadingDiff}

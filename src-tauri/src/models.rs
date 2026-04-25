@@ -35,6 +35,14 @@ pub struct CommitListItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct CommitMeta {
+    pub body: String,
+    pub additions: usize,
+    pub deletions: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CommitHistoryPage {
     pub items: Vec<CommitListItem>,
     pub next_skip: usize,

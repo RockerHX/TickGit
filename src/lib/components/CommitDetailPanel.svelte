@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { CommitFileChange, CommitListItem } from "$lib/types";
+  import type { CommitFileChange, CommitListItem, CommitMeta } from "$lib/types";
   import {
     diffLineClass,
     formatAbsoluteDate,
@@ -9,6 +9,7 @@
   } from "$lib/utils";
 
   export let commit: CommitListItem | null = null;
+  export let commitMeta: CommitMeta | null = null;
   export let files: CommitFileChange[] = [];
   export let selectedFilePath: string | null = null;
   export let diffText = "";
@@ -35,13 +36,46 @@
             <div class="truncate text-[1.35rem] font-semibold text-[#f0f6fc]">
               {commit.summary}
             </div>
+            {#if commitMeta?.body}
+              <div class="mt-2 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200">
+                {commitMeta.body}
+              </div>
+            {/if}
             <div
               class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
             >
               <span class="font-medium text-slate-300">{commit.authorName}</span>
-              <span>{commit.authorEmail}</span>
+              <span>&lt;{commit.authorEmail}&gt;</span>
+              <span>•</span>
+              <span class="font-mono text-slate-300">{commit.hash}</span>
               <span>•</span>
               <span>{formatAbsoluteDate(commit.committedAt)}</span>
+            </div>
+            {#if commitMeta}
+              <div
+                class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
+              >
+                <span class="font-medium text-emerald-300">
+                  {commitMeta.additions} added lines
+                </span>
+                <span class="font-medium text-rose-300">
+                  {commitMeta.deletions} removed lines
+                </span>
+              </div>
+            {/if}
+            <div
+              class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-400"
+            >
+              {#if !commit.isPushed}
+                <span
+                  class="flex items-center gap-1 rounded-full bg-[#6e7681] px-2 py-0.5 text-[11px] font-semibold text-[#f0f6fc]"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
+                    <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
+                  </svg>
+                  Local
+                </span>
+              {/if}
             </div>
           </div>
         </div>

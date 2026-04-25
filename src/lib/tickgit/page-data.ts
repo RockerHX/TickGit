@@ -1,5 +1,6 @@
 import type {
   BranchStatus,
+  CommitMeta,
   CommitFileChange,
   CommitHistoryPage,
   CommitListItem,
@@ -20,6 +21,7 @@ export type TickGitPageApi = {
     repoPath: string,
     hash: string,
   ) => Promise<CommitFileChange[]>;
+  getCommitMeta: (repoPath: string, hash: string) => Promise<CommitMeta>;
   getCommitFileDiff: (
     repoPath: string,
     hash: string,
@@ -33,6 +35,7 @@ export type RepositorySnapshot = {
   nextSkip: number;
   hasMore: boolean;
   selectedCommit: CommitListItem | null;
+  commitMeta: CommitMeta | null;
   commitFiles: CommitFileChange[];
   selectedFilePath: string | null;
   diffText: string;
@@ -52,7 +55,10 @@ export async function fetchCommitDetails(
   repoPath: string,
   hash: string,
 ) {
-  const commitFiles = await api.getCommitFiles(repoPath, hash);
+  const [commitFiles, commitMeta] = await Promise.all([
+    api.getCommitFiles(repoPath, hash),
+    api.getCommitMeta(repoPath, hash),
+  ]);
   const selectedFilePath = commitFiles[0]?.path ?? null;
   const diffText = selectedFilePath
     ? await api.getCommitFileDiff(repoPath, hash, selectedFilePath)
@@ -60,6 +66,7 @@ export async function fetchCommitDetails(
 
   return {
     commitFiles,
+    commitMeta,
     selectedFilePath,
     diffText,
   };
@@ -103,6 +110,7 @@ export async function fetchRepositorySnapshot(
       nextSkip,
       hasMore,
       selectedCommit: null,
+      commitMeta: null,
       commitFiles: [],
       selectedFilePath: null,
       diffText: "",
@@ -117,6 +125,7 @@ export async function fetchRepositorySnapshot(
     nextSkip,
     hasMore,
     selectedCommit,
+    commitMeta: details.commitMeta,
     commitFiles: details.commitFiles,
     selectedFilePath: details.selectedFilePath,
     diffText: details.diffText,

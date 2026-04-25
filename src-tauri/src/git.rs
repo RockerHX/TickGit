@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     error::{AppError, AppResult},
-    models::{BranchStatus, CommitFileChange, CommitHistoryPage, CommitListItem},
+    models::{BranchStatus, CommitFileChange, CommitHistoryPage, CommitListItem, CommitMeta},
 };
 
 const REMOTE_NAME: &str = "origin";
@@ -154,6 +154,33 @@ fn parse_commit_files(output: &str) -> Vec<CommitFileChange> {
     }
 
     files
+}
+
+fn parse_shortstat(output: &str) -> (usize, usize) {
+    let mut additions = 0;
+    let mut deletions = 0;
+
+    for segment in output.split(',') {
+        let trimmed = segment.trim();
+
+        if trimmed.contains("insertion") {
+            additions = trimmed
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or_default();
+        }
+
+        if trimmed.contains("deletion") {
+            deletions = trimmed
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or_default();
+        }
+    }
+
+    (additions, deletions)
 }
 
 fn current_branch_name(repo_path: &Path) -> AppResult<(String, bool)> {
@@ -319,6 +346,21 @@ pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFile
     Ok(parse_commit_files(&output))
 }
 
+pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let body = git_text(&repo_path, &["show", "-s", "--format=%b", hash])?
+        .trim()
+        .to_string();
+    let shortstat = git_trimmed(&repo_path, &["show", "--shortstat", "--format=", hash])?;
+    let (additions, deletions) = parse_shortstat(&shortstat);
+
+    Ok(CommitMeta {
+        body,
+        additions,
+        deletions,
+    })
+}
+
 pub fn get_commit_file_diff(repo_path: &str, hash: &str, file_path: &str) -> AppResult<String> {
     let repo_path = resolve_repository_path(repo_path)?;
     let parents = git_trimmed(&repo_path, &["show", "-s", "--format=%P", hash])?;
@@ -345,8 +387,8 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
 #[cfg(test)]
 mod tests {
     use super::{
-        get_commit_file_diff, parse_ahead_behind, parse_commit_files, parse_commit_history,
-        resolve_repository_path,
+        get_commit_file_diff, get_commit_meta, parse_ahead_behind, parse_commit_files,
+        parse_commit_history, parse_shortstat, resolve_repository_path,
     };
     use crate::error::AppError;
     use std::{
@@ -499,6 +541,14 @@ mod tests {
     }
 
     #[test]
+    fn parses_shortstat_counts() {
+        assert_eq!(parse_shortstat(" 1 file changed, 3 insertions(+), 2 deletions(-)"), (3, 2));
+        assert_eq!(parse_shortstat(" 1 file changed, 4 insertions(+)"), (4, 0));
+        assert_eq!(parse_shortstat(" 1 file changed, 7 deletions(-)"), (0, 7));
+        assert_eq!(parse_shortstat(""), (0, 0));
+    }
+
+    #[test]
     fn gets_diff_for_initial_commit() {
         let repo = init_repo();
         let initial_hash = commit_file(&repo.path, "file.txt", "hello\n", "initial");
@@ -529,5 +579,29 @@ mod tests {
 
         assert!(diff.contains("@@"));
         assert!(diff.contains("+world"));
+    }
+
+    #[test]
+    fn gets_commit_meta() {
+        let repo = init_repo();
+        write_file(&repo.path, "file.txt", "before\n");
+        run_git(&repo.path, &["add", "file.txt"]);
+        run_git(
+            &repo.path,
+            &["commit", "--no-gpg-sign", "-m", "summary", "-m", "details line"],
+        );
+        write_file(&repo.path, "file.txt", "before\nafter\n");
+        run_git(&repo.path, &["add", "file.txt"]);
+        run_git(
+            &repo.path,
+            &["commit", "--no-gpg-sign", "-m", "follow up", "-m", "more context"],
+        );
+
+        let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+        let meta = get_commit_meta(repo.path.to_string_lossy().as_ref(), &hash).unwrap();
+
+        assert_eq!(meta.body, "more context");
+        assert_eq!(meta.additions, 1);
+        assert_eq!(meta.deletions, 0);
     }
 }

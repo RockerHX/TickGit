@@ -25,6 +25,12 @@ export type CommitListItem = {
   isPushed: boolean;
 };
 
+export type CommitMeta = {
+  body: string;
+  additions: number;
+  deletions: number;
+};
+
 export type CommitHistoryPage = {
   items: CommitListItem[];
   nextSkip: number;

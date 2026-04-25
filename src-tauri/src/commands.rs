@@ -4,8 +4,8 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitFileChange, CommitHistoryPage, RepositorySummary, StepPushJobStarted,
-        StepPushRequest,
+        BranchStatus, CommitFileChange, CommitHistoryPage, CommitMeta, RepositorySummary,
+        StepPushJobStarted, StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -61,6 +61,11 @@ pub fn get_commit_history(
 #[tauri::command]
 pub fn get_commit_files(repo_path: String, hash: String) -> AppResult<Vec<CommitFileChange>> {
     git::get_commit_files(&repo_path, &hash)
+}
+
+#[tauri::command]
+pub fn get_commit_meta(repo_path: String, hash: String) -> AppResult<CommitMeta> {
+    git::get_commit_meta(&repo_path, &hash)
 }
 
 #[tauri::command]

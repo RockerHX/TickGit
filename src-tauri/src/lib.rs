@@ -19,6 +19,7 @@ pub fn run() {
             commands::get_branch_status,
             commands::get_commit_history,
             commands::get_commit_files,
+            commands::get_commit_meta,
             commands::get_commit_file_diff,
             commands::push_current_branch,
             commands::push_to_commit,
