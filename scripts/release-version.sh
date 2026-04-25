@@ -59,6 +59,12 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 TAG="v${VERSION}"
+CURRENT_BRANCH="$(git branch --show-current)"
+
+if [[ -z "${CURRENT_BRANCH}" ]]; then
+  echo "无法确定当前分支，请在分支上执行该脚本。" >&2
+  exit 1
+fi
 
 if git rev-parse --verify --quiet "${TAG}" >/dev/null; then
   echo "Tag ${TAG} 已存在，请更换版本号。" >&2
@@ -98,7 +104,10 @@ EOF
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
 git commit -m "Release ${TAG}"
 git tag "${TAG}"
+git push origin "${CURRENT_BRANCH}"
+git push origin "${TAG}"
 
 echo "已发布版本 ${VERSION}"
 echo "提交信息: Release ${TAG}"
 echo "已创建 tag: ${TAG}"
+echo "已推送分支: ${CURRENT_BRANCH}"
