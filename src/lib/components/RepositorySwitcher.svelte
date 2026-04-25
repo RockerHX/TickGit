@@ -49,7 +49,7 @@
 
 <svelte:window on:click={handleWindowClick} />
 
-<div class="relative min-w-[320px]" bind:this={container}>
+<div class="relative w-full min-w-0" bind:this={container}>
   <button
     class={`flex h-[50px] w-full items-center justify-between rounded-sm border px-4 text-left transition ${
       open
