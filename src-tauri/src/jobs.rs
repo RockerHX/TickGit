@@ -198,3 +198,61 @@ pub fn start_push_to_commit(
         hash: request.hash,
     })
 }
+
+pub fn start_push_current_branch(
+    app: AppHandle,
+    jobs: State<'_, PushToCommitManager>,
+    repo_path: String,
+    branch: String,
+) -> AppResult<PushToCommitJobStarted> {
+    git::validate_repository(&repo_path)?;
+
+    if branch.trim().is_empty() {
+        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
+    }
+
+    let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
+    let running_job = Arc::clone(&jobs.running_job);
+
+    {
+        let mut current = running_job.lock().expect("push state poisoned");
+        if current.is_some() {
+            return Err(AppError::new(
+                "push_to_commit_busy",
+                "已有 push 任务正在运行，请等待完成",
+            ));
+        }
+        *current = Some(job_id);
+    }
+
+    let event_hash = branch.clone();
+
+    thread::spawn(move || {
+        if let Err(error) = git::push_current_branch(&repo_path) {
+            let _ = app.emit(
+                PUSH_TO_COMMIT_FAILED_EVENT,
+                PushToCommitFailed {
+                    job_id,
+                    hash: event_hash,
+                    message: error.message,
+                },
+            );
+            clear_running_job(&running_job, job_id);
+            return;
+        }
+
+        let _ = app.emit(
+            PUSH_TO_COMMIT_FINISHED_EVENT,
+            PushToCommitFinished {
+                job_id,
+                hash: event_hash,
+            },
+        );
+        clear_running_job(&running_job, job_id);
+    });
+
+    Ok(PushToCommitJobStarted {
+        job_id,
+        hash: branch,
+    })
+}

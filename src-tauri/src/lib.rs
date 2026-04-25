@@ -29,6 +29,7 @@ pub fn run() {
             commands::get_commit_meta,
             commands::get_commit_file_diff,
             commands::push_current_branch,
+            commands::start_push_current_branch,
             commands::save_window_size,
             commands::push_to_commit,
             commands::start_push_to_commit,

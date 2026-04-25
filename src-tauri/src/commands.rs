@@ -83,6 +83,16 @@ pub fn push_current_branch(repo_path: String) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn start_push_current_branch(
+    app: AppHandle,
+    jobs: State<'_, jobs::PushToCommitManager>,
+    repo_path: String,
+    branch: String,
+) -> AppResult<PushToCommitJobStarted> {
+    jobs::start_push_current_branch(app, jobs, repo_path, branch)
+}
+
+#[tauri::command]
 pub fn save_window_size(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,

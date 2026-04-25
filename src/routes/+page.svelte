@@ -286,13 +286,18 @@
     isPushing = true;
 
     try {
-      await api.pushCurrentBranch(currentRepository.path);
-      notify("推送成功", "已执行常规 git push", "success");
-      await loadRepositoryState(currentRepository.path, true);
+      const started = await api.startPushCurrentBranch(
+        currentRepository.path,
+        branchStatus.branch,
+      );
+      pushToCommitState = {
+        jobId: started.jobId,
+        hash: `origin/${branchStatus.branch}`,
+        status: "running",
+      };
     } catch (error) {
-      notify("推送失败", getErrorMessage(error), "error");
-    } finally {
       isPushing = false;
+      notify("推送失败", getErrorMessage(error), "error");
     }
   }
 
@@ -413,12 +418,14 @@
         await listenPushToCommitFinished((payload) => {
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.slice(0, 7),
+            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
             status: "finished",
           };
           isPushing = false;
 
-          notify("推送成功", `已推送到 Commit ${payload.hash.slice(0, 7)}`, "success");
+          const target =
+            payload.hash.length > 7 ? `Commit ${payload.hash.slice(0, 7)}` : payload.hash;
+          notify("推送成功", `已推送到 ${target}`, "success");
 
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
@@ -436,7 +443,7 @@
         await listenPushToCommitFailed((payload) => {
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.slice(0, 7),
+            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
             status: "failed",
             message: payload.message,
           };

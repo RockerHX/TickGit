@@ -31,6 +31,11 @@ export const api = {
     invoke<string>("get_commit_file_diff", { repoPath, hash, filePath }),
   pushCurrentBranch: (repoPath: string) =>
     invoke<void>("push_current_branch", { repoPath }),
+  startPushCurrentBranch: (repoPath: string, branch: string) =>
+    invoke<PushToCommitJobStarted>("start_push_current_branch", {
+      repoPath,
+      branch,
+    }),
   saveWindowSize: (width: number, height: number) =>
     invoke<void>("save_window_size", { width, height }),
   pushToCommit: (repoPath: string, branch: string, hash: string) =>
