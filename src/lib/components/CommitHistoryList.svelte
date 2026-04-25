@@ -98,9 +98,13 @@
 
                 <div class="mt-0.5 flex shrink-0 items-center gap-1.5">
                   {#if !commit.isPushed}
-                    <span class="h-2 w-2 rounded-full bg-[#f2cc60]"></span>
-                    <span class="text-[11px] font-medium text-[#f2cc60]">
-                      Local
+                    <span
+                      class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
+                      title="Local commit"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current" aria-hidden="true">
+                        <path d="M8 3.25a.75.75 0 0 1 .75.75v5.19l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V4A.75.75 0 0 1 8 3.25Z"></path>
+                      </svg>
                     </span>
                   {:else}
                     <svg
