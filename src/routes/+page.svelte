@@ -154,6 +154,14 @@
     }
   }
 
+  async function refreshCurrentRepositoryOnFocus() {
+    if (!currentRepository || loadingRepository || loadingHistory) {
+      return;
+    }
+
+    await loadRepositoryState(currentRepository.path, true);
+  }
+
   async function loadHistory(append: boolean) {
     if (!currentRepository || loadingHistory) {
       return;
@@ -420,6 +428,16 @@
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
           }
+        }),
+      );
+
+      disposers.push(
+        await appWindow.onFocusChanged(({ payload: focused }) => {
+          if (!focused) {
+            return;
+          }
+
+          void refreshCurrentRepositoryOnFocus();
         }),
       );
     })();
