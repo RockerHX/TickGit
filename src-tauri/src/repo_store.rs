@@ -13,10 +13,11 @@ use crate::{
     models::{RepositoryConfig, RepositorySummary, WindowSizeConfig},
 };
 
-const DEFAULT_WINDOW_WIDTH_RATIO: f64 = 0.5;
-const DEFAULT_WINDOW_HEIGHT_RATIO: f64 = 0.5;
+const DEFAULT_WINDOW_WIDTH_RATIO: f64 = 0.75;
+const DEFAULT_WINDOW_HEIGHT_RATIO: f64 = 0.75;
 const MIN_WINDOW_WIDTH: f64 = 720.0;
 const MIN_WINDOW_HEIGHT: f64 = 480.0;
+const MAX_SAVED_WINDOW_RATIO_BEFORE_RESET: f64 = 0.95;
 
 pub struct RepositoryStoreState {
     lock: Mutex<()>,
@@ -184,6 +185,15 @@ fn build_default_window_size(window: &WebviewWindow) -> AppResult<WindowSizeConf
     .ok_or_else(|| AppError::new("window_size_invalid", "默认窗口尺寸无效"))
 }
 
+fn should_reset_saved_window_size(
+    saved_size: &WindowSizeConfig,
+    monitor_width: f64,
+    monitor_height: f64,
+) -> bool {
+    saved_size.width >= monitor_width * MAX_SAVED_WINDOW_RATIO_BEFORE_RESET
+        || saved_size.height >= monitor_height * MAX_SAVED_WINDOW_RATIO_BEFORE_RESET
+}
+
 pub fn apply_initial_window_size(app: &AppHandle) -> AppResult<()> {
     let config_path = store_path(app)?;
     let store = read_store(&config_path)?;
@@ -197,15 +207,22 @@ pub fn apply_initial_window_size(app: &AppHandle) -> AppResult<()> {
         .ok_or_else(|| AppError::new("monitor_unavailable", "无法获取当前屏幕尺寸"))?;
     let monitor_size = monitor.size();
 
+    let monitor_width = f64::from(monitor_size.width);
+    let monitor_height = f64::from(monitor_size.height);
+
     let size = match store.window_size {
-        Some(saved_size) => sanitize_window_size(
-            saved_size.width,
-            saved_size.height,
-            Some(f64::from(monitor_size.width)),
-            Some(f64::from(monitor_size.height)),
-        )
-        .ok_or_else(|| AppError::new("window_size_invalid", "保存的窗口尺寸无效"))?,
-        None => build_default_window_size(&window)?,
+        Some(saved_size)
+            if !should_reset_saved_window_size(&saved_size, monitor_width, monitor_height) =>
+        {
+            sanitize_window_size(
+                saved_size.width,
+                saved_size.height,
+                Some(monitor_width),
+                Some(monitor_height),
+            )
+            .ok_or_else(|| AppError::new("window_size_invalid", "保存的窗口尺寸无效"))?
+        }
+        _ => build_default_window_size(&window)?,
     };
 
     apply_window_size(&window, &size)?;
