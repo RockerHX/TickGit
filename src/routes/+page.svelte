@@ -5,11 +5,14 @@
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
+  import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
   import { api } from "$lib/tauri/api";
   import {
+    listenPushToCommitFailed,
+    listenPushToCommitFinished,
     listenStepPushFailed,
     listenStepPushFinished,
     listenStepPushProgress,
@@ -32,6 +35,7 @@
     CommitMeta,
     CommitFileChange,
     CommitListItem,
+    PushToCommitUiState,
     RepositorySummary,
     StepPushUiState,
     ToastItem,
@@ -65,6 +69,7 @@
 
   let toasts: ToastItem[] = [];
   let toastId = 1;
+  let pushToCommitState: PushToCommitUiState | null = null;
   let stepPushState: StepPushUiState | null = null;
 
   let contextMenu = {
@@ -308,17 +313,19 @@
     isPushing = true;
 
     try {
-      await api.pushToCommit(
-        currentRepository.path,
-        branchStatus.branch,
-        commit.hash,
-      );
-      notify("推送成功", `已推送到 Commit ${commit.shortHash}`, "success");
-      await loadRepositoryState(currentRepository.path, true);
+      const started = await api.startPushToCommit({
+        repoPath: currentRepository.path,
+        branch: branchStatus.branch,
+        hash: commit.hash,
+      });
+      pushToCommitState = {
+        jobId: started.jobId,
+        hash: commit.shortHash,
+        status: "running",
+      };
     } catch (error) {
-      notify("推送失败", getErrorMessage(error), "error");
-    } finally {
       isPushing = false;
+      notify("推送失败", getErrorMessage(error), "error");
     }
   }
 
@@ -391,6 +398,47 @@
             dragActive = false;
           } else if (payload.type === "drop") {
             void handleDrop(payload.paths);
+          }
+        }),
+      );
+
+      disposers.push(
+        await listenPushToCommitFinished((payload) => {
+          pushToCommitState = {
+            jobId: payload.jobId,
+            hash: payload.hash.slice(0, 7),
+            status: "finished",
+          };
+          isPushing = false;
+
+          notify("推送成功", `已推送到 Commit ${payload.hash.slice(0, 7)}`, "success");
+
+          if (currentRepository) {
+            void loadRepositoryState(currentRepository.path, true);
+          }
+
+          window.setTimeout(() => {
+            if (pushToCommitState?.jobId === payload.jobId) {
+              pushToCommitState = null;
+            }
+          }, 1800);
+        }),
+      );
+
+      disposers.push(
+        await listenPushToCommitFailed((payload) => {
+          pushToCommitState = {
+            jobId: payload.jobId,
+            hash: payload.hash.slice(0, 7),
+            status: "failed",
+            message: payload.message,
+          };
+          isPushing = false;
+
+          notify("推送失败", payload.message, "error");
+
+          if (currentRepository) {
+            void loadRepositoryState(currentRepository.path, true);
           }
         }),
       );
@@ -477,6 +525,7 @@
 
 <DropOverlay active={dragActive} />
 <ToastViewport {toasts} />
+<PushToCommitOverlay state={pushToCommitState} />
 <StepPushOverlay state={stepPushState} />
 
 <CommitContextMenu

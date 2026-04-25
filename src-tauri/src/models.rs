@@ -102,6 +102,36 @@ pub struct StepPushFailed {
     pub message: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PushToCommitRequest {
+    pub repo_path: String,
+    pub branch: String,
+    pub hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PushToCommitJobStarted {
+    pub job_id: u64,
+    pub hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PushToCommitFinished {
+    pub job_id: u64,
+    pub hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PushToCommitFailed {
+    pub job_id: u64,
+    pub hash: String,
+    pub message: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryConfig {

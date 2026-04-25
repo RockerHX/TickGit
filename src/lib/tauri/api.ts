@@ -4,6 +4,8 @@ import type {
   CommitMeta,
   CommitFileChange,
   CommitHistoryPage,
+  PushToCommitJobStarted,
+  PushToCommitRequest,
   RepositorySummary,
   StepPushJobStarted,
   StepPushRequest,
@@ -31,6 +33,8 @@ export const api = {
     invoke<void>("push_current_branch", { repoPath }),
   pushToCommit: (repoPath: string, branch: string, hash: string) =>
     invoke<void>("push_to_commit", { repoPath, branch, hash }),
+  startPushToCommit: (request: PushToCommitRequest) =>
+    invoke<PushToCommitJobStarted>("start_push_to_commit", { request }),
   startStepPush: (request: StepPushRequest) =>
     invoke<StepPushJobStarted>("start_step_push", { request }),
 };

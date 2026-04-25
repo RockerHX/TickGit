@@ -4,8 +4,8 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitFileChange, CommitHistoryPage, CommitMeta, RepositorySummary,
-        StepPushJobStarted, StepPushRequest,
+        BranchStatus, CommitFileChange, CommitHistoryPage, CommitMeta, PushToCommitJobStarted,
+        PushToCommitRequest, RepositorySummary, StepPushJobStarted, StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -85,6 +85,15 @@ pub fn push_current_branch(repo_path: String) -> AppResult<()> {
 #[tauri::command]
 pub fn push_to_commit(repo_path: String, branch: String, hash: String) -> AppResult<()> {
     git::push_to_commit(&repo_path, &branch, &hash)
+}
+
+#[tauri::command]
+pub fn start_push_to_commit(
+    app: AppHandle,
+    jobs: State<'_, jobs::PushToCommitManager>,
+    request: PushToCommitRequest,
+) -> AppResult<PushToCommitJobStarted> {
+    jobs::start_push_to_commit(app, jobs, request)
 }
 
 #[tauri::command]

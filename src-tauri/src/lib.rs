@@ -9,6 +9,7 @@ mod repo_store;
 pub fn run() {
     tauri::Builder::default()
         .manage(repo_store::RepositoryStoreState::new())
+        .manage(jobs::PushToCommitManager::new())
         .manage(jobs::StepPushManager::new())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -23,6 +24,7 @@ pub fn run() {
             commands::get_commit_file_diff,
             commands::push_current_branch,
             commands::push_to_commit,
+            commands::start_push_to_commit,
             commands::start_step_push,
         ])
         .run(tauri::generate_context!())

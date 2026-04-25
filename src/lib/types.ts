@@ -52,6 +52,28 @@ export type StepPushRequest = {
   delayMs?: number;
 };
 
+export type PushToCommitRequest = {
+  repoPath: string;
+  branch: string;
+  hash: string;
+};
+
+export type PushToCommitJobStarted = {
+  jobId: number;
+  hash: string;
+};
+
+export type PushToCommitFinished = {
+  jobId: number;
+  hash: string;
+};
+
+export type PushToCommitFailed = {
+  jobId: number;
+  hash: string;
+  message: string;
+};
+
 export type StepPushJobStarted = {
   jobId: number;
   total: number;
@@ -94,6 +116,13 @@ export type StepPushUiState = {
   jobId: number;
   current: number;
   total: number;
+  hash: string;
+  status: "running" | "finished" | "failed";
+  message?: string;
+};
+
+export type PushToCommitUiState = {
+  jobId: number;
   hash: string;
   status: "running" | "finished" | "failed";
   message?: string;

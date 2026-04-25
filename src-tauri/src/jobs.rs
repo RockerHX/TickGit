@@ -13,6 +13,7 @@ use crate::{
     error::{AppError, AppResult},
     git,
     models::{
+        PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted, PushToCommitRequest,
         StepPushFailed, StepPushFinished, StepPushJobStarted, StepPushProgress, StepPushRequest,
     },
 };
@@ -20,6 +21,8 @@ use crate::{
 pub const STEP_PUSH_PROGRESS_EVENT: &str = "step-push-progress";
 pub const STEP_PUSH_FINISHED_EVENT: &str = "step-push-finished";
 pub const STEP_PUSH_FAILED_EVENT: &str = "step-push-failed";
+pub const PUSH_TO_COMMIT_FINISHED_EVENT: &str = "push-to-commit-finished";
+pub const PUSH_TO_COMMIT_FAILED_EVENT: &str = "push-to-commit-failed";
 
 pub struct StepPushManager {
     next_job_id: AtomicU64,
@@ -27,6 +30,20 @@ pub struct StepPushManager {
 }
 
 impl StepPushManager {
+    pub fn new() -> Self {
+        Self {
+            next_job_id: AtomicU64::new(1),
+            running_job: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+pub struct PushToCommitManager {
+    next_job_id: AtomicU64,
+    running_job: Arc<Mutex<Option<u64>>>,
+}
+
+impl PushToCommitManager {
     pub fn new() -> Self {
         Self {
             next_job_id: AtomicU64::new(1),
@@ -116,4 +133,68 @@ pub fn start_step_push(
     });
 
     Ok(StepPushJobStarted { job_id, total })
+}
+
+pub fn start_push_to_commit(
+    app: AppHandle,
+    jobs: State<'_, PushToCommitManager>,
+    request: PushToCommitRequest,
+) -> AppResult<PushToCommitJobStarted> {
+    git::validate_repository(&request.repo_path)?;
+
+    if request.branch.trim().is_empty() {
+        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
+    }
+
+    if request.hash.trim().is_empty() {
+        return Err(AppError::new("invalid_hash", "目标 Commit 不能为空"));
+    }
+
+    let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
+    let running_job = Arc::clone(&jobs.running_job);
+
+    {
+        let mut current = running_job.lock().expect("push to commit state poisoned");
+        if current.is_some() {
+            return Err(AppError::new(
+                "push_to_commit_busy",
+                "已有 push to commit 任务正在运行，请等待完成",
+            ));
+        }
+        *current = Some(job_id);
+    }
+
+    let repo_path = request.repo_path.clone();
+    let branch = request.branch.clone();
+    let hash = request.hash.clone();
+    let event_hash = hash.clone();
+
+    thread::spawn(move || {
+        if let Err(error) = git::push_to_commit(&repo_path, &branch, &hash) {
+            let _ = app.emit(
+                PUSH_TO_COMMIT_FAILED_EVENT,
+                PushToCommitFailed {
+                    job_id,
+                    hash: event_hash,
+                    message: error.message,
+                },
+            );
+            clear_running_job(&running_job, job_id);
+            return;
+        }
+
+        let _ = app.emit(
+            PUSH_TO_COMMIT_FINISHED_EVENT,
+            PushToCommitFinished {
+                job_id,
+                hash: event_hash,
+            },
+        );
+        clear_running_job(&running_job, job_id);
+    });
+
+    Ok(PushToCommitJobStarted {
+        job_id,
+        hash: request.hash,
+    })
 }
