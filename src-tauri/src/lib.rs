@@ -12,6 +12,12 @@ pub fn run() {
         .manage(jobs::PushToCommitManager::new())
         .manage(jobs::StepPushManager::new())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            if let Err(error) = repo_store::apply_initial_window_size(&app.handle()) {
+                eprintln!("failed to apply initial window size: {}", error.message);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::list_repositories,
             commands::add_repository,
@@ -23,6 +29,7 @@ pub fn run() {
             commands::get_commit_meta,
             commands::get_commit_file_diff,
             commands::push_current_branch,
+            commands::save_window_size,
             commands::push_to_commit,
             commands::start_push_to_commit,
             commands::start_step_push,

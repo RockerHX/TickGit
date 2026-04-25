@@ -137,4 +137,12 @@ pub struct PushToCommitFailed {
 pub struct RepositoryConfig {
     pub repositories: Vec<RepositorySummary>,
     pub current_path: Option<String>,
+    pub window_size: Option<WindowSizeConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowSizeConfig {
+    pub width: f64,
+    pub height: f64,
 }

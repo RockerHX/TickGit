@@ -50,6 +50,7 @@
 
   const PAGE_SIZE = 50;
   const TOAST_TIMEOUT = 3400;
+  const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
@@ -85,6 +86,8 @@
     y: 0,
     commit: null as CommitListItem | null,
   };
+
+  let saveWindowSizeTimer: number | null = null;
 
   function notify(
     title: string,
@@ -492,6 +495,23 @@
           void refreshCurrentRepositoryOnFocus();
         }),
       );
+
+      disposers.push(
+        await appWindow.onResized(async () => {
+          if (saveWindowSizeTimer) {
+            window.clearTimeout(saveWindowSizeTimer);
+          }
+
+          saveWindowSizeTimer = window.setTimeout(async () => {
+            try {
+              const size = await appWindow.innerSize();
+              await api.saveWindowSize(size.width, size.height);
+            } catch {
+              // Ignore window size persistence failures to avoid interrupting UI interaction.
+            }
+          }, WINDOW_RESIZE_SAVE_DEBOUNCE_MS);
+        }),
+      );
     })();
 
     const handlePointerMove = (event: MouseEvent) => {
@@ -519,6 +539,9 @@
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", stopLayoutResize);
       window.removeEventListener("click", closeMenu);
+      if (saveWindowSizeTimer) {
+        window.clearTimeout(saveWindowSizeTimer);
+      }
     };
   });
 </script>

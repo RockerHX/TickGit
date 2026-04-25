@@ -5,13 +5,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, LogicalSize, Manager, Size, State, WebviewWindow};
 
 use crate::{
     error::{AppError, AppResult},
     git,
-    models::{RepositoryConfig, RepositorySummary},
+    models::{RepositoryConfig, RepositorySummary, WindowSizeConfig},
 };
+
+const DEFAULT_WINDOW_WIDTH_RATIO: f64 = 0.5;
+const DEFAULT_WINDOW_HEIGHT_RATIO: f64 = 0.5;
+const MIN_WINDOW_WIDTH: f64 = 720.0;
+const MIN_WINDOW_HEIGHT: f64 = 480.0;
 
 pub struct RepositoryStoreState {
     lock: Mutex<()>,
@@ -126,6 +131,75 @@ fn set_current_repository_in_store(
     store.current_path = Some(path.to_string());
 
     Ok(())
+}
+
+fn sanitize_window_size(width: f64, height: f64) -> Option<WindowSizeConfig> {
+    if !width.is_finite() || !height.is_finite() {
+        return None;
+    }
+
+    Some(WindowSizeConfig {
+        width: width.max(MIN_WINDOW_WIDTH).round(),
+        height: height.max(MIN_WINDOW_HEIGHT).round(),
+    })
+}
+
+fn apply_window_size(window: &WebviewWindow, size: &WindowSizeConfig) -> AppResult<()> {
+    window
+        .set_size(Size::Logical(LogicalSize::new(size.width, size.height)))
+        .map_err(|error| AppError::new("window_resize_failed", error.to_string()))
+}
+
+fn build_default_window_size(window: &WebviewWindow) -> AppResult<WindowSizeConfig> {
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| AppError::new("monitor_lookup_failed", error.to_string()))?
+        .ok_or_else(|| AppError::new("monitor_unavailable", "无法获取当前屏幕尺寸"))?;
+
+    let size = monitor.size();
+
+    sanitize_window_size(
+        f64::from(size.width) * DEFAULT_WINDOW_WIDTH_RATIO,
+        f64::from(size.height) * DEFAULT_WINDOW_HEIGHT_RATIO,
+    )
+    .ok_or_else(|| AppError::new("window_size_invalid", "默认窗口尺寸无效"))
+}
+
+pub fn apply_initial_window_size(app: &AppHandle) -> AppResult<()> {
+    let config_path = store_path(app)?;
+    let store = read_store(&config_path)?;
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| AppError::new("window_not_found", "未找到主窗口"))?;
+
+    let size = match store.window_size {
+        Some(saved_size) => sanitize_window_size(saved_size.width, saved_size.height)
+            .ok_or_else(|| AppError::new("window_size_invalid", "保存的窗口尺寸无效"))?,
+        None => build_default_window_size(&window)?,
+    };
+
+    apply_window_size(&window, &size)?;
+    window
+        .center()
+        .map_err(|error| AppError::new("window_center_failed", error.to_string()))?;
+
+    Ok(())
+}
+
+pub fn save_window_size(
+    app: &AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    width: f64,
+    height: f64,
+) -> AppResult<()> {
+    let window_size = sanitize_window_size(width, height)
+        .ok_or_else(|| AppError::new("window_size_invalid", "窗口尺寸无效"))?;
+
+    let _guard = state.lock.lock().expect("repository store poisoned");
+    let config_path = store_path(app)?;
+    let mut store = read_store(&config_path)?;
+    store.window_size = Some(window_size);
+    write_store(&config_path, &store)
 }
 
 pub fn list_repositories(
@@ -262,6 +336,10 @@ mod tests {
         let store = RepositoryConfig {
             repositories: vec![repository("/tmp/repo-a", 20)],
             current_path: Some("/tmp/repo-a".to_string()),
+            window_size: Some(WindowSizeConfig {
+                width: 960.0,
+                height: 540.0,
+            }),
         };
 
         write_store(&store_path, &store).unwrap();
@@ -269,6 +347,7 @@ mod tests {
 
         assert_eq!(loaded.repositories.len(), 1);
         assert_eq!(loaded.current_path.as_deref(), Some("/tmp/repo-a"));
+        assert_eq!(loaded.window_size.as_ref().map(|size| size.width), Some(960.0));
     }
 
     #[test]
@@ -328,6 +407,7 @@ mod tests {
         let store = RepositoryConfig {
             repositories: vec![repository("/tmp/repo-a", 10)],
             current_path: Some("/tmp/missing".to_string()),
+            window_size: None,
         };
 
         assert!(find_current_repository(&store).is_none());
@@ -338,6 +418,7 @@ mod tests {
         let mut store = RepositoryConfig {
             repositories: vec![repository("/tmp/repo-a", 10)],
             current_path: None,
+            window_size: None,
         };
 
         let error = set_current_repository_in_store(&mut store, "/tmp/repo-b", 20).unwrap_err();
