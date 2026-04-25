@@ -5,7 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use tauri::{AppHandle, LogicalSize, Manager, Size, State, WebviewWindow};
+use tauri::{AppHandle, Manager, PhysicalSize, Size, State, WebviewWindow};
 
 use crate::{
     error::{AppError, AppResult},
@@ -133,10 +133,24 @@ fn set_current_repository_in_store(
     Ok(())
 }
 
-fn sanitize_window_size(width: f64, height: f64) -> Option<WindowSizeConfig> {
+fn sanitize_window_size(
+    width: f64,
+    height: f64,
+    max_width: Option<f64>,
+    max_height: Option<f64>,
+) -> Option<WindowSizeConfig> {
     if !width.is_finite() || !height.is_finite() {
         return None;
     }
+
+    let width = match max_width {
+        Some(limit) => width.min(limit),
+        None => width,
+    };
+    let height = match max_height {
+        Some(limit) => height.min(limit),
+        None => height,
+    };
 
     Some(WindowSizeConfig {
         width: width.max(MIN_WINDOW_WIDTH).round(),
@@ -146,7 +160,10 @@ fn sanitize_window_size(width: f64, height: f64) -> Option<WindowSizeConfig> {
 
 fn apply_window_size(window: &WebviewWindow, size: &WindowSizeConfig) -> AppResult<()> {
     window
-        .set_size(Size::Logical(LogicalSize::new(size.width, size.height)))
+        .set_size(Size::Physical(PhysicalSize::new(
+            size.width as u32,
+            size.height as u32,
+        )))
         .map_err(|error| AppError::new("window_resize_failed", error.to_string()))
 }
 
@@ -161,6 +178,8 @@ fn build_default_window_size(window: &WebviewWindow) -> AppResult<WindowSizeConf
     sanitize_window_size(
         f64::from(size.width) * DEFAULT_WINDOW_WIDTH_RATIO,
         f64::from(size.height) * DEFAULT_WINDOW_HEIGHT_RATIO,
+        Some(f64::from(size.width)),
+        Some(f64::from(size.height)),
     )
     .ok_or_else(|| AppError::new("window_size_invalid", "默认窗口尺寸无效"))
 }
@@ -172,9 +191,20 @@ pub fn apply_initial_window_size(app: &AppHandle) -> AppResult<()> {
         .get_webview_window("main")
         .ok_or_else(|| AppError::new("window_not_found", "未找到主窗口"))?;
 
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| AppError::new("monitor_lookup_failed", error.to_string()))?
+        .ok_or_else(|| AppError::new("monitor_unavailable", "无法获取当前屏幕尺寸"))?;
+    let monitor_size = monitor.size();
+
     let size = match store.window_size {
-        Some(saved_size) => sanitize_window_size(saved_size.width, saved_size.height)
-            .ok_or_else(|| AppError::new("window_size_invalid", "保存的窗口尺寸无效"))?,
+        Some(saved_size) => sanitize_window_size(
+            saved_size.width,
+            saved_size.height,
+            Some(f64::from(monitor_size.width)),
+            Some(f64::from(monitor_size.height)),
+        )
+        .ok_or_else(|| AppError::new("window_size_invalid", "保存的窗口尺寸无效"))?,
         None => build_default_window_size(&window)?,
     };
 
@@ -192,7 +222,21 @@ pub fn save_window_size(
     width: f64,
     height: f64,
 ) -> AppResult<()> {
-    let window_size = sanitize_window_size(width, height)
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| AppError::new("window_not_found", "未找到主窗口"))?;
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| AppError::new("monitor_lookup_failed", error.to_string()))?
+        .ok_or_else(|| AppError::new("monitor_unavailable", "无法获取当前屏幕尺寸"))?;
+    let monitor_size = monitor.size();
+
+    let window_size = sanitize_window_size(
+        width,
+        height,
+        Some(f64::from(monitor_size.width)),
+        Some(f64::from(monitor_size.height)),
+    )
         .ok_or_else(|| AppError::new("window_size_invalid", "窗口尺寸无效"))?;
 
     let _guard = state.lock.lock().expect("repository store poisoned");
