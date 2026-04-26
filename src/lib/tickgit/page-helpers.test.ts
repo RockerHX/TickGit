@@ -26,11 +26,13 @@ function commit(hash: string, isPushed = false): CommitListItem {
 describe("page helpers", () => {
   it("extracts error messages from strings, app errors, and objects", () => {
     expect(getErrorMessage("plain error")).toBe("plain error");
+    expect(getErrorMessage(new Error("native error"))).toBe("native error");
     expect(getErrorMessage({ message: "app error" })).toBe("app error");
     expect(getErrorMessage({ toString: () => "object error" })).toBe(
       "object error",
     );
     expect(getErrorMessage(null)).toBe("未知错误");
+    expect(getErrorMessage(undefined)).toBe("未知错误");
   });
 
   it("builds step push hashes in old-to-new order", () => {
@@ -43,6 +45,19 @@ describe("page helpers", () => {
 
     expect(buildStepPushHashes(commits, "c2")).toEqual(["c1", "c2"]);
     expect(buildStepPushHashes(commits, "missing")).toBeNull();
+  });
+
+  it("builds step push hashes for oldest and newest unpushed commits", () => {
+    const commits = [commit("pushed", true), commit("c3"), commit("c2"), commit("c1")];
+
+    expect(buildStepPushHashes(commits, "c1")).toEqual(["c1"]);
+    expect(buildStepPushHashes(commits, "c3")).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("rejects pushed commits as step push targets", () => {
+    const commits = [commit("pushed", true), commit("c2"), commit("c1")];
+
+    expect(buildStepPushHashes(commits, "pushed")).toBeNull();
   });
 
   it("picks selected commit with optional keep-selection behavior", () => {

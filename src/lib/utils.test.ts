@@ -11,14 +11,14 @@ describe("utils", () => {
     vi.restoreAllMocks();
   });
 
-  it("formats relative dates in zh-CN", () => {
+  it("formats relative dates with the current formatter locale", () => {
     vi.spyOn(Date, "now").mockReturnValue(
       new Date("2026-04-25T12:00:00.000Z").getTime(),
     );
 
-    expect(formatRelativeDate("2026-04-25T11:00:00.000Z")).toBe("1小时前");
-    expect(formatRelativeDate("2026-04-24T12:00:00.000Z")).toBe("昨天");
-    expect(formatRelativeDate("2026-04-25T12:01:00.000Z")).toBe("1分钟后");
+    expect(formatRelativeDate("2026-04-25T11:00:00.000Z")).toBe("1 hour ago");
+    expect(formatRelativeDate("2026-04-24T12:00:00.000Z")).toBe("yesterday");
+    expect(formatRelativeDate("2026-04-25T12:01:00.000Z")).toBe("in 1 minute");
   });
 
   it("returns fallback text for invalid dates", () => {
