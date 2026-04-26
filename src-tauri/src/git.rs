@@ -10,6 +10,8 @@ use crate::{
 };
 
 const REMOTE_NAME: &str = "origin";
+// Git 约定的空树对象。初始提交没有 parent 时，使用它与目标提交做 diff，
+// 才能和普通提交一样统一走 diff 参数（例如 -w 忽略空白）逻辑。
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
 #[derive(Clone, Copy)]
@@ -387,6 +389,8 @@ pub fn get_commit_file_diff(
     if parents.trim().is_empty() {
         let mut args = vec!["show"];
         if let Some(arg) = whitespace_arg {
+            // 初始提交如果继续走 git show -w，不同 Git 版本下空白过滤语义不够稳定；
+            // 这里改成 empty-tree -> commit 的 diff，和普通提交保持一致。
             args = vec!["diff"];
             args.push(arg);
             args.extend([EMPTY_TREE_HASH, hash, "--", file_path]);

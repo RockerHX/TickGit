@@ -156,6 +156,63 @@ describe("diff parser", () => {
     ]);
   });
 
+  it("keeps no-trailing-newline markers on split rows", () => {
+    const diff = parseUnifiedDiff(
+      [
+        "@@ -1,1 +1,1 @@",
+        "-before",
+        "+after",
+        "\\ No newline at end of file",
+      ].join("\n"),
+    );
+
+    const rows = buildSplitDiffRows(diff);
+
+    expect(rows[1]).toEqual({
+      kind: "line",
+      left: expect.objectContaining({
+        type: "delete",
+        noTrailingNewLine: false,
+      }),
+      right: expect.objectContaining({
+        type: "add",
+        noTrailingNewLine: true,
+      }),
+    });
+  });
+
+  it("maps delete-only and add-only rows in split mode", () => {
+    const diff = parseUnifiedDiff(
+      [
+        "@@ -4,2 +4,3 @@",
+        "-before",
+        "-gone",
+        "+after",
+        "+plus",
+        "+extra",
+      ].join("\n"),
+    );
+
+    expect(buildSplitDiffRows(diff)).toEqual([
+      { kind: "hunk", header: "@@ -4,2 +4,3 @@" },
+      {
+        kind: "line",
+        left: expect.objectContaining({ type: "delete", content: "before" }),
+        right: expect.objectContaining({ type: "add", content: "after" }),
+      },
+      {
+        kind: "line",
+        left: expect.objectContaining({ type: "delete", content: "gone" }),
+        right: expect.objectContaining({ type: "add", content: "plus" }),
+      },
+      {
+        kind: "line",
+        left: null,
+        right: expect.objectContaining({ type: "add", content: "extra" }),
+      },
+    ]);
+  });
+
   it("computes diff viewer state for whitespace-only diffs", () => {
     const parsedDiff = parseUnifiedDiff("");
 
@@ -168,5 +225,29 @@ describe("diff parser", () => {
         parsedDiff,
       }),
     ).toBe("only-whitespace");
+  });
+
+  it("computes no-file and no-content viewer states", () => {
+    const parsedDiff = parseUnifiedDiff("");
+
+    expect(
+      getDiffViewerState({
+        selectedFilePath: null,
+        loadingDiff: false,
+        diffText: "",
+        hideWhitespaceInDiff: false,
+        parsedDiff,
+      }),
+    ).toBe("no-file");
+
+    expect(
+      getDiffViewerState({
+        selectedFilePath: "file.txt",
+        loadingDiff: false,
+        diffText: "",
+        hideWhitespaceInDiff: false,
+        parsedDiff,
+      }),
+    ).toBe("no-content");
   });
 });

@@ -8,7 +8,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 仓库列表持久化与切换
 - 左侧 Commit 历史分页加载
 - 已推送 / 未推送 Commit 区分
-- Commit 详情、文件列表、纯文本 Diff 查看
+- Commit 详情、文件列表、结构化文本 Diff 查看（Unified / Split）
 - 常规 `git push`
 - 右键“提交到当前 Commit”
 - 右键“分步提交 Commit”与实时进度事件
@@ -37,7 +37,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 远端固定为 **`origin`**
 - 未推送 Commit 的判断基于当前分支的 **upstream**
 - 分步提交任务为 **单任务、不可取消**
-- Diff 当前为 **纯文本展示**，暂不做语法高亮与超大文件优化
+- Diff 当前为 **结构化文本展示**，支持 **Unified / Split** 与 **Hide Whitespace Changes**，暂不做语法高亮、图片 / 二进制专用 Diff 与超大文件优化
 
 ## 快速开始
 

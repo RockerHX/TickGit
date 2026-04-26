@@ -25,6 +25,7 @@
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
   let splitRows: SplitDiffRow[] = [];
 
+  // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
   $: parsedDiff = parseUnifiedDiff(diffText);
   $: splitRows = buildSplitDiffRows(parsedDiff);
   $: viewerState = getDiffViewerState({

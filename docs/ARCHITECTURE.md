@@ -60,12 +60,19 @@ Svelte 页面与组件
 
 - 仓库启动与快照加载辅助
 - 分步提交 hash 计算
+- unified diff 解析与 split 视图数据派生
 - 错误消息归一化
 - 页面纯函数单元测试承载
 
 ### `src/lib/components/*`
 
 负责展示和局部交互，不直接承担后端协议封装。
+
+当前 Diff Viewer 约束：
+
+- 前端先解析 unified diff，再派生 unified / split 两种视图
+- hide whitespace 会重新请求后端 diff，而不是在前端做字符串过滤
+- 当前只覆盖文本 diff，不处理图片 / 二进制专用展示
 
 ### `src/lib/tauri/api.ts`
 
@@ -147,7 +154,7 @@ Git 命令执行规则：
 - `origin` 缺失、upstream 缺失或 detached HEAD 时禁用推送
 - 前端不能直接执行 Git
 - 不引入 `libgit2`
-- Diff 当前为纯文本
+- Diff 当前为结构化文本视图，支持 unified / split 与 hide whitespace
 - 分步提交为单任务、不可取消
 
 ---
