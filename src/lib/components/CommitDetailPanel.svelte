@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { createEventDispatcher } from "svelte";
+  import DiffViewer from "$lib/components/DiffViewer.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import {
     DEFAULT_FILES_PANE_WIDTH,
@@ -10,12 +11,7 @@
     RESIZE_DIVIDER_LINE_WIDTH,
   } from "$lib/tickgit/layout";
   import type { CommitFileChange, CommitListItem, CommitMeta } from "$lib/types";
-  import {
-    diffLineClass,
-    formatAbsoluteDate,
-    getInitials,
-    statusTone,
-  } from "$lib/utils";
+  import { formatAbsoluteDate, getInitials, statusTone } from "$lib/utils";
 
   export let commit: CommitListItem | null = null;
   export let commitMeta: CommitMeta | null = null;
@@ -24,8 +20,14 @@
   export let diffText = "";
   export let loadingFiles = false;
   export let loadingDiff = false;
+  export let diffViewMode: "unified" | "split" = "unified";
+  export let hideWhitespaceInDiff = false;
 
-  const dispatch = createEventDispatcher<{ selectFile: { path: string } }>();
+  const dispatch = createEventDispatcher<{
+    selectFile: { path: string };
+    diffModeChange: { mode: "unified" | "split" };
+    hideWhitespaceChange: { value: boolean };
+  }>();
 
   let isResizingFilesPane = false;
   let filesPaneWidth = DEFAULT_FILES_PANE_WIDTH;
@@ -33,7 +35,6 @@
   let copiedCommitHash: string | null = null;
   let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
-  $: diffLines = diffText ? diffText.split("\n") : [];
   $: if (commit && copiedCommitHash !== commit.hash) {
     copiedCommitHash = null;
   }
@@ -267,43 +268,16 @@
       on:mousedown={(event) => startFilesPaneResize(event.detail)}
     />
 
-    <div class="flex min-h-0 flex-col bg-[#2b3036]">
-      <div
-        class="flex items-center justify-between gap-3 border-b border-[#1f2328] bg-[#2d333b] px-4 py-3 text-sm"
-      >
-        <div class="truncate font-semibold text-[#f0f6fc]">
-          {selectedFilePath ?? "Diff"}
-        </div>
-        <div class="shrink-0 text-xs uppercase tracking-[0.18em] text-slate-500">
-          Diff
-        </div>
-      </div>
-      <div class="min-h-0 flex-1 overflow-auto bg-[#2b3036]">
-        {#if loadingDiff}
-          <div class="px-4 py-4 text-sm text-slate-400">Loading diff…</div>
-        {:else if !selectedFilePath}
-          <div
-            class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-          >
-            Select a changed file to inspect the diff
-          </div>
-        {:else if !diffText}
-          <div
-            class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-          >
-            No diff content is available for this file
-          </div>
-        {:else}
-          <pre
-            class="min-h-full overflow-x-auto bg-[#2b3036] text-[12px] leading-6 text-slate-300">
-            {#each diffLines as line}
-              <div class={`border-b border-[#373e47]/70 px-4 py-0.5 ${diffLineClass(line)}`}>
-                {line || " "}
-              </div>
-            {/each}
-          </pre>
-        {/if}
-      </div>
-    </div>
+    <DiffViewer
+      title="Diff"
+      {selectedFilePath}
+      {diffText}
+      {loadingDiff}
+      mode={diffViewMode}
+      {hideWhitespaceInDiff}
+      on:modeChange={(event) => dispatch("diffModeChange", event.detail)}
+      on:hideWhitespaceChange={(event) =>
+        dispatch("hideWhitespaceChange", event.detail)}
+    />
   </div>
 </div>

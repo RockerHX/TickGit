@@ -27,8 +27,18 @@ export const api = {
     invoke<CommitFileChange[]>("get_commit_files", { repoPath, hash }),
   getCommitMeta: (repoPath: string, hash: string) =>
     invoke<CommitMeta>("get_commit_meta", { repoPath, hash }),
-  getCommitFileDiff: (repoPath: string, hash: string, filePath: string) =>
-    invoke<string>("get_commit_file_diff", { repoPath, hash, filePath }),
+  getCommitFileDiff: (
+    repoPath: string,
+    hash: string,
+    filePath: string,
+    ignoreWhitespace = false,
+  ) =>
+    invoke<string>("get_commit_file_diff", {
+      repoPath,
+      hash,
+      filePath,
+      ignoreWhitespace,
+    }),
   pushCurrentBranch: (repoPath: string) =>
     invoke<void>("push_current_branch", { repoPath }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>

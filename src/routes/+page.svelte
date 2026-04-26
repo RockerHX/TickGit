@@ -62,6 +62,8 @@
   let commitFiles: CommitFileChange[] = [];
   let selectedFilePath: string | null = null;
   let diffText = "";
+  let diffViewMode: "unified" | "split" = "unified";
+  let hideWhitespaceInDiff = false;
 
   let nextSkip = 0;
   let hasMore = false;
@@ -150,6 +152,7 @@
         PAGE_SIZE,
         keepSelection,
         selectedCommit?.hash ?? null,
+        hideWhitespaceInDiff,
       );
 
       branchStatus = snapshot.branchStatus;
@@ -218,6 +221,7 @@
         api,
         currentRepository.path,
         hash,
+        hideWhitespaceInDiff,
       );
       selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
@@ -244,6 +248,7 @@
         currentRepository.path,
         selectedCommit.hash,
         filePath,
+        hideWhitespaceInDiff,
       );
     } catch (error) {
       diffText = "";
@@ -278,6 +283,21 @@
       }
       notify("仓库已添加", "新的 Git 仓库已加入 TickGit", "success");
     }
+  }
+
+  async function setHideWhitespaceInDiff(value: boolean) {
+    if (hideWhitespaceInDiff === value) {
+      return;
+    }
+
+    hideWhitespaceInDiff = value;
+
+    if (!currentRepository || !selectedCommit || !selectedFilePath) {
+      return;
+    }
+
+    // whitespace 过滤会改变 Git 返回的 patch 结果，不能只在前端做字符串过滤。
+    await loadDiff(selectedFilePath);
   }
 
   async function pushCurrentBranch() {
@@ -702,7 +722,12 @@
       {loadingDiff}
       {selectedFilePath}
       {diffText}
+      {diffViewMode}
+      {hideWhitespaceInDiff}
       on:selectFile={(event) => loadDiff(event.detail.path)}
+      on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
+      on:hideWhitespaceChange={(event) =>
+        setHideWhitespaceInDiff(event.detail.value)}
     />
   </section>
 </main>

@@ -26,6 +26,7 @@ export type TickGitPageApi = {
     repoPath: string,
     hash: string,
     filePath: string,
+    ignoreWhitespace?: boolean,
   ) => Promise<string>;
 };
 
@@ -54,6 +55,7 @@ export async function fetchCommitDetails(
   api: TickGitPageApi,
   repoPath: string,
   hash: string,
+  ignoreWhitespace = false,
 ) {
   const [commitFiles, commitMeta] = await Promise.all([
     api.getCommitFiles(repoPath, hash),
@@ -62,7 +64,12 @@ export async function fetchCommitDetails(
   const selectedFilePath = commitFiles[0]?.path ?? null;
   // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
   const diffText = selectedFilePath
-    ? await api.getCommitFileDiff(repoPath, hash, selectedFilePath)
+    ? await api.getCommitFileDiff(
+        repoPath,
+        hash,
+        selectedFilePath,
+        ignoreWhitespace,
+      )
     : "";
 
   return {
@@ -79,6 +86,7 @@ export async function fetchRepositorySnapshot(
   pageSize: number,
   keepSelection: boolean,
   previousSelectedHash: string | null,
+  ignoreWhitespace = false,
 ): Promise<RepositorySnapshot> {
   const branchStatus = await api.getBranchStatus(repoPath);
 
@@ -119,7 +127,12 @@ export async function fetchRepositorySnapshot(
     };
   }
 
-  const details = await fetchCommitDetails(api, repoPath, selectedCommit.hash);
+  const details = await fetchCommitDetails(
+    api,
+    repoPath,
+    selectedCommit.hash,
+    ignoreWhitespace,
+  );
 
   return {
     branchStatus,

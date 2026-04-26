@@ -316,7 +316,7 @@ mod tests {
         add_repository_to_store, find_current_repository, read_store,
         set_current_repository_in_store, sort_repositories, write_store,
     };
-    use crate::models::{RepositoryConfig, RepositorySummary};
+    use crate::models::{RepositoryConfig, RepositorySummary, WindowSizeConfig};
     use std::{
         env, fs,
         path::{Path, PathBuf},

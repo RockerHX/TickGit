@@ -10,6 +10,7 @@ use crate::{
 };
 
 const REMOTE_NAME: &str = "origin";
+const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
@@ -373,16 +374,35 @@ pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
     })
 }
 
-pub fn get_commit_file_diff(repo_path: &str, hash: &str, file_path: &str) -> AppResult<String> {
+pub fn get_commit_file_diff(
+    repo_path: &str,
+    hash: &str,
+    file_path: &str,
+    ignore_whitespace: bool,
+) -> AppResult<String> {
     let repo_path = resolve_repository_path(repo_path)?;
     let parents = git_trimmed(&repo_path, &["show", "-s", "--format=%P", hash])?;
+    let whitespace_arg = ignore_whitespace.then_some("-w");
 
     if parents.trim().is_empty() {
-        return git_text(&repo_path, &["show", "--format=", hash, "--", file_path]);
+        let mut args = vec!["show"];
+        if let Some(arg) = whitespace_arg {
+            args = vec!["diff"];
+            args.push(arg);
+            args.extend([EMPTY_TREE_HASH, hash, "--", file_path]);
+            return git_text(&repo_path, &args);
+        }
+        args.extend(["--format=", hash, "--", file_path]);
+        return git_text(&repo_path, &args);
     }
 
     let parent_ref = format!("{hash}^");
-    git_text(&repo_path, &["diff", &parent_ref, hash, "--", file_path])
+    let mut args = vec!["diff"];
+    if let Some(arg) = whitespace_arg {
+        args.push(arg);
+    }
+    args.extend([parent_ref.as_str(), hash, "--", file_path]);
+    git_text(&repo_path, &args)
 }
 
 pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
@@ -571,6 +591,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &initial_hash,
             "file.txt",
+            false,
         )
         .unwrap();
 
@@ -588,11 +609,54 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            false,
         )
         .unwrap();
 
         assert!(diff.contains("@@"));
         assert!(diff.contains("+world"));
+    }
+
+    #[test]
+    fn hides_whitespace_only_diff_for_non_initial_commit() {
+        let repo = init_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let second_hash = commit_file(&repo.path, "file.txt", "hello \n", "whitespace");
+
+        let normal_diff = get_commit_file_diff(
+            repo.path.to_string_lossy().as_ref(),
+            &second_hash,
+            "file.txt",
+            false,
+        )
+        .unwrap();
+        let hidden_diff = get_commit_file_diff(
+            repo.path.to_string_lossy().as_ref(),
+            &second_hash,
+            "file.txt",
+            true,
+        )
+        .unwrap();
+
+        assert!(normal_diff.contains("@@"));
+        assert!(hidden_diff.trim().is_empty());
+    }
+
+    #[test]
+    fn gets_diff_for_initial_commit_when_hiding_whitespace() {
+        let repo = init_repo();
+        let initial_hash = commit_file(&repo.path, "file.txt", "   \n", "initial");
+
+        let hidden_diff = get_commit_file_diff(
+            repo.path.to_string_lossy().as_ref(),
+            &initial_hash,
+            "file.txt",
+            true,
+        )
+        .unwrap();
+
+        assert!(hidden_diff.contains("diff --git"));
+        assert!(hidden_diff.contains("file.txt"));
     }
 
     #[test]

@@ -161,6 +161,7 @@ describe("page data", () => {
       "/repo",
       "c1",
       "src/main.ts",
+      false,
     );
   });
 
@@ -218,7 +219,61 @@ describe("page data", () => {
     expect(snapshot.diffText).toBe("@@ diff");
     expect(getCommitFiles).toHaveBeenCalledWith("/repo", "c3");
     expect(getCommitMeta).toHaveBeenCalledWith("/repo", "c3");
-    expect(getCommitFileDiff).toHaveBeenCalledWith("/repo", "c3", "src/main.ts");
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c3",
+      "src/main.ts",
+      false,
+    );
+  });
+
+  it("passes ignoreWhitespace through commit detail loading", async () => {
+    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+
+    await fetchCommitDetails(
+      createApiMock({
+        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
+        getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
+        getCommitFileDiff,
+      }),
+      "/repo",
+      "c1",
+      true,
+    );
+
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c1",
+      "src/main.ts",
+      true,
+    );
+  });
+
+  it("passes ignoreWhitespace through snapshot loading", async () => {
+    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+
+    await fetchRepositorySnapshot(
+      createApiMock({
+        getCommitHistory: vi.fn().mockResolvedValue(
+          historyPage([commit("c3"), commit("c2"), commit("c1")]),
+        ),
+        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
+        getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
+        getCommitFileDiff,
+      }),
+      "/repo",
+      50,
+      false,
+      null,
+      true,
+    );
+
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c3",
+      "src/main.ts",
+      true,
+    );
   });
 
   it("keeps the previous selection when it is still present", async () => {
