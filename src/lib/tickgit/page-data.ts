@@ -60,6 +60,7 @@ export async function fetchCommitDetails(
     api.getCommitMeta(repoPath, hash),
   ]);
   const selectedFilePath = commitFiles[0]?.path ?? null;
+  // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
   const diffText = selectedFilePath
     ? await api.getCommitFileDiff(repoPath, hash, selectedFilePath)
     : "";
@@ -97,6 +98,7 @@ export async function fetchRepositorySnapshot(
     hasMore
   );
 
+  // 先稳定选中项，再去拉详情；这样刷新后才能正确保留旧选中，或在选中丢失时回退到首项。
   const selectedCommit = pickSelectedCommit(
     commits,
     previousSelectedHash,
