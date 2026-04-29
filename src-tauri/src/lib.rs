@@ -11,6 +11,7 @@ pub fn run() {
         .manage(repo_store::RepositoryStoreState::new())
         .manage(jobs::PushToCommitManager::new())
         .manage(jobs::StepPushManager::new())
+        .manage(jobs::PushExecutionGate::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             if let Err(error) = repo_store::apply_initial_window_size(&app.handle()) {
