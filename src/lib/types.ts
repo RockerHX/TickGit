@@ -59,19 +59,24 @@ export type PushToCommitRequest = {
   hash: string;
 };
 
+export type PushTargetKind = "commit" | "branch";
+
 export type PushToCommitJobStarted = {
   jobId: number;
-  hash: string;
+  target: string;
+  targetKind: PushTargetKind;
 };
 
 export type PushToCommitFinished = {
   jobId: number;
-  hash: string;
+  target: string;
+  targetKind: PushTargetKind;
 };
 
 export type PushToCommitFailed = {
   jobId: number;
-  hash: string;
+  target: string;
+  targetKind: PushTargetKind;
   message: string;
 };
 
@@ -124,7 +129,8 @@ export type StepPushUiState = {
 
 export type PushToCommitUiState = {
   jobId: number;
-  hash: string;
+  target: string;
+  targetKind: PushTargetKind;
   status: "running" | "finished" | "failed";
   message?: string;
 };

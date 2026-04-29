@@ -13,8 +13,9 @@ use crate::{
     error::{AppError, AppResult},
     git,
     models::{
-        PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted, PushToCommitRequest,
-        StepPushFailed, StepPushFinished, StepPushJobStarted, StepPushProgress, StepPushRequest,
+        PushTargetKind, PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted,
+        PushToCommitRequest, StepPushFailed, StepPushFinished, StepPushJobStarted,
+        StepPushProgress, StepPushRequest,
     },
 };
 
@@ -23,6 +24,7 @@ pub const STEP_PUSH_FINISHED_EVENT: &str = "step-push-finished";
 pub const STEP_PUSH_FAILED_EVENT: &str = "step-push-failed";
 pub const PUSH_TO_COMMIT_FINISHED_EVENT: &str = "push-to-commit-finished";
 pub const PUSH_TO_COMMIT_FAILED_EVENT: &str = "push-to-commit-failed";
+const REMOTE_NAME: &str = "origin";
 
 pub struct StepPushManager {
     next_job_id: AtomicU64,
@@ -217,7 +219,7 @@ pub fn start_push_to_commit(
     let repo_path = request.repo_path.clone();
     let branch = request.branch.clone();
     let hash = request.hash.clone();
-    let event_hash = hash.clone();
+    let event_target = hash.clone();
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
@@ -226,7 +228,8 @@ pub fn start_push_to_commit(
                 PUSH_TO_COMMIT_FAILED_EVENT,
                 PushToCommitFailed {
                     job_id,
-                    hash: event_hash,
+                    target: event_target,
+                    target_kind: PushTargetKind::Commit,
                     message: error.message,
                 },
             );
@@ -239,7 +242,8 @@ pub fn start_push_to_commit(
             PUSH_TO_COMMIT_FINISHED_EVENT,
             PushToCommitFinished {
                 job_id,
-                hash: event_hash,
+                target: event_target,
+                target_kind: PushTargetKind::Commit,
             },
         );
         clear_running_job(&running_job, job_id);
@@ -248,7 +252,8 @@ pub fn start_push_to_commit(
 
     Ok(PushToCommitJobStarted {
         job_id,
-        hash: request.hash,
+        target: request.hash,
+        target_kind: PushTargetKind::Commit,
     })
 }
 
@@ -284,7 +289,8 @@ pub fn start_push_current_branch(
         *current = Some(job_id);
     }
 
-    let event_hash = branch.clone();
+    let target = format!("{REMOTE_NAME}/{branch}");
+    let target_for_thread = target.clone();
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
@@ -293,7 +299,8 @@ pub fn start_push_current_branch(
                 PUSH_TO_COMMIT_FAILED_EVENT,
                 PushToCommitFailed {
                     job_id,
-                    hash: event_hash,
+                    target: target_for_thread.clone(),
+                    target_kind: PushTargetKind::Branch,
                     message: error.message,
                 },
             );
@@ -306,7 +313,8 @@ pub fn start_push_current_branch(
             PUSH_TO_COMMIT_FINISHED_EVENT,
             PushToCommitFinished {
                 job_id,
-                hash: event_hash,
+                target: target_for_thread.clone(),
+                target_kind: PushTargetKind::Branch,
             },
         );
         clear_running_job(&running_job, job_id);
@@ -315,7 +323,8 @@ pub fn start_push_current_branch(
 
     Ok(PushToCommitJobStarted {
         job_id,
-        hash: branch,
+        target,
+        target_kind: PushTargetKind::Branch,
     })
 }
 

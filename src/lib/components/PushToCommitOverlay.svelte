@@ -17,10 +17,10 @@
             {:else if state.status === "failed"}
               Push failed
             {:else}
-              Uploading commit
+              {state.targetKind === "commit" ? "Uploading commit" : "Pushing branch"}
             {/if}
           </div>
-          <div class="mt-1 text-xs text-slate-400">{state.hash}</div>
+          <div class="mt-1 text-xs text-slate-400">{state.target}</div>
           {#if state.message}
             <div class="mt-1 text-xs text-rose-300">{state.message}</div>
           {/if}

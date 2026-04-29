@@ -113,23 +113,33 @@ pub struct PushToCommitRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub enum PushTargetKind {
+    Commit,
+    Branch,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PushToCommitJobStarted {
     pub job_id: u64,
-    pub hash: String,
+    pub target: String,
+    pub target_kind: PushTargetKind,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PushToCommitFinished {
     pub job_id: u64,
-    pub hash: String,
+    pub target: String,
+    pub target_kind: PushTargetKind,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PushToCommitFailed {
     pub job_id: u64,
-    pub hash: String,
+    pub target: String,
+    pub target_kind: PushTargetKind,
     pub message: String,
 }
 

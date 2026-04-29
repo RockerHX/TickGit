@@ -103,6 +103,21 @@
     }, TOAST_TIMEOUT);
   }
 
+  function formatPushTargetLabel(target: string, targetKind: PushToCommitUiState["targetKind"]) {
+    if (targetKind === "commit") {
+      const shortHash = target.length > 7 ? target.slice(0, 7) : target;
+      return {
+        inline: shortHash,
+        message: `Commit ${shortHash}`,
+      };
+    }
+
+    return {
+      inline: target,
+      message: target,
+    };
+  }
+
   async function bootstrap() {
     loadingRepository = true;
 
@@ -312,9 +327,11 @@
         currentRepository.path,
         branchStatus.branch,
       );
+      const target = formatPushTargetLabel(started.target, started.targetKind);
       pushToCommitState = {
         jobId: started.jobId,
-        hash: `origin/${branchStatus.branch}`,
+        target: target.inline,
+        targetKind: started.targetKind,
         status: "running",
       };
     } catch (error) {
@@ -352,9 +369,11 @@
         branch: branchStatus.branch,
         hash: commit.hash,
       });
+      const target = formatPushTargetLabel(started.target, started.targetKind);
       pushToCommitState = {
         jobId: started.jobId,
-        hash: commit.shortHash,
+        target: target.inline,
+        targetKind: started.targetKind,
         status: "running",
       };
     } catch (error) {
@@ -438,16 +457,16 @@
 
       disposers.push(
         await listenPushToCommitFinished((payload) => {
+          const target = formatPushTargetLabel(payload.target, payload.targetKind);
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
+            target: target.inline,
+            targetKind: payload.targetKind,
             status: "finished",
           };
           isPushing = false;
 
-          const target =
-            payload.hash.length > 7 ? `Commit ${payload.hash.slice(0, 7)}` : payload.hash;
-          notify("推送成功", `已推送到 ${target}`, "success");
+          notify("推送成功", `已推送到 ${target.message}`, "success");
 
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
@@ -463,9 +482,11 @@
 
       disposers.push(
         await listenPushToCommitFailed((payload) => {
+          const target = formatPushTargetLabel(payload.target, payload.targetKind);
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
+            target: target.inline,
+            targetKind: payload.targetKind,
             status: "failed",
             message: payload.message,
           };
