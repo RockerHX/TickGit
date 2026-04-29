@@ -5,7 +5,9 @@
 </script>
 
 {#if state}
-  <div class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4">
+  <div
+    class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4"
+  >
     <div
       class="w-full max-w-xl rounded-sm border border-[#444c56] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/35"
     >
@@ -17,7 +19,9 @@
             {:else if state.status === "failed"}
               Push failed
             {:else}
-              {state.targetKind === "commit" ? "Uploading commit" : "Pushing branch"}
+              {state.targetKind === "commit"
+                ? "Uploading commit"
+                : "Pushing branch"}
             {/if}
           </div>
           <div class="mt-1 text-xs text-slate-400">{state.target}</div>

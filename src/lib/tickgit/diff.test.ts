@@ -152,13 +152,7 @@ describe("diff parser", () => {
 
   it("maps unified hunks into split rows", () => {
     const diff = parseUnifiedDiff(
-      [
-        "@@ -1,3 +1,3 @@",
-        " keep",
-        "-before",
-        "+after",
-        "+more",
-      ].join("\n"),
+      ["@@ -1,3 +1,3 @@", " keep", "-before", "+after", "+more"].join("\n"),
     );
 
     expect(buildSplitDiffRows(diff)).toEqual([
@@ -208,14 +202,9 @@ describe("diff parser", () => {
 
   it("maps delete-only and add-only rows in split mode", () => {
     const diff = parseUnifiedDiff(
-      [
-        "@@ -4,2 +4,3 @@",
-        "-before",
-        "-gone",
-        "+after",
-        "+plus",
-        "+extra",
-      ].join("\n"),
+      ["@@ -4,2 +4,3 @@", "-before", "-gone", "+after", "+plus", "+extra"].join(
+        "\n",
+      ),
     );
 
     expect(buildSplitDiffRows(diff)).toEqual([

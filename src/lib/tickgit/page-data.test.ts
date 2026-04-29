@@ -67,7 +67,10 @@ function commitMeta(overrides: Partial<CommitMeta> = {}): CommitMeta {
   };
 }
 
-function fileChange(path: string, overrides: Partial<CommitFileChange> = {}): CommitFileChange {
+function fileChange(
+  path: string,
+  overrides: Partial<CommitFileChange> = {},
+): CommitFileChange {
   return {
     status: "M",
     path,
@@ -90,7 +93,9 @@ function historyPage(
   };
 }
 
-function createApiMock(overrides: Partial<TickGitPageApi> = {}): TickGitPageApi {
+function createApiMock(
+  overrides: Partial<TickGitPageApi> = {},
+): TickGitPageApi {
   return {
     listRepositories: vi.fn().mockResolvedValue([]),
     getCurrentRepository: vi.fn().mockResolvedValue(null),
@@ -108,12 +113,8 @@ describe("page data", () => {
     const repositoriesDeferred = deferred<RepositorySummary[]>();
     const currentRepositoryDeferred = deferred<RepositorySummary | null>();
 
-    const listRepositories = vi.fn(
-      () => repositoriesDeferred.promise,
-    );
-    const getCurrentRepository = vi.fn(
-      () => currentRepositoryDeferred.promise,
-    );
+    const listRepositories = vi.fn(() => repositoriesDeferred.promise);
+    const getCurrentRepository = vi.fn(() => currentRepositoryDeferred.promise);
 
     const pending = fetchRepositoryIndex(
       createApiMock({
@@ -189,13 +190,17 @@ describe("page data", () => {
 
   it("loads a repository snapshot with the selected commit details", async () => {
     const commits = [commit("c3"), commit("c2"), commit("c1")];
-    const getCommitFiles = vi.fn().mockResolvedValue([fileChange("src/main.ts")]);
+    const getCommitFiles = vi
+      .fn()
+      .mockResolvedValue([fileChange("src/main.ts")]);
     const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
     const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
 
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
-        getBranchStatus: vi.fn().mockResolvedValue(branchStatus({ aheadCount: 0 })),
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 0 })),
         getCommitHistory: vi.fn().mockResolvedValue(
           historyPage(commits, {
             nextSkip: 3,
@@ -254,9 +259,11 @@ describe("page data", () => {
 
     await fetchRepositorySnapshot(
       createApiMock({
-        getCommitHistory: vi.fn().mockResolvedValue(
-          historyPage([commit("c3"), commit("c2"), commit("c1")]),
-        ),
+        getCommitHistory: vi
+          .fn()
+          .mockResolvedValue(
+            historyPage([commit("c3"), commit("c2"), commit("c1")]),
+          ),
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
         getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
         getCommitFileDiff,
@@ -279,10 +286,14 @@ describe("page data", () => {
   it("keeps the previous selection when it is still present", async () => {
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
-        getCommitHistory: vi.fn().mockResolvedValue(
-          historyPage([commit("c3"), commit("c2"), commit("c1")]),
-        ),
-        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/feature.ts")]),
+        getCommitHistory: vi
+          .fn()
+          .mockResolvedValue(
+            historyPage([commit("c3"), commit("c2"), commit("c1")]),
+          ),
+        getCommitFiles: vi
+          .fn()
+          .mockResolvedValue([fileChange("src/feature.ts")]),
       }),
       "/repo",
       50,
@@ -296,9 +307,9 @@ describe("page data", () => {
   it("falls back to the first commit when the previous selection disappeared", async () => {
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
-        getCommitHistory: vi.fn().mockResolvedValue(
-          historyPage([commit("c3"), commit("c2")]),
-        ),
+        getCommitHistory: vi
+          .fn()
+          .mockResolvedValue(historyPage([commit("c3"), commit("c2")])),
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
       "/repo",
@@ -364,7 +375,9 @@ describe("page data", () => {
 
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
-        getBranchStatus: vi.fn().mockResolvedValue(branchStatus({ aheadCount: 4 })),
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 4 })),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
@@ -394,7 +407,9 @@ describe("page data", () => {
 
     await fetchRepositorySnapshot(
       createApiMock({
-        getBranchStatus: vi.fn().mockResolvedValue(branchStatus({ aheadCount: 2 })),
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 2 })),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
@@ -417,7 +432,9 @@ describe("page data", () => {
 
     await fetchRepositorySnapshot(
       createApiMock({
-        getBranchStatus: vi.fn().mockResolvedValue(branchStatus({ aheadCount: 0 })),
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 0 })),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),

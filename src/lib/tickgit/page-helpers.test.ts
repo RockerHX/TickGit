@@ -48,7 +48,12 @@ describe("page helpers", () => {
   });
 
   it("builds step push hashes for oldest and newest unpushed commits", () => {
-    const commits = [commit("pushed", true), commit("c3"), commit("c2"), commit("c1")];
+    const commits = [
+      commit("pushed", true),
+      commit("c3"),
+      commit("c2"),
+      commit("c1"),
+    ];
 
     expect(buildStepPushHashes(commits, "c1")).toEqual(["c1"]);
     expect(buildStepPushHashes(commits, "c3")).toEqual(["c1", "c2", "c3"]);

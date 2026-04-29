@@ -47,7 +47,10 @@ export type DiffViewerState =
 
 const HUNK_HEADER_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
-function createParsedDiff(hunks: DiffHunk[], parseError = false): ParsedTextDiff {
+function createParsedDiff(
+  hunks: DiffHunk[],
+  parseError = false,
+): ParsedTextDiff {
   const maxLineNumber = hunks.reduce((currentMax, hunk) => {
     const lineMax = hunk.lines.reduce((lineCurrentMax, line) => {
       return Math.max(
@@ -57,12 +60,7 @@ function createParsedDiff(hunks: DiffHunk[], parseError = false): ParsedTextDiff
       );
     }, 0);
 
-    return Math.max(
-      currentMax,
-      hunk.oldStartLine,
-      hunk.newStartLine,
-      lineMax,
-    );
+    return Math.max(currentMax, hunk.oldStartLine, hunk.newStartLine, lineMax);
   }, 0);
 
   return {

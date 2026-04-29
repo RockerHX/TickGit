@@ -96,7 +96,9 @@
       {selectedFilePath ?? title}
     </div>
     <div class="flex items-center gap-2">
-      <div class="hidden text-[11px] uppercase tracking-[0.18em] text-slate-500 sm:block">
+      <div
+        class="hidden text-[11px] uppercase tracking-[0.18em] text-slate-500 sm:block"
+      >
         {mode === "split" ? "Split" : "Unified"}
       </div>
       <button
@@ -106,23 +108,39 @@
         aria-expanded={optionsOpen}
         on:click={toggleOptions}
       >
-        <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" aria-hidden="true">
-          <path d="M6.5.75a.75.75 0 0 1 .75.75v.69c.367.07.718.193 1.047.36l.488-.488a.75.75 0 0 1 1.06 0l1.09 1.09a.75.75 0 0 1 0 1.06l-.488.488c.167.329.29.68.36 1.047h.69a.75.75 0 0 1 .75.75v1.54a.75.75 0 0 1-.75.75h-.69a4.457 4.457 0 0 1-.36 1.047l.488.488a.75.75 0 0 1 0 1.06l-1.09 1.09a.75.75 0 0 1-1.06 0l-.488-.488a4.457 4.457 0 0 1-1.047.36v.69a.75.75 0 0 1-.75.75H4.96a.75.75 0 0 1-.75-.75v-.69a4.457 4.457 0 0 1-1.047-.36l-.488.488a.75.75 0 0 1-1.06 0l-1.09-1.09a.75.75 0 0 1 0-1.06l.488-.488a4.457 4.457 0 0 1-.36-1.047h-.69a.75.75 0 0 1-.75-.75V6.5a.75.75 0 0 1 .75-.75h.69c.07-.367.193-.718.36-1.047l-.488-.488a.75.75 0 0 1 0-1.06l1.09-1.09a.75.75 0 0 1 1.06 0l.488.488c.329-.167.68-.29 1.047-.36V1.5a.75.75 0 0 1 .75-.75Zm-.77 4.5a2.75 2.75 0 1 0 0 5.5 2.75 2.75 0 0 0 0-5.5Z"></path>
+        <svg
+          viewBox="0 0 16 16"
+          class="h-4 w-4 fill-current"
+          aria-hidden="true"
+        >
+          <path
+            d="M6.5.75a.75.75 0 0 1 .75.75v.69c.367.07.718.193 1.047.36l.488-.488a.75.75 0 0 1 1.06 0l1.09 1.09a.75.75 0 0 1 0 1.06l-.488.488c.167.329.29.68.36 1.047h.69a.75.75 0 0 1 .75.75v1.54a.75.75 0 0 1-.75.75h-.69a4.457 4.457 0 0 1-.36 1.047l.488.488a.75.75 0 0 1 0 1.06l-1.09 1.09a.75.75 0 0 1-1.06 0l-.488-.488a4.457 4.457 0 0 1-1.047.36v.69a.75.75 0 0 1-.75.75H4.96a.75.75 0 0 1-.75-.75v-.69a4.457 4.457 0 0 1-1.047-.36l-.488.488a.75.75 0 0 1-1.06 0l-1.09-1.09a.75.75 0 0 1 0-1.06l.488-.488a4.457 4.457 0 0 1-.36-1.047h-.69a.75.75 0 0 1-.75-.75V6.5a.75.75 0 0 1 .75-.75h.69c.07-.367.193-.718.36-1.047l-.488-.488a.75.75 0 0 1 0-1.06l1.09-1.09a.75.75 0 0 1 1.06 0l.488.488c.329-.167.68-.29 1.047-.36V1.5a.75.75 0 0 1 .75-.75Zm-.77 4.5a2.75 2.75 0 1 0 0 5.5 2.75 2.75 0 0 0 0-5.5Z"
+          ></path>
         </svg>
-        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current text-slate-300" aria-hidden="true">
-          <path d="M12.78 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.03a.75.75 0 1 1 1.06-1.06L8 9.69l3.72-3.72a.75.75 0 0 1 1.06 0Z"></path>
+        <svg
+          viewBox="0 0 16 16"
+          class="h-3 w-3 fill-current text-slate-300"
+          aria-hidden="true"
+        >
+          <path
+            d="M12.78 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.03a.75.75 0 1 1 1.06-1.06L8 9.69l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+          ></path>
         </svg>
       </button>
       {#if optionsOpen}
         <div
           class="absolute right-4 top-[calc(100%-4px)] z-30 w-[240px] overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b] p-3 shadow-lg shadow-black/35"
         >
-          <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <div
+            class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+          >
             Diff options
           </div>
 
           <div class="mt-3">
-            <div class="mb-2 text-xs font-medium text-slate-300">Diff display</div>
+            <div class="mb-2 text-xs font-medium text-slate-300">
+              Diff display
+            </div>
             <div class="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -156,10 +174,13 @@
               type="checkbox"
               class="mt-0.5 h-4 w-4 rounded border-[#6e7681] bg-[#24292f] text-[#347dff]"
               checked={hideWhitespaceInDiff}
-              on:change={(event) => setHideWhitespace(event.currentTarget.checked)}
+              on:change={(event) =>
+                setHideWhitespace(event.currentTarget.checked)}
             />
             <div class="min-w-0">
-              <div class="text-xs font-medium text-[#f0f6fc]">Hide whitespace changes</div>
+              <div class="text-xs font-medium text-[#f0f6fc]">
+                Hide whitespace changes
+              </div>
               <div class="mt-1 text-[11px] leading-4 text-slate-400">
                 Reload the current file diff with Git whitespace filtering.
               </div>
@@ -201,11 +222,15 @@
       <div>
         {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
           {#if row.kind === "hunk"}
-            <div class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200">
+            <div
+              class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+            >
               {row.header}
             </div>
           {:else}
-            <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b border-[#373e47]/70">
+            <div
+              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b border-[#373e47]/70"
+            >
               {#each [row.left, row.right] as line, sideIndex}
                 <div
                   class={`grid min-w-0 grid-cols-[4rem_4rem_minmax(0,1fr)] ${
@@ -222,7 +247,9 @@
                   >
                     {line ? formatLineNumber(line.newLineNumber) : ""}
                   </div>
-                  <div class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6">
+                  <div
+                    class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
+                  >
                     <span class="block whitespace-pre-wrap break-all">
                       {line ? line.content : " "}
                     </span>
@@ -241,7 +268,9 @@
     {:else}
       <div>
         {#each parsedDiff.hunks as hunk}
-          <div class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200">
+          <div
+            class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+          >
             {hunk.header}
           </div>
           {#each hunk.lines as line}
@@ -258,7 +287,9 @@
               >
                 {formatLineNumber(line.newLineNumber)}
               </div>
-              <div class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6">
+              <div
+                class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
+              >
                 <span class="block whitespace-pre-wrap break-all">
                   {line.content || " "}
                 </span>
