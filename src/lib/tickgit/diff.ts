@@ -87,6 +87,7 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
     let oldLineNumber = 0;
     let newLineNumber = 0;
     let originalLineNumber = 0;
+    let sawUnsupportedContent = false;
 
     for (const line of lines) {
       originalLineNumber += 1;
@@ -112,6 +113,9 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
       }
 
       if (!currentHunk) {
+        if (line.trim()) {
+          sawUnsupportedContent = true;
+        }
         continue;
       }
 
@@ -166,10 +170,16 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
           noTrailingNewLine: false,
         });
         newLineNumber += 1;
+        continue;
+      }
+
+      if (line.trim()) {
+        sawUnsupportedContent = true;
       }
     }
 
-    return createParsedDiff(hunks);
+    const parseError = sawUnsupportedContent && hunks.length === 0;
+    return createParsedDiff(hunks, parseError);
   } catch {
     return createParsedDiff([], true);
   }

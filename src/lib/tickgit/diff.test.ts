@@ -125,6 +125,31 @@ describe("diff parser", () => {
     );
   });
 
+  it("marks unsupported non-empty diffs as parse errors", () => {
+    const diffText = [
+      "diff --git a/image.png b/image.png",
+      "Binary files a/image.png and b/image.png differ",
+    ].join("\n");
+    const parsedDiff = parseUnifiedDiff(diffText);
+
+    expect(parsedDiff).toEqual({
+      hunks: [],
+      isEmpty: true,
+      maxLineNumberWidth: 1,
+      parseError: true,
+    });
+
+    expect(
+      getDiffViewerState({
+        selectedFilePath: "image.png",
+        loadingDiff: false,
+        diffText,
+        hideWhitespaceInDiff: false,
+        parsedDiff,
+      }),
+    ).toBe("parse-error");
+  });
+
   it("maps unified hunks into split rows", () => {
     const diff = parseUnifiedDiff(
       [
