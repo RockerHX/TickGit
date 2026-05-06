@@ -32,11 +32,13 @@ export const api = {
     hash: string,
     filePath: string,
     ignoreWhitespace = false,
+    previousPath?: string | null,
   ) =>
     invoke<string>("get_commit_file_diff", {
       repoPath,
       hash,
       filePath,
+      previousPath: previousPath ?? null,
       ignoreWhitespace,
     }),
   pushCurrentBranch: (repoPath: string) =>

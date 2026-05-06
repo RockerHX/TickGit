@@ -262,11 +262,13 @@
     selectedFilePath = filePath;
 
     try {
+      const selectedFile = commitFiles.find((file) => file.path === filePath);
       diffText = await api.getCommitFileDiff(
         currentRepository.path,
         selectedCommit.hash,
         filePath,
         hideWhitespaceInDiff,
+        selectedFile?.previousPath ?? null,
       );
     } catch (error) {
       diffText = "";

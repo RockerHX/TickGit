@@ -364,7 +364,10 @@ pub fn get_commit_history(
 
 pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let output = git_trimmed(&repo_path, &["show", "--name-status", "--format=", hash])?;
+    let output = git_trimmed(
+        &repo_path,
+        &["show", "--find-renames", "--name-status", "--format=", hash],
+    )?;
     Ok(parse_commit_files(&output))
 }
 
@@ -387,11 +390,22 @@ pub fn get_commit_file_diff(
     repo_path: &str,
     hash: &str,
     file_path: &str,
+    previous_path: Option<&str>,
     ignore_whitespace: bool,
 ) -> AppResult<String> {
     let repo_path = resolve_repository_path(repo_path)?;
     let parents = git_trimmed(&repo_path, &["show", "-s", "--format=%P", hash])?;
     let whitespace_arg = ignore_whitespace.then_some("-w");
+    let mut pathspecs = Vec::new();
+
+    if let Some(previous_path) = previous_path
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && *value != file_path)
+    {
+        pathspecs.push(previous_path);
+    }
+
+    pathspecs.push(file_path);
 
     if parents.trim().is_empty() {
         let mut args = vec!["show"];
@@ -400,10 +414,12 @@ pub fn get_commit_file_diff(
             // 这里改成 empty-tree -> commit 的 diff，和普通提交保持一致。
             args = vec!["diff"];
             args.push(arg);
-            args.extend([EMPTY_TREE_HASH, hash, "--", file_path]);
+            args.extend(["--find-renames", EMPTY_TREE_HASH, hash, "--"]);
+            args.extend(pathspecs.iter().copied());
             return git_text(&repo_path, &args);
         }
-        args.extend(["--format=", hash, "--", file_path]);
+        args.extend(["--find-renames", "--format=", hash, "--"]);
+        args.extend(pathspecs.iter().copied());
         return git_text(&repo_path, &args);
     }
 
@@ -412,7 +428,8 @@ pub fn get_commit_file_diff(
     if let Some(arg) = whitespace_arg {
         args.push(arg);
     }
-    args.extend([parent_ref.as_str(), hash, "--", file_path]);
+    args.extend(["--find-renames", parent_ref.as_str(), hash, "--"]);
+    args.extend(pathspecs.iter().copied());
     git_text(&repo_path, &args)
 }
 
@@ -693,6 +710,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &initial_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -711,6 +729,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -729,6 +748,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -736,6 +756,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             true,
         )
         .unwrap();
@@ -753,12 +774,34 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &initial_hash,
             "file.txt",
+            None,
             true,
         )
         .unwrap();
 
         assert!(hidden_diff.contains("diff --git"));
         assert!(hidden_diff.contains("file.txt"));
+    }
+
+    #[test]
+    fn gets_rename_diff_when_previous_path_is_available() {
+        let repo = init_repo();
+        commit_file(&repo.path, "old.txt", "hello\n", "initial");
+        run_git(&repo.path, &["mv", "old.txt", "new.txt"]);
+        run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "rename"]);
+        let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+        let diff = get_commit_file_diff(
+            repo.path.to_string_lossy().as_ref(),
+            &rename_hash,
+            "new.txt",
+            Some("old.txt"),
+            false,
+        )
+        .unwrap();
+
+        assert!(diff.contains("rename from old.txt"));
+        assert!(diff.contains("rename to new.txt"));
     }
 
     #[test]

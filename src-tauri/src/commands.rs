@@ -73,9 +73,16 @@ pub fn get_commit_file_diff(
     repo_path: String,
     hash: String,
     file_path: String,
+    previous_path: Option<String>,
     ignore_whitespace: bool,
 ) -> AppResult<String> {
-    git::get_commit_file_diff(&repo_path, &hash, &file_path, ignore_whitespace)
+    git::get_commit_file_diff(
+        &repo_path,
+        &hash,
+        &file_path,
+        previous_path.as_deref(),
+        ignore_whitespace,
+    )
 }
 
 #[tauri::command]
