@@ -225,6 +225,10 @@ fn upstream_name(repo_path: &Path) -> Option<String> {
     .filter(|value| !value.is_empty())
 }
 
+fn upstream_is_origin(upstream: &str) -> bool {
+    upstream.starts_with("origin/")
+}
+
 fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     let range = format!("{upstream}...HEAD");
     let counts = git_trimmed(repo_path, &["rev-list", "--left-right", "--count", &range])?;
@@ -251,13 +255,16 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
         None => (0, 0),
     };
 
-    let push_available = !detached && has_origin && upstream.is_some();
+    let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
+    let push_available = !detached && has_origin && upstream_uses_origin;
     let disabled_reason = if detached {
         Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
     } else if !has_origin {
         Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string())
     } else if upstream.is_none() {
         Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string())
+    } else if !upstream_uses_origin {
+        Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string())
     } else {
         None
     };
@@ -411,7 +418,17 @@ pub fn get_commit_file_diff(
 
 pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
-    git_run(&repo_path, &["push"])
+    let (branch, detached) = current_branch_name(&repo_path)?;
+
+    if detached {
+        return Err(AppError::new(
+            "detached_head",
+            "当前仓库处于 detached HEAD 状态，无法推送当前分支",
+        ));
+    }
+
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
 
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
@@ -423,8 +440,9 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
 #[cfg(test)]
 mod tests {
     use super::{
-        get_commit_file_diff, get_commit_meta, parse_ahead_behind, parse_commit_files,
-        parse_commit_history, parse_shortstat, resolve_repository_path,
+        branch_status_for_path, get_commit_file_diff, get_commit_meta, parse_ahead_behind,
+        parse_commit_files, parse_commit_history, parse_shortstat, push_current_branch,
+        resolve_repository_path,
     };
     use crate::error::AppError;
     use std::{
@@ -491,6 +509,12 @@ mod tests {
         repo
     }
 
+    fn init_bare_repo() -> TestDir {
+        let repo = TestDir::new("bare-repo");
+        run_git(&repo.path, &["init", "--bare"]);
+        repo
+    }
+
     fn write_file(path: &Path, relative_path: &str, content: &str) {
         let target = path.join(relative_path);
         if let Some(parent) = target.parent() {
@@ -504,6 +528,10 @@ mod tests {
         run_git(path, &["add", relative_path]);
         run_git(path, &["commit", "--no-gpg-sign", "-m", message]);
         run_git(path, &["rev-parse", "HEAD"])
+    }
+
+    fn current_test_branch(path: &Path) -> String {
+        run_git(path, &["branch", "--show-current"])
     }
 
     fn assert_app_error(error: AppError, code: &str, message: &str) {
@@ -584,6 +612,76 @@ mod tests {
         assert_eq!(parse_shortstat(" 1 file changed, 4 insertions(+)"), (4, 0));
         assert_eq!(parse_shortstat(" 1 file changed, 7 deletions(-)"), (0, 7));
         assert_eq!(parse_shortstat(""), (0, 0));
+    }
+
+    #[test]
+    fn disables_push_when_upstream_is_not_origin() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let backup = init_bare_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let branch = current_test_branch(&repo.path);
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(
+            &repo.path,
+            &["remote", "add", "backup", backup.path.to_str().unwrap()],
+        );
+        let backup_refspec = format!("HEAD:refs/heads/{branch}");
+        run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        let expected_upstream = format!("backup/{branch}");
+
+        assert_eq!(status.upstream.as_deref(), Some(expected_upstream.as_str()));
+        assert!(!status.push_available);
+        assert_eq!(
+            status.disabled_reason.as_deref(),
+            Some("当前分支的上游不是 origin 远端，已禁用推送动作")
+        );
+    }
+
+    #[test]
+    fn pushes_current_branch_to_origin_even_when_upstream_points_elsewhere() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let backup = init_bare_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let branch = current_test_branch(&repo.path);
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(
+            &repo.path,
+            &["remote", "add", "backup", backup.path.to_str().unwrap()],
+        );
+        let backup_refspec = format!("HEAD:refs/heads/{branch}");
+        run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+        let backup_initial_head = run_git(
+            &backup.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+
+        let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
+
+        push_current_branch(repo.path.to_string_lossy().as_ref()).unwrap();
+
+        let origin_head = run_git(
+            &origin.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+        let backup_head = run_git(
+            &backup.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+
+        assert_eq!(origin_head, second_hash);
+        assert_eq!(backup_head, backup_initial_head);
     }
 
     #[test]
