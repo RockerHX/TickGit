@@ -27,6 +27,7 @@ export type TickGitPageApi = {
     hash: string,
     filePath: string,
     ignoreWhitespace?: boolean,
+    previousPath?: string | null,
   ) => Promise<string>;
 };
 
@@ -61,14 +62,16 @@ export async function fetchCommitDetails(
     api.getCommitFiles(repoPath, hash),
     api.getCommitMeta(repoPath, hash),
   ]);
-  const selectedFilePath = commitFiles[0]?.path ?? null;
+  const selectedFile = commitFiles[0] ?? null;
+  const selectedFilePath = selectedFile?.path ?? null;
   // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
-  const diffText = selectedFilePath
+  const diffText = selectedFile
     ? await api.getCommitFileDiff(
         repoPath,
         hash,
-        selectedFilePath,
+        selectedFile.path,
         ignoreWhitespace,
+        selectedFile.previousPath,
       )
     : "";
 
@@ -102,7 +105,8 @@ export async function fetchRepositorySnapshot(
   } while (
     // aheadCount 可能大于第一页大小；这里预先补齐全部未推送 commit，避免右键推送/分步推送只拿到局部列表。
     branchStatus.aheadCount > 0 &&
-    commits.length < branchStatus.aheadCount &&
+    commits.filter((commit) => !commit.isPushed).length <
+      branchStatus.aheadCount &&
     hasMore
   );
 

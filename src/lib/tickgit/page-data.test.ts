@@ -163,6 +163,7 @@ describe("page data", () => {
       "c1",
       "src/main.ts",
       false,
+      null,
     );
   });
 
@@ -229,6 +230,7 @@ describe("page data", () => {
       "c3",
       "src/main.ts",
       false,
+      null,
     );
   });
 
@@ -251,6 +253,35 @@ describe("page data", () => {
       "c1",
       "src/main.ts",
       true,
+      null,
+    );
+  });
+
+  it("passes previousPath through renamed file diff loading", async () => {
+    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+
+    await fetchCommitDetails(
+      createApiMock({
+        getCommitFiles: vi.fn().mockResolvedValue([
+          fileChange("src/new.ts", {
+            status: "R100",
+            previousPath: "src/old.ts",
+            displayPath: "src/old.ts -> src/new.ts",
+          }),
+        ]),
+        getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
+        getCommitFileDiff,
+      }),
+      "/repo",
+      "c1",
+    );
+
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c1",
+      "src/new.ts",
+      false,
+      "src/old.ts",
     );
   });
 
@@ -280,6 +311,7 @@ describe("page data", () => {
       "c3",
       "src/main.ts",
       true,
+      null,
     );
   });
 
@@ -394,6 +426,44 @@ describe("page data", () => {
       "c4",
       "c3",
       "c2",
+    ]);
+  });
+
+  it("keeps paging when loaded commits include pushed items before all unpushed commits", async () => {
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValueOnce(
+        historyPage([commit("pushed", true), commit("c2")], {
+          nextSkip: 2,
+          hasMore: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        historyPage([commit("c1")], {
+          nextSkip: 3,
+          hasMore: false,
+        }),
+      );
+
+    const snapshot = await fetchRepositorySnapshot(
+      createApiMock({
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 2 })),
+        getCommitHistory,
+        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
+      }),
+      "/repo",
+      2,
+      false,
+      null,
+    );
+
+    expect(getCommitHistory).toHaveBeenCalledTimes(2);
+    expect(snapshot.commits.map((item) => item.hash)).toEqual([
+      "pushed",
+      "c2",
+      "c1",
     ]);
   });
 
