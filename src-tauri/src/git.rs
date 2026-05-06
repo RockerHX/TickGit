@@ -24,6 +24,36 @@ enum OutputMode {
     TrimmedText,
 }
 
+fn git_output_bytes(repo_path: &Path, args: &[&str]) -> AppResult<Vec<u8>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(args)
+        .env("LC_ALL", "C")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_PAGER", "cat")
+        .env("PAGER", "cat")
+        .output()
+        .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
+
+    if output.status.success() {
+        return Ok(output.stdout);
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let message = if !stderr.is_empty() { stderr } else { stdout };
+
+    Err(AppError::new(
+        "git_command_failed",
+        if message.is_empty() {
+            "Git 命令执行失败".to_string()
+        } else {
+            message
+        },
+    ))
+}
+
 fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<String> {
     let mut command = Command::new("git");
 
@@ -139,30 +169,41 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
         .collect()
 }
 
-fn parse_commit_files(output: &str) -> Vec<CommitFileChange> {
+fn parse_commit_files(output: &[u8]) -> Vec<CommitFileChange> {
     let mut files = Vec::new();
+    let mut parts = output
+        .split(|byte| *byte == b'\0')
+        .filter(|part| !part.is_empty());
 
-    for line in output.lines().filter(|line| !line.trim().is_empty()) {
-        let mut parts = line.split('\t');
-        let status = parts.next().unwrap_or_default().trim().to_string();
+    while let Some(status_bytes) = parts.next() {
+        let status = String::from_utf8_lossy(status_bytes).trim().to_string();
 
         if status.starts_with('R') || status.starts_with('C') {
-            let previous_path = parts.next().unwrap_or_default().trim().to_string();
-            let path = parts.next().unwrap_or_default().trim().to_string();
+            let previous_path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
+            let path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
 
             files.push(CommitFileChange {
-                status,
                 display_path: format!("{previous_path} -> {path}"),
                 previous_path: Some(previous_path),
                 path,
+                status,
             });
         } else {
-            let path = parts.next().unwrap_or_default().trim().to_string();
+            let path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
             files.push(CommitFileChange {
-                status,
                 display_path: path.clone(),
                 previous_path: None,
                 path,
+                status,
             });
         }
     }
@@ -364,9 +405,9 @@ pub fn get_commit_history(
 
 pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let output = git_trimmed(
+    let output = git_output_bytes(
         &repo_path,
-        &["show", "--find-renames", "--name-status", "--format=", hash],
+        &["show", "--find-renames", "--name-status", "-z", "--format=", hash],
     )?;
     Ok(parse_commit_files(&output))
 }
@@ -606,13 +647,7 @@ mod tests {
 
     #[test]
     fn parses_commit_file_changes() {
-        let output = concat!(
-            "A\tadded.txt\n",
-            "M\tmodified.txt\n",
-            "D\tremoved.txt\n",
-            "R100\told.txt\tnew.txt\n",
-            "C100\tsource.txt\tcopied.txt\n"
-        );
+        let output = b"A\0added.txt\0M\0modified.txt\0D\0removed.txt\0R100\0old.txt\0new.txt\0C100\0source.txt\0copied.txt\0";
 
         let files = parse_commit_files(output);
 
@@ -621,6 +656,19 @@ mod tests {
         assert_eq!(files[3].previous_path.as_deref(), Some("old.txt"));
         assert_eq!(files[3].path, "new.txt");
         assert_eq!(files[4].display_path, "source.txt -> copied.txt");
+    }
+
+    #[test]
+    fn parses_commit_files_with_tabs_in_paths() {
+        let output = b"R100\0old\tname.txt\0new\tname.txt\0";
+
+        let files = parse_commit_files(output);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].status, "R100");
+        assert_eq!(files[0].previous_path.as_deref(), Some("old\tname.txt"));
+        assert_eq!(files[0].path, "new\tname.txt");
+        assert_eq!(files[0].display_path, "old\tname.txt -> new\tname.txt");
     }
 
     #[test]
