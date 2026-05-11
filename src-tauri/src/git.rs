@@ -120,6 +120,10 @@ fn parse_ahead_behind(counts: &str) -> (usize, usize) {
     (ahead, behind)
 }
 
+fn parse_count(output: &str) -> usize {
+    output.trim().parse::<usize>().unwrap_or_default()
+}
+
 fn parse_unpushed_hashes(output: &str) -> HashSet<String> {
     output
         .lines()
@@ -276,9 +280,15 @@ fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     Ok(parse_ahead_behind(&counts))
 }
 
+fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
+    let range = format!("{upstream}..HEAD");
+    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", "--count", &range])?;
+    Ok(parse_count(&output))
+}
+
 fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", &range])?;
+    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
     Ok(parse_unpushed_hashes(&output))
 }
 
@@ -292,7 +302,11 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
     };
 
     let (ahead_count, behind_count) = match upstream.as_deref() {
-        Some(upstream) => ahead_behind(repo_path, upstream)?,
+        Some(upstream) => {
+            let (_, behind_count) = ahead_behind(repo_path, upstream)?;
+            let ahead_count = first_parent_ahead_count(repo_path, upstream)?;
+            (ahead_count, behind_count)
+        }
         None => (0, 0),
     };
 
@@ -381,6 +395,7 @@ pub fn get_commit_history(
         &repo_path,
         &[
             "log",
+            "--first-parent",
             "--skip",
             &skip.to_string(),
             "-n",
@@ -498,9 +513,9 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
 #[cfg(test)]
 mod tests {
     use super::{
-        branch_status_for_path, get_commit_file_diff, get_commit_meta, parse_ahead_behind,
-        parse_commit_files, parse_commit_history, parse_shortstat, push_current_branch,
-        resolve_repository_path,
+        branch_status_for_path, get_commit_file_diff, get_commit_history, get_commit_meta,
+        parse_ahead_behind, parse_commit_files, parse_commit_history, parse_shortstat,
+        push_current_branch, resolve_repository_path,
     };
     use crate::error::AppError;
     use std::{
@@ -747,6 +762,46 @@ mod tests {
 
         assert_eq!(origin_head, second_hash);
         assert_eq!(backup_head, backup_initial_head);
+    }
+
+    #[test]
+    fn uses_first_parent_history_and_ahead_count_after_merge() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        run_git(&repo.path, &["checkout", "-b", "feature", &base_hash]);
+        let feature_hash = commit_file(&repo.path, "feature.txt", "feature\n", "feature");
+
+        run_git(&repo.path, &["checkout", &branch]);
+        let main_hash = commit_file(&repo.path, "main.txt", "main\n", "main");
+        run_git(
+            &repo.path,
+            &["merge", "--no-ff", "feature", "-m", "merge feature"],
+        );
+        let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        assert_eq!(status.ahead_count, 2);
+        assert_eq!(status.behind_count, 0);
+
+        let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+        let hashes: Vec<&str> = history.items.iter().map(|item| item.hash.as_str()).collect();
+
+        assert_eq!(history.unpushed_count, 2);
+        assert_eq!(hashes, vec![merge_hash.as_str(), main_hash.as_str(), base_hash.as_str()]);
+        assert!(!hashes.contains(&feature_hash.as_str()));
+        assert!(!history.items[0].is_pushed);
+        assert!(!history.items[1].is_pushed);
+        assert!(history.items[2].is_pushed);
     }
 
     #[test]

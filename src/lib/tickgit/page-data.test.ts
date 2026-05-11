@@ -436,6 +436,7 @@ describe("page data", () => {
         historyPage([commit("pushed", true), commit("c2")], {
           nextSkip: 2,
           hasMore: true,
+          unpushedCount: 2,
         }),
       )
       .mockResolvedValueOnce(
@@ -505,6 +506,32 @@ describe("page data", () => {
         getBranchStatus: vi
           .fn()
           .mockResolvedValue(branchStatus({ aheadCount: 0 })),
+        getCommitHistory,
+        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
+      }),
+      "/repo",
+      50,
+      false,
+      null,
+    );
+
+    expect(getCommitHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses history unpushedCount instead of branch aheadCount for paging", async () => {
+    const getCommitHistory = vi.fn().mockResolvedValue(
+      historyPage([commit("merge"), commit("main")], {
+        nextSkip: 2,
+        hasMore: true,
+        unpushedCount: 2,
+      }),
+    );
+
+    await fetchRepositorySnapshot(
+      createApiMock({
+        getBranchStatus: vi
+          .fn()
+          .mockResolvedValue(branchStatus({ aheadCount: 4 })),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),

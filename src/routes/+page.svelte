@@ -51,6 +51,7 @@
   const PAGE_SIZE = 50;
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
+  const PUSH_OVERLAY_DISMISS_MS = 3600;
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
@@ -508,6 +509,12 @@
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
           }
+
+          window.setTimeout(() => {
+            if (pushToCommitState?.jobId === payload.jobId) {
+              pushToCommitState = null;
+            }
+          }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
 
@@ -544,6 +551,12 @@
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
           }
+
+          window.setTimeout(() => {
+            if (stepPushState?.jobId === payload.jobId) {
+              stepPushState = null;
+            }
+          }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
 

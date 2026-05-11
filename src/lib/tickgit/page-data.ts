@@ -96,17 +96,20 @@ export async function fetchRepositorySnapshot(
   let commits: CommitListItem[] = [];
   let nextSkip = 0;
   let hasMore = false;
+  let expectedUnpushedCount = 0;
 
   do {
     const page = await api.getCommitHistory(repoPath, nextSkip, pageSize);
     commits = [...commits, ...page.items];
     nextSkip = page.nextSkip;
     hasMore = page.hasMore;
+    expectedUnpushedCount = page.unpushedCount;
   } while (
-    // aheadCount 可能大于第一页大小；这里预先补齐全部未推送 commit，避免右键推送/分步推送只拿到局部列表。
-    branchStatus.aheadCount > 0 &&
+    // 这里使用历史接口返回的 unpushedCount，而不是 branchStatus.aheadCount；
+    // 提交列表按 first-parent 展示时，只有这组可见 commit 才能安全用于 push to commit / step push。
+    expectedUnpushedCount > 0 &&
     commits.filter((commit) => !commit.isPushed).length <
-      branchStatus.aheadCount &&
+      expectedUnpushedCount &&
     hasMore
   );
 
