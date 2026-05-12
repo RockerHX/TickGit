@@ -1,5 +1,7 @@
 # TickGit
 
+特别感谢：[https://linux.do/](https://linux.do/)
+
 TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型桌面工具，目标是提供接近 GitHub Desktop 的桌面体验，同时增加对“未推送 Commit 精细控制”的能力，尤其是 **按 Commit 顺序逐条推送** 的场景。
 
 当前项目已完成首批骨架与核心闭环：
