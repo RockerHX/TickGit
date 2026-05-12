@@ -25,6 +25,8 @@
   } from "$lib/tickgit/page-data";
   import {
     buildStepPushHashes,
+    dismissFailedOverlay,
+    dismissOverlayIfJobMatches,
     createToastItem,
     getErrorMessage,
     toFailedStepPushState,
@@ -51,6 +53,7 @@
   const PAGE_SIZE = 50;
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
+  // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
 
   let repositories: RepositorySummary[] = [];
@@ -482,9 +485,10 @@
           }
 
           window.setTimeout(() => {
-            if (pushToCommitState?.jobId === payload.jobId) {
-              pushToCommitState = null;
-            }
+            pushToCommitState = dismissOverlayIfJobMatches(
+              pushToCommitState,
+              payload.jobId,
+            );
           }, 1800);
         }),
       );
@@ -511,9 +515,10 @@
           }
 
           window.setTimeout(() => {
-            if (pushToCommitState?.jobId === payload.jobId) {
-              pushToCommitState = null;
-            }
+            pushToCommitState = dismissOverlayIfJobMatches(
+              pushToCommitState,
+              payload.jobId,
+            );
           }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
@@ -535,9 +540,10 @@
           }
 
           window.setTimeout(() => {
-            if (stepPushState?.jobId === payload.jobId) {
-              stepPushState = null;
-            }
+            stepPushState = dismissOverlayIfJobMatches(
+              stepPushState,
+              payload.jobId,
+            );
           }, 1800);
         }),
       );
@@ -553,9 +559,10 @@
           }
 
           window.setTimeout(() => {
-            if (stepPushState?.jobId === payload.jobId) {
-              stepPushState = null;
-            }
+            stepPushState = dismissOverlayIfJobMatches(
+              stepPushState,
+              payload.jobId,
+            );
           }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
@@ -628,19 +635,11 @@
 <ToastViewport {toasts} />
 <PushToCommitOverlay
   state={pushToCommitState}
-  on:close={() => {
-    if (pushToCommitState?.status === "failed") {
-      pushToCommitState = null;
-    }
-  }}
+  on:close={() => (pushToCommitState = dismissFailedOverlay(pushToCommitState))}
 />
 <StepPushOverlay
   state={stepPushState}
-  on:close={() => {
-    if (stepPushState?.status === "failed") {
-      stepPushState = null;
-    }
-  }}
+  on:close={() => (stepPushState = dismissFailedOverlay(stepPushState))}
 />
 
 <CommitContextMenu

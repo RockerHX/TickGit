@@ -282,7 +282,10 @@ fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
 
 fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
     let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", "--count", &range])?;
+    let output = git_trimmed(
+        repo_path,
+        &["rev-list", "--first-parent", "--count", &range],
+    )?;
     Ok(parse_count(&output))
 }
 
@@ -422,7 +425,14 @@ pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFile
     let repo_path = resolve_repository_path(repo_path)?;
     let output = git_output_bytes(
         &repo_path,
-        &["show", "--find-renames", "--name-status", "-z", "--format=", hash],
+        &[
+            "show",
+            "--find-renames",
+            "--name-status",
+            "-z",
+            "--format=",
+            hash,
+        ],
     )?;
     Ok(parse_commit_files(&output))
 }
@@ -688,7 +698,10 @@ mod tests {
 
     #[test]
     fn parses_shortstat_counts() {
-        assert_eq!(parse_shortstat(" 1 file changed, 3 insertions(+), 2 deletions(-)"), (3, 2));
+        assert_eq!(
+            parse_shortstat(" 1 file changed, 3 insertions(+), 2 deletions(-)"),
+            (3, 2)
+        );
         assert_eq!(parse_shortstat(" 1 file changed, 4 insertions(+)"), (4, 0));
         assert_eq!(parse_shortstat(" 1 file changed, 7 deletions(-)"), (0, 7));
         assert_eq!(parse_shortstat(""), (0, 0));
@@ -794,10 +807,17 @@ mod tests {
         assert_eq!(status.behind_count, 0);
 
         let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
-        let hashes: Vec<&str> = history.items.iter().map(|item| item.hash.as_str()).collect();
+        let hashes: Vec<&str> = history
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect();
 
         assert_eq!(history.unpushed_count, 2);
-        assert_eq!(hashes, vec![merge_hash.as_str(), main_hash.as_str(), base_hash.as_str()]);
+        assert_eq!(
+            hashes,
+            vec![merge_hash.as_str(), main_hash.as_str(), base_hash.as_str()]
+        );
         assert!(!hashes.contains(&feature_hash.as_str()));
         assert!(!history.items[0].is_pushed);
         assert!(!history.items[1].is_pushed);
@@ -914,13 +934,27 @@ mod tests {
         run_git(&repo.path, &["add", "file.txt"]);
         run_git(
             &repo.path,
-            &["commit", "--no-gpg-sign", "-m", "summary", "-m", "details line"],
+            &[
+                "commit",
+                "--no-gpg-sign",
+                "-m",
+                "summary",
+                "-m",
+                "details line",
+            ],
         );
         write_file(&repo.path, "file.txt", "before\nafter\n");
         run_git(&repo.path, &["add", "file.txt"]);
         run_git(
             &repo.path,
-            &["commit", "--no-gpg-sign", "-m", "follow up", "-m", "more context"],
+            &[
+                "commit",
+                "--no-gpg-sign",
+                "-m",
+                "follow up",
+                "-m",
+                "more context",
+            ],
         );
 
         let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);

@@ -330,7 +330,7 @@ pub fn start_push_current_branch(
 
 #[cfg(test)]
 mod tests {
-    use super::{clear_push_execution, reserve_push_execution};
+    use super::{clear_push_execution, clear_running_job, reserve_push_execution};
     use std::sync::{Arc, Mutex};
 
     #[test]
@@ -350,12 +350,20 @@ mod tests {
 
         reserve_push_execution(&running_task, "step-push:1").unwrap();
         clear_push_execution(&running_task, "push-to-commit:1");
-        assert_eq!(
-            running_task.lock().unwrap().as_deref(),
-            Some("step-push:1")
-        );
+        assert_eq!(running_task.lock().unwrap().as_deref(), Some("step-push:1"));
 
         clear_push_execution(&running_task, "step-push:1");
         assert!(running_task.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn clears_only_matching_running_job() {
+        let running_job = Arc::new(Mutex::new(Some(7)));
+
+        clear_running_job(&running_job, 8);
+        assert_eq!(*running_job.lock().unwrap(), Some(7));
+
+        clear_running_job(&running_job, 7);
+        assert!(running_job.lock().unwrap().is_none());
     }
 }

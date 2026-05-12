@@ -260,7 +260,7 @@ pub fn save_window_size(
         Some(f64::from(monitor_size.width)),
         Some(f64::from(monitor_size.height)),
     )
-        .ok_or_else(|| AppError::new("window_size_invalid", "窗口尺寸无效"))?;
+    .ok_or_else(|| AppError::new("window_size_invalid", "窗口尺寸无效"))?;
 
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
@@ -289,11 +289,8 @@ pub fn add_repository(
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
     let normalized_path = normalize_repository_store_path(&path)?;
-    let repository = add_repository_to_store(
-        &mut store,
-        Path::new(&normalized_path),
-        now_millis(),
-    )?;
+    let repository =
+        add_repository_to_store(&mut store, Path::new(&normalized_path), now_millis())?;
     write_store(&config_path, &store)?;
     Ok(repository)
 }
@@ -419,7 +416,10 @@ mod tests {
 
         assert_eq!(loaded.repositories.len(), 1);
         assert_eq!(loaded.current_path.as_deref(), Some("/tmp/repo-a"));
-        assert_eq!(loaded.window_size.as_ref().map(|size| size.width), Some(960.0));
+        assert_eq!(
+            loaded.window_size.as_ref().map(|size| size.width),
+            Some(960.0)
+        );
     }
 
     #[test]
@@ -458,10 +458,13 @@ mod tests {
         let repo = init_repo();
         let repo_alias = repo.path.join(".");
 
-        let normalized = normalize_repository_store_path(repo_alias.to_string_lossy().as_ref())
-            .unwrap();
+        let normalized =
+            normalize_repository_store_path(repo_alias.to_string_lossy().as_ref()).unwrap();
 
-        assert_eq!(normalized, repo.path.canonicalize().unwrap().to_string_lossy());
+        assert_eq!(
+            normalized,
+            repo.path.canonicalize().unwrap().to_string_lossy()
+        );
     }
 
     #[test]

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { CommitListItem } from "$lib/types";
+import type {
+  CommitListItem,
+  PushToCommitUiState,
+  StepPushUiState,
+} from "$lib/types";
 import {
   buildStepPushHashes,
+  canManuallyDismissOverlay,
+  dismissFailedOverlay,
+  dismissOverlayIfJobMatches,
   getErrorMessage,
   pickSelectedCommit,
   toFailedStepPushState,
@@ -20,6 +27,29 @@ function commit(hash: string, isPushed = false): CommitListItem {
     tags: [],
     parents: [],
     isPushed,
+  };
+}
+
+function pushState(
+  overrides: Partial<PushToCommitUiState> = {},
+): PushToCommitUiState {
+  return {
+    jobId: 7,
+    target: "abc1234",
+    targetKind: "commit",
+    status: "running",
+    ...overrides,
+  };
+}
+
+function stepState(overrides: Partial<StepPushUiState> = {}): StepPushUiState {
+  return {
+    jobId: 9,
+    current: 1,
+    total: 3,
+    hash: "def5678",
+    status: "running",
+    ...overrides,
   };
 }
 
@@ -127,5 +157,40 @@ describe("page helpers", () => {
       status: "failed",
       message: "push failed",
     });
+  });
+
+  it("shows manual close only for failed overlays", () => {
+    expect(canManuallyDismissOverlay(pushState({ status: "running" }))).toBe(
+      false,
+    );
+    expect(canManuallyDismissOverlay(pushState({ status: "finished" }))).toBe(
+      false,
+    );
+    expect(canManuallyDismissOverlay(stepState({ status: "failed" }))).toBe(
+      true,
+    );
+    expect(canManuallyDismissOverlay(null)).toBe(false);
+  });
+
+  it("dismisses only failed overlays when user closes them", () => {
+    expect(dismissFailedOverlay(pushState({ status: "failed" }))).toBeNull();
+    expect(dismissFailedOverlay(stepState({ status: "failed" }))).toBeNull();
+
+    const runningPush = pushState({ status: "running" });
+    const finishedStep = stepState({ status: "finished" });
+
+    expect(dismissFailedOverlay(runningPush)).toBe(runningPush);
+    expect(dismissFailedOverlay(finishedStep)).toBe(finishedStep);
+    expect(dismissFailedOverlay(null)).toBeNull();
+  });
+
+  it("auto-dismisses only the matching overlay job", () => {
+    const failedPush = pushState({ jobId: 11, status: "failed" });
+    const runningStep = stepState({ jobId: 12, status: "running" });
+
+    expect(dismissOverlayIfJobMatches(failedPush, 11)).toBeNull();
+    expect(dismissOverlayIfJobMatches(runningStep, 12)).toBeNull();
+    expect(dismissOverlayIfJobMatches(failedPush, 99)).toBe(failedPush);
+    expect(dismissOverlayIfJobMatches(null, 11)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import type {
   AppError,
   CommitListItem,
+  PushToCommitUiState,
   StepPushFailed,
   StepPushFinished,
   StepPushProgress,
@@ -69,6 +70,26 @@ export function createToastItem(
   tone: ToastItem["tone"] = "info",
 ): ToastItem {
   return { id, title, message, tone };
+}
+
+type PushOverlayUiState = PushToCommitUiState | StepPushUiState;
+
+export function canManuallyDismissOverlay(
+  state: Pick<PushOverlayUiState, "status"> | null,
+) {
+  return state?.status === "failed";
+}
+
+export function dismissFailedOverlay<
+  T extends Pick<PushOverlayUiState, "status">,
+>(state: T | null) {
+  return canManuallyDismissOverlay(state) ? null : state;
+}
+
+export function dismissOverlayIfJobMatches<
+  T extends Pick<PushOverlayUiState, "jobId">,
+>(state: T | null, jobId: number) {
+  return state?.jobId === jobId ? null : state;
 }
 
 export function toRunningStepPushState(
