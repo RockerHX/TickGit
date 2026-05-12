@@ -33,13 +33,32 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch origin main --tags --force
-
           TAG_NAME="${GITHUB_REF_NAME}"
           TAG_SHA="${GITHUB_SHA}"
+          MAX_ATTEMPTS=12
+          SLEEP_SECONDS=5
+          TAG_REACHABLE_FROM_MAIN=0
 
-          if ! git branch -r --contains "${TAG_SHA}" | grep -q "origin/main"; then
-            echo "Tag ${TAG_NAME} does not point to a commit reachable from origin/main." >&2
+          # 支持“先打 tag，再和 main 一起 push”的发布习惯：
+          # tag 事件触发时，GitHub 侧有时会比 main 分支更新更早到达 workflow，
+          # 这里短暂轮询 origin/main，等待它包含当前 tag 指向的 commit。
+          for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+            git fetch origin main --tags --force
+
+            if git rev-parse --verify -q origin/main >/dev/null &&
+              git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
+              TAG_REACHABLE_FROM_MAIN=1
+              break
+            fi
+
+            if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
+              echo "origin/main does not include ${TAG_NAME} yet; retrying in ${SLEEP_SECONDS}s (${attempt}/${MAX_ATTEMPTS})..."
+              sleep "${SLEEP_SECONDS}"
+            fi
+          done
+
+          if [[ "${TAG_REACHABLE_FROM_MAIN}" -ne 1 ]]; then
+            echo "Tag ${TAG_NAME} does not point to a commit reachable from origin/main after waiting $((MAX_ATTEMPTS * SLEEP_SECONDS)) seconds." >&2
             exit 1
           fi
 
