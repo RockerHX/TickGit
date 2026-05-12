@@ -100,6 +100,8 @@ pnpm install
 pnpm tauri dev
 ```
 
+开发模式启动后，可在终端直接按 `q` 退出 Tauri dev 进程。
+
 ### 常用命令
 
 ```bash
