@@ -382,6 +382,26 @@ pub fn get_branch_status(repo_path: &str) -> AppResult<BranchStatus> {
     branch_status_for_path(&repo_path)
 }
 
+pub fn list_local_branches(repo_path: &str) -> AppResult<Vec<String>> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let output = git_trimmed(
+        &repo_path,
+        &[
+            "for-each-ref",
+            "--sort=refname",
+            "--format=%(refname:short)",
+            "refs/heads",
+        ],
+    )?;
+
+    Ok(output
+        .lines()
+        .map(str::trim)
+        .filter(|branch| !branch.is_empty())
+        .map(ToOwned::to_owned)
+        .collect())
+}
+
 pub fn get_commit_history(
     repo_path: &str,
     skip: usize,
@@ -514,6 +534,17 @@ pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
 
+pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let branch = branch.trim();
+
+    if branch.is_empty() {
+        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
+    }
+
+    git_run(&repo_path, &["checkout", branch])
+}
+
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     let refspec = format!("{hash}:refs/heads/{branch}");
@@ -523,9 +554,9 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
 #[cfg(test)]
 mod tests {
     use super::{
-        branch_status_for_path, get_commit_file_diff, get_commit_history, get_commit_meta,
-        parse_ahead_behind, parse_commit_files, parse_commit_history, parse_shortstat,
-        push_current_branch, resolve_repository_path,
+        branch_status_for_path, checkout_branch, get_commit_file_diff, get_commit_history,
+        get_commit_meta, list_local_branches, parse_ahead_behind, parse_commit_files,
+        parse_commit_history, parse_shortstat, push_current_branch, resolve_repository_path,
     };
     use crate::error::AppError;
     use std::{
@@ -963,5 +994,29 @@ mod tests {
         assert_eq!(meta.body, "more context");
         assert_eq!(meta.additions, 1);
         assert_eq!(meta.deletions, 0);
+    }
+
+    #[test]
+    fn lists_local_branches() {
+        let repo = init_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let current_branch = current_test_branch(&repo.path);
+        run_git(&repo.path, &["branch", "feature"]);
+
+        let branches = list_local_branches(repo.path.to_string_lossy().as_ref()).unwrap();
+
+        assert_eq!(branches, vec!["feature".to_string(), current_branch]);
+    }
+
+    #[test]
+    fn checks_out_selected_local_branch() {
+        let repo = init_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        run_git(&repo.path, &["branch", "feature"]);
+
+        checkout_branch(repo.path.to_string_lossy().as_ref(), "feature").unwrap();
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        assert_eq!(status.branch, "feature");
     }
 }

@@ -25,6 +25,8 @@ pub fn run() {
             commands::set_current_repository,
             commands::get_current_repository,
             commands::get_branch_status,
+            commands::list_local_branches,
+            commands::checkout_branch,
             commands::get_commit_history,
             commands::get_commit_files,
             commands::get_commit_meta,

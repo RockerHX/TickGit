@@ -21,6 +21,10 @@ export const api = {
     invoke<RepositorySummary | null>("get_current_repository"),
   getBranchStatus: (repoPath: string) =>
     invoke<BranchStatus>("get_branch_status", { repoPath }),
+  listLocalBranches: (repoPath: string) =>
+    invoke<string[]>("list_local_branches", { repoPath }),
+  checkoutBranch: (repoPath: string, branch: string) =>
+    invoke<void>("checkout_branch", { repoPath, branch }),
   getCommitHistory: (repoPath: string, skip: number, limit: number) =>
     invoke<CommitHistoryPage>("get_commit_history", { repoPath, skip, limit }),
   getCommitFiles: (repoPath: string, hash: string) =>

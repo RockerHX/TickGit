@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
@@ -59,6 +60,7 @@
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
   let branchStatus: BranchStatus | null = null;
+  let localBranches: string[] = [];
 
   let commits: CommitListItem[] = [];
   let selectedCommit: CommitListItem | null = null;
@@ -78,6 +80,7 @@
 
   let dragActive = false;
   let isPushing = false;
+  let switchingBranch = false;
   let activeResizeTarget: "header" | "history" | null = null;
   let leftPaneWidth = 360;
 
@@ -168,16 +171,20 @@
     try {
       // 这里依赖 fetchRepositorySnapshot 预先补齐全部未推送 commits；
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
-      const snapshot = await fetchRepositorySnapshot(
-        api,
-        path,
-        PAGE_SIZE,
-        keepSelection,
-        selectedCommit?.hash ?? null,
-        hideWhitespaceInDiff,
-      );
+      const [snapshot, branches] = await Promise.all([
+        fetchRepositorySnapshot(
+          api,
+          path,
+          PAGE_SIZE,
+          keepSelection,
+          selectedCommit?.hash ?? null,
+          hideWhitespaceInDiff,
+        ),
+        api.listLocalBranches(path),
+      ]);
 
       branchStatus = snapshot.branchStatus;
+      localBranches = branches;
       commits = snapshot.commits;
       nextSkip = snapshot.nextSkip;
       hasMore = snapshot.hasMore;
@@ -190,6 +197,35 @@
       notify("读取仓库失败", getErrorMessage(error), "error");
     } finally {
       loadingRepository = false;
+    }
+  }
+
+  async function switchBranch(branch: string) {
+    if (
+      !currentRepository ||
+      switchingBranch ||
+      isPushing ||
+      stepPushState?.status === "running"
+    ) {
+      return;
+    }
+
+    if (branch === branchStatus?.branch) {
+      return;
+    }
+
+    switchingBranch = true;
+    loadingRepository = true;
+
+    try {
+      await api.checkoutBranch(currentRepository.path, branch);
+      await loadRepositoryState(currentRepository.path);
+      notify("分支已切换", `当前已切换到 ${branch}`, "success");
+    } catch (error) {
+      notify("切换分支失败", getErrorMessage(error), "error");
+    } finally {
+      loadingRepository = false;
+      switchingBranch = false;
     }
   }
 
@@ -647,7 +683,7 @@
   x={contextMenu.x}
   y={contextMenu.y}
   commit={contextMenu.commit}
-  disabled={isPushing || stepPushState?.status === "running"}
+  disabled={switchingBranch || isPushing || stepPushState?.status === "running"}
   on:pushToCommit={pushToTargetCommit}
   on:stepPush={startStepPush}
   on:close={closeContextMenu}
@@ -704,10 +740,17 @@
             >
               Current Branch
             </div>
-            <div
-              class="mt-0.5 truncate text-[1.05rem] font-semibold text-[#f0f6fc]"
-            >
-              {branchStatus?.branch ?? "N/A"}
+            <div class="mt-1">
+              <BranchSwitcher
+                branches={localBranches}
+                currentBranch={branchStatus?.branch ?? null}
+                disabled={!currentRepository ||
+                  loadingRepository ||
+                  switchingBranch ||
+                  isPushing ||
+                  stepPushState?.status === "running"}
+                on:change={(event) => switchBranch(event.detail.branch)}
+              />
             </div>
             <div class="mt-0.5 truncate text-xs text-slate-400">
               {branchStatus?.upstream ?? "No upstream configured"}
@@ -721,6 +764,7 @@
           class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
           disabled={!branchStatus?.pushAvailable ||
             branchStatus.aheadCount === 0 ||
+            switchingBranch ||
             isPushing ||
             stepPushState?.status === "running"}
           on:click={pushCurrentBranch}
@@ -736,7 +780,11 @@
           </svg>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[0.95rem] font-semibold">
-              {isPushing ? "Pushing…" : "Push origin"}
+              {switchingBranch
+                ? "Switching…"
+                : isPushing
+                  ? "Pushing…"
+                  : "Push origin"}
             </span>
             <span class="mt-0.5 block truncate text-xs text-slate-400">
               {branchStatus?.aheadCount

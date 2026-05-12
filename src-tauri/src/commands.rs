@@ -50,6 +50,16 @@ pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
 }
 
 #[tauri::command]
+pub fn list_local_branches(repo_path: String) -> AppResult<Vec<String>> {
+    git::list_local_branches(&repo_path)
+}
+
+#[tauri::command]
+pub fn checkout_branch(repo_path: String, branch: String) -> AppResult<()> {
+    git::checkout_branch(&repo_path, &branch)
+}
+
+#[tauri::command]
 pub fn get_commit_history(
     repo_path: String,
     skip: usize,

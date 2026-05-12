@@ -8,6 +8,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 
 - 拖拽添加本地 Git 仓库
 - 仓库列表持久化与切换
+- 当前仓库本地分支切换与整页刷新
 - 左侧 Commit 历史分页加载
 - 已推送 / 未推送 Commit 区分
 - Commit 详情、文件列表、结构化文本 Diff 查看（Unified / Split）
