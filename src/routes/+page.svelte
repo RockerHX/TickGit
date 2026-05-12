@@ -443,7 +443,11 @@
     const hashes = buildStepPushHashes(commits, commit.hash);
 
     if (!hashes) {
-      notify("无法分步提交", "目标 Commit 不在未推送列表中", "error");
+      notify(
+        "无法分步提交",
+        commit.pushBlockedReason ?? "目标 Commit 不在可安全分步推送路径上",
+        "error",
+      );
       return;
     }
 
@@ -684,6 +688,14 @@
   y={contextMenu.y}
   commit={contextMenu.commit}
   disabled={switchingBranch || isPushing || stepPushState?.status === "running"}
+  pushToCommitDisabled={!contextMenu.commit?.isSafePushTarget}
+  stepPushDisabled={!contextMenu.commit?.isSafePushTarget}
+  pushToCommitReason={contextMenu.commit?.isSafePushTarget
+    ? null
+    : (contextMenu.commit?.pushBlockedReason ?? null)}
+  stepPushReason={contextMenu.commit?.isSafePushTarget
+    ? null
+    : (contextMenu.commit?.pushBlockedReason ?? null)}
   on:pushToCommit={pushToTargetCommit}
   on:stepPush={startStepPush}
   on:close={closeContextMenu}

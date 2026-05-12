@@ -96,20 +96,20 @@ export async function fetchRepositorySnapshot(
   let commits: CommitListItem[] = [];
   let nextSkip = 0;
   let hasMore = false;
-  let expectedUnpushedCount = 0;
+  let expectedSafeUnpushedCount = 0;
 
   do {
     const page = await api.getCommitHistory(repoPath, nextSkip, pageSize);
     commits = [...commits, ...page.items];
     nextSkip = page.nextSkip;
     hasMore = page.hasMore;
-    expectedUnpushedCount = page.unpushedCount;
+    expectedSafeUnpushedCount = page.safeUnpushedCount;
   } while (
-    // 这里使用历史接口返回的 unpushedCount，而不是 branchStatus.aheadCount；
-    // 提交列表按 first-parent 展示时，只有这组可见 commit 才能安全用于 push to commit / step push。
-    expectedUnpushedCount > 0 &&
-    commits.filter((commit) => !commit.isPushed).length <
-      expectedUnpushedCount &&
+    // 这里仍然只要求把全部安全 step-push 目标预加载出来；
+    // 历史现在按全量展示，但 step push / push to commit 仍只能作用于 first-parent 安全路径。
+    expectedSafeUnpushedCount > 0 &&
+    commits.filter((commit) => commit.isSafePushTarget).length <
+      expectedSafeUnpushedCount &&
     hasMore
   );
 

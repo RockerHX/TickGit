@@ -101,7 +101,7 @@ Git 领域核心模块，统一负责：
 - 仓库校验
 - 当前分支 / upstream 状态
 - ahead / behind 计算
-- 未推送 Commit 判断
+- 全量未推送 Commit 与 first-parent 安全推送集合计算
 - Commit 历史、文件列表、Diff
 - 常规推送
 - 推送到指定 Commit
@@ -164,8 +164,8 @@ Git 命令执行规则：
 ### 启动
 
 1. 读取仓库列表与当前仓库
-2. 读取分支状态
-3. 拉取 Commit 历史
+2. 读取分支状态（包含全量 ahead 数与 safe step-push 数）
+3. 拉取完整 Commit 历史，并标记哪些未推送 Commit 位于 first-parent 安全路径上
 4. 自动加载当前选中 Commit 的文件与 Diff
 
 ### 分步提交
@@ -177,12 +177,15 @@ Git 命令执行规则：
 为了保证这个体验在 merge / 分叉历史下依然安全成立，技术上不是简单把“所有未推送 Commit”按时间排序后硬推，而是按下面步骤处理：
 
 1. 后端读取当前分支的 first-parent 历史
-2. 后端基于 first-parent 路径计算“可安全分步推送”的未推送 Commit 集合
-3. 前端只在这条可安全路径上整理要推送的 commit hash（旧 -> 新）
-4. 调用 `start_step_push`
-5. 后端逐个执行 `git push origin <hash>:refs/heads/<branch>`
-6. 每成功一步，就把远端分支推进到下一个安全目标
-7. 通过 event 推送进度、完成或失败
+2. 后端同时计算：
+   - 相对 upstream 的全量未推送 Commit 集合
+   - 基于 first-parent 路径的“可安全分步推送”未推送 Commit 集合
+3. 前端历史默认展示完整历史，但只在可安全路径上开放 step push / push to commit
+4. 前端只在这条可安全路径上整理要推送的 commit hash（旧 -> 新）
+5. 调用 `start_step_push`
+6. 后端逐个执行 `git push origin <hash>:refs/heads/<branch>`
+7. 每成功一步，就把远端分支推进到下一个安全目标
+8. 通过 event 推送进度、完成或失败
 
 这样做的核心目的，是保证分步推送始终沿着一条真正可 fast-forward 的主线前进，而不是把 merge 进来的侧支 Commit 误塞进队列。
 

@@ -14,6 +14,7 @@ pub struct BranchStatus {
     pub branch: String,
     pub upstream: Option<String>,
     pub ahead_count: usize,
+    pub safe_ahead_count: usize,
     pub behind_count: usize,
     pub detached: bool,
     pub push_available: bool,
@@ -32,6 +33,8 @@ pub struct CommitListItem {
     pub tags: Vec<String>,
     pub parents: Vec<String>,
     pub is_pushed: bool,
+    pub is_safe_push_target: bool,
+    pub push_blocked_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,6 +52,7 @@ pub struct CommitHistoryPage {
     pub next_skip: usize,
     pub has_more: bool,
     pub unpushed_count: usize,
+    pub safe_unpushed_count: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -11,6 +11,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 当前仓库本地分支切换与整页刷新
 - 左侧 Commit 历史分页加载
 - 已推送 / 未推送 Commit 区分
+- 历史默认展示完整 Commit 历史，并标记可安全分步推送的 Commit
 - Commit 详情、文件列表、结构化文本 Diff 查看（Unified / Split）
 - 常规 `git push`
 - 右键“提交到当前 Commit”
@@ -39,6 +40,8 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 仅支持 **当前检出分支**
 - 远端固定为 **`origin`**
 - 未推送 Commit 的判断基于当前分支的 **upstream**
+- 顶部 Push 计数显示的是相对 upstream 的 **全量未推送 Commit 数**
+- “分步推送 / Push to Commit” 的可操作目标只来自 **first-parent 安全路径**
 - 分步提交任务为 **单任务、不可取消**
 - Diff 当前为 **结构化文本展示**，支持 **Unified / Split** 与 **Hide Whitespace Changes**，暂不做语法高亮、图片 / 二进制专用 Diff 与超大文件优化
 
@@ -72,6 +75,8 @@ TickGit 也会自动避开那些不能直接线性推送的危险路径，保证
 - 按 **从旧到新** 的顺序逐步推送
 
 而不会再因为 merge 后的穿插历史，莫名出现 `non-fast-forward` 这类错误。
+
+同时，历史列表会默认展示完整历史；如果某个未推送 Commit 不在这条 first-parent 安全路径上，TickGit 会把它标记为 **不可安全分步推送**，避免用户逐个尝试。
 
 ## 快速开始
 

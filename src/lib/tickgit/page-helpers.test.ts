@@ -27,6 +27,8 @@ function commit(hash: string, isPushed = false): CommitListItem {
     tags: [],
     parents: [],
     isPushed,
+    isSafePushTarget: !isPushed,
+    pushBlockedReason: null,
   };
 }
 
@@ -93,6 +95,29 @@ describe("page helpers", () => {
     const commits = [commit("pushed", true), commit("c2"), commit("c1")];
 
     expect(buildStepPushHashes(commits, "pushed")).toBeNull();
+  });
+
+  it("rejects unsafe unpushed commits as step push targets", () => {
+    const commits = [
+      commit("unsafe-merge", false),
+      commit("safe-2", false),
+      commit("safe-1", false),
+    ].map((item) =>
+      item.hash === "unsafe-merge"
+        ? {
+            ...item,
+            isSafePushTarget: false,
+            pushBlockedReason:
+              "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标",
+          }
+        : item,
+    );
+
+    expect(buildStepPushHashes(commits, "unsafe-merge")).toBeNull();
+    expect(buildStepPushHashes(commits, "safe-2")).toEqual([
+      "safe-1",
+      "safe-2",
+    ]);
   });
 
   it("picks selected commit with optional keep-selection behavior", () => {

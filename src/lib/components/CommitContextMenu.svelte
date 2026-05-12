@@ -7,6 +7,10 @@
   export let y = 0;
   export let commit: CommitListItem | null = null;
   export let disabled = false;
+  export let pushToCommitDisabled = false;
+  export let stepPushDisabled = false;
+  export let pushToCommitReason: string | null = null;
+  export let stepPushReason: string | null = null;
 
   const dispatch = createEventDispatcher<{
     pushToCommit: void;
@@ -27,7 +31,7 @@
   >
     <button
       class="flex w-full items-start gap-3 rounded-sm px-3 py-2 text-left transition hover:bg-[#373e47] disabled:cursor-not-allowed disabled:opacity-40"
-      {disabled}
+      disabled={disabled || pushToCommitDisabled}
       on:click={() => dispatch("pushToCommit")}
     >
       <div
@@ -46,14 +50,14 @@
       <div>
         <div class="text-sm font-medium text-white">Push to this commit</div>
         <div class="text-xs text-slate-400">
-          Push branch state to {commit.shortHash}
+          {pushToCommitReason ?? `Push branch state to ${commit.shortHash}`}
         </div>
       </div>
     </button>
 
     <button
       class="flex w-full items-start gap-3 rounded-sm px-3 py-2 text-left transition hover:bg-[#373e47] disabled:cursor-not-allowed disabled:opacity-40"
-      {disabled}
+      disabled={disabled || stepPushDisabled}
       on:click={() => dispatch("stepPush")}
     >
       <div
@@ -74,7 +78,8 @@
           Step push to this commit
         </div>
         <div class="text-xs text-slate-400">
-          Push each unpushed commit in order until this target
+          {stepPushReason ??
+            "Push each unpushed commit in order until this target"}
         </div>
       </div>
     </button>

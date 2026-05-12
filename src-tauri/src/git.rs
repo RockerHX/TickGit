@@ -13,6 +13,8 @@ const REMOTE_NAME: &str = "origin";
 // Git 约定的空树对象。初始提交没有 parent 时，使用它与目标提交做 diff，
 // 才能和普通提交一样统一走 diff 参数（例如 -w 忽略空白）逻辑。
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+const UNSAFE_PUSH_TARGET_MESSAGE: &str =
+    "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
@@ -142,7 +144,11 @@ fn parse_commit_tags(decorations: &str) -> Vec<String> {
         .collect()
 }
 
-fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitListItem> {
+fn parse_commit_history(
+    output: &str,
+    unpushed: &HashSet<String>,
+    safe_push_targets: &HashSet<String>,
+) -> Vec<CommitListItem> {
     output
         // git log 使用 record separator / unit separator，避免正文里的普通换行或空格干扰解析。
         .split('\u{1e}')
@@ -154,6 +160,8 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
             }
 
             let hash = fields[0].trim().to_string();
+            let is_pushed = !unpushed.contains(&hash);
+            let is_safe_push_target = safe_push_targets.contains(&hash);
 
             Some(CommitListItem {
                 short_hash: fields[1].trim().to_string(),
@@ -166,7 +174,10 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
                     .split_whitespace()
                     .map(ToOwned::to_owned)
                     .collect(),
-                is_pushed: !unpushed.contains(&hash),
+                is_pushed,
+                is_safe_push_target,
+                push_blocked_reason: (!is_pushed && !is_safe_push_target)
+                    .then_some(UNSAFE_PUSH_TARGET_MESSAGE.to_string()),
                 hash,
             })
         })
@@ -280,6 +291,12 @@ fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     Ok(parse_ahead_behind(&counts))
 }
 
+fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
+    let range = format!("{upstream}..HEAD");
+    let output = git_trimmed(repo_path, &["rev-list", "--count", &range])?;
+    Ok(parse_count(&output))
+}
+
 fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(
@@ -291,8 +308,91 @@ fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize
 
 fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
+    let output = git_trimmed(repo_path, &["rev-list", &range])?;
+    Ok(parse_unpushed_hashes(&output))
+}
+
+fn safe_unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
+    let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
     Ok(parse_unpushed_hashes(&output))
+}
+
+fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+    let range = format!("{upstream}..HEAD");
+    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
+    let mut hashes: Vec<String> = output
+        .lines()
+        .map(str::trim)
+        .filter(|hash| !hash.is_empty())
+        .map(ToOwned::to_owned)
+        .collect();
+    hashes.reverse();
+    Ok(hashes)
+}
+
+fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
+    let branch_status = branch_status_for_path(repo_path)?;
+    let disabled_reason = branch_status.disabled_reason.clone();
+    let upstream = branch_status.upstream.as_deref().ok_or_else(|| {
+        AppError::new(
+            "push_unavailable",
+            disabled_reason
+                .clone()
+                .unwrap_or_else(|| "当前分支没有上游跟踪分支，无法执行推送".to_string()),
+        )
+    })?;
+
+    if !branch_status.push_available {
+        return Err(AppError::new(
+            "push_unavailable",
+            disabled_reason.unwrap_or_else(|| "当前分支当前不可推送".to_string()),
+        ));
+    }
+
+    let safe_targets = safe_unpushed_hashes(repo_path, upstream)?;
+    if safe_targets.contains(hash) {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            "unsafe_push_target",
+            UNSAFE_PUSH_TARGET_MESSAGE,
+        ))
+    }
+}
+
+fn ensure_safe_step_push_hashes(repo_path: &Path, hashes: &[String]) -> AppResult<()> {
+    let Some(target_hash) = hashes.last() else {
+        return Err(AppError::new("empty_hashes", "没有可推送的 Commit"));
+    };
+
+    ensure_safe_push_target(repo_path, target_hash)?;
+
+    let branch_status = branch_status_for_path(repo_path)?;
+    let upstream = branch_status.upstream.as_deref().ok_or_else(|| {
+        AppError::new(
+            "push_unavailable",
+            branch_status
+                .disabled_reason
+                .unwrap_or_else(|| "当前分支没有上游跟踪分支，无法执行推送".to_string()),
+        )
+    })?;
+
+    let safe_hashes = safe_unpushed_hashes_in_push_order(repo_path, upstream)?;
+    let target_index = safe_hashes
+        .iter()
+        .position(|hash| hash == target_hash)
+        .ok_or_else(|| AppError::new("unsafe_push_target", UNSAFE_PUSH_TARGET_MESSAGE))?;
+    let expected = &safe_hashes[..=target_index];
+
+    if expected == hashes {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            "unsafe_push_target",
+            UNSAFE_PUSH_TARGET_MESSAGE,
+        ))
+    }
 }
 
 fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
@@ -307,10 +407,14 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
     let (ahead_count, behind_count) = match upstream.as_deref() {
         Some(upstream) => {
             let (_, behind_count) = ahead_behind(repo_path, upstream)?;
-            let ahead_count = first_parent_ahead_count(repo_path, upstream)?;
+            let ahead_count = total_ahead_count(repo_path, upstream)?;
             (ahead_count, behind_count)
         }
         None => (0, 0),
+    };
+    let safe_ahead_count = match upstream.as_deref() {
+        Some(upstream) => first_parent_ahead_count(repo_path, upstream)?,
+        None => 0,
     };
 
     let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
@@ -331,6 +435,7 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
         branch,
         upstream,
         ahead_count,
+        safe_ahead_count,
         behind_count,
         detached,
         push_available,
@@ -377,6 +482,16 @@ pub fn validate_repository(repo_path: &str) -> AppResult<()> {
     Ok(())
 }
 
+pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    ensure_safe_push_target(&repo_path, hash)
+}
+
+pub fn validate_step_push_hashes(repo_path: &str, hashes: &[String]) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    ensure_safe_step_push_hashes(&repo_path, hashes)
+}
+
 pub fn get_branch_status(repo_path: &str) -> AppResult<BranchStatus> {
     let repo_path = resolve_repository_path(repo_path)?;
     branch_status_for_path(&repo_path)
@@ -409,16 +524,19 @@ pub fn get_commit_history(
 ) -> AppResult<CommitHistoryPage> {
     let repo_path = resolve_repository_path(repo_path)?;
     let branch_status = branch_status_for_path(&repo_path)?;
-    let unpushed = match branch_status.upstream.as_deref() {
-        Some(upstream) if branch_status.push_available => unpushed_hashes(&repo_path, upstream)?,
-        _ => HashSet::new(),
+    let (unpushed, safe_push_targets) = match branch_status.upstream.as_deref() {
+        Some(upstream) if branch_status.push_available => (
+            unpushed_hashes(&repo_path, upstream)?,
+            safe_unpushed_hashes(&repo_path, upstream)?,
+        ),
+        _ => (HashSet::new(), HashSet::new()),
     };
 
     let output = git_trimmed(
         &repo_path,
         &[
             "log",
-            "--first-parent",
+            "--topo-order",
             "--skip",
             &skip.to_string(),
             "-n",
@@ -430,7 +548,7 @@ pub fn get_commit_history(
         ],
     )?;
 
-    let items = parse_commit_history(&output, &unpushed);
+    let items = parse_commit_history(&output, &unpushed, &safe_push_targets);
     let item_count = items.len();
 
     Ok(CommitHistoryPage {
@@ -438,6 +556,7 @@ pub fn get_commit_history(
         next_skip: skip + item_count,
         has_more: item_count == limit,
         unpushed_count: unpushed.len(),
+        safe_unpushed_count: safe_push_targets.len(),
     })
 }
 
@@ -547,6 +666,7 @@ pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
 
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
+    ensure_safe_push_target(&repo_path, hash)?;
     let refspec = format!("{hash}:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
@@ -556,7 +676,8 @@ mod tests {
     use super::{
         branch_status_for_path, checkout_branch, get_commit_file_diff, get_commit_history,
         get_commit_meta, list_local_branches, parse_ahead_behind, parse_commit_files,
-        parse_commit_history, parse_shortstat, push_current_branch, resolve_repository_path,
+        parse_commit_history, parse_shortstat, push_current_branch, push_to_commit,
+        resolve_repository_path, validate_step_push_hashes, UNSAFE_PUSH_TARGET_MESSAGE,
     };
     use crate::error::AppError;
     use std::{
@@ -683,20 +804,25 @@ mod tests {
     #[test]
     fn parses_commit_history_records() {
         let unpushed = HashSet::from([String::from("hash-2")]);
+        let safe_push_targets = HashSet::from([String::from("hash-2")]);
         let output = concat!(
             "hash-1\x1fshort-1\x1fInitial commit\x1fAlice\x1falice@example.com\x1f2026-04-25T10:00:00Z\x1ftag: v1.0.0\x1f\x1e",
             "hash-2\x1fshort-2\x1fAdd file\x1fBob\x1fbob@example.com\x1f2026-04-25T11:00:00Z\x1fHEAD -> main, tag: v1.1.0, origin/main, tag: latest\x1fhash-1\x1e",
         );
 
-        let items = parse_commit_history(output, &unpushed);
+        let items = parse_commit_history(output, &unpushed, &safe_push_targets);
 
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].hash, "hash-1");
         assert!(items[0].is_pushed);
+        assert!(!items[0].is_safe_push_target);
+        assert_eq!(items[0].push_blocked_reason, None);
         assert_eq!(items[0].tags, vec!["v1.0.0"]);
         assert_eq!(items[0].parents, Vec::<String>::new());
         assert_eq!(items[1].hash, "hash-2");
         assert!(!items[1].is_pushed);
+        assert!(items[1].is_safe_push_target);
+        assert_eq!(items[1].push_blocked_reason, None);
         assert_eq!(items[1].tags, vec!["v1.1.0", "latest"]);
         assert_eq!(items[1].parents, vec!["hash-1"]);
     }
@@ -809,7 +935,7 @@ mod tests {
     }
 
     #[test]
-    fn uses_first_parent_history_and_ahead_count_after_merge() {
+    fn separates_total_history_from_safe_step_push_targets_after_merge() {
         let repo = init_repo();
         let origin = init_bare_repo();
         let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
@@ -834,7 +960,8 @@ mod tests {
         let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
 
         let status = branch_status_for_path(&repo.path).unwrap();
-        assert_eq!(status.ahead_count, 2);
+        assert_eq!(status.ahead_count, 3);
+        assert_eq!(status.safe_ahead_count, 2);
         assert_eq!(status.behind_count, 0);
 
         let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
@@ -844,15 +971,105 @@ mod tests {
             .map(|item| item.hash.as_str())
             .collect();
 
-        assert_eq!(history.unpushed_count, 2);
+        assert_eq!(history.unpushed_count, 3);
+        assert_eq!(history.safe_unpushed_count, 2);
+        assert!(hashes.contains(&merge_hash.as_str()));
+        assert!(hashes.contains(&main_hash.as_str()));
+        assert!(hashes.contains(&feature_hash.as_str()));
+        assert!(hashes.contains(&base_hash.as_str()));
+
+        let merge_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == merge_hash)
+            .expect("merge commit in history");
+        let main_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == main_hash)
+            .expect("main commit in history");
+        let feature_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == feature_hash)
+            .expect("feature commit in history");
+        let base_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == base_hash)
+            .expect("base commit in history");
+
+        assert!(!merge_item.is_pushed);
+        assert!(merge_item.is_safe_push_target);
+        assert_eq!(merge_item.push_blocked_reason, None);
+        assert!(!main_item.is_pushed);
+        assert!(main_item.is_safe_push_target);
+        assert_eq!(main_item.push_blocked_reason, None);
+        assert!(!feature_item.is_pushed);
+        assert!(!feature_item.is_safe_push_target);
         assert_eq!(
-            hashes,
-            vec![merge_hash.as_str(), main_hash.as_str(), base_hash.as_str()]
+            feature_item.push_blocked_reason.as_deref(),
+            Some(UNSAFE_PUSH_TARGET_MESSAGE)
         );
-        assert!(!hashes.contains(&feature_hash.as_str()));
-        assert!(!history.items[0].is_pushed);
-        assert!(!history.items[1].is_pushed);
-        assert!(history.items[2].is_pushed);
+        assert!(base_item.is_pushed);
+    }
+
+    #[test]
+    fn rejects_push_to_commit_for_unsafe_merge_side_branch_commit() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        run_git(&repo.path, &["checkout", "-b", "feature", &base_hash]);
+        let feature_hash = commit_file(&repo.path, "feature.txt", "feature\n", "feature");
+
+        run_git(&repo.path, &["checkout", &branch]);
+        commit_file(&repo.path, "main.txt", "main\n", "main");
+        run_git(
+            &repo.path,
+            &["merge", "--no-ff", "feature", "-m", "merge feature"],
+        );
+
+        let error = push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &feature_hash)
+            .unwrap_err();
+        assert_eq!(error.code, "unsafe_push_target");
+        assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+    }
+
+    #[test]
+    fn rejects_non_contiguous_step_push_hashes() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+        commit_file(&repo.path, "second.txt", "second\n", "second");
+        let third_hash = commit_file(&repo.path, "third.txt", "third\n", "third");
+
+        let error = validate_step_push_hashes(
+            repo.path.to_string_lossy().as_ref(),
+            &[first_hash, third_hash],
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, "unsafe_push_target");
+        assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
     }
 
     #[test]

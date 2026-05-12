@@ -113,6 +113,8 @@ pub fn start_step_push(
         return Err(AppError::new("empty_hashes", "没有可推送的 Commit"));
     }
 
+    git::validate_step_push_hashes(&request.repo_path, &request.hashes)?;
+
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
     let task_key = format!("step-push:{job_id}");
@@ -196,6 +198,8 @@ pub fn start_push_to_commit(
     if request.hash.trim().is_empty() {
         return Err(AppError::new("invalid_hash", "目标 Commit 不能为空"));
     }
+
+    git::validate_push_target(&request.repo_path, &request.hash)?;
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);

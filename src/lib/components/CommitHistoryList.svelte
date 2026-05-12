@@ -43,7 +43,8 @@
     <div class="text-sm font-semibold text-[#f0f6fc]">History</div>
     <div class="mt-1 text-xs text-slate-400">
       {#if branchStatus?.pushAvailable}
-        Ahead {branchStatus.aheadCount} · Behind {branchStatus.behindCount}
+        Ahead {branchStatus.aheadCount} · Safe step-push {branchStatus.safeAheadCount}
+        · Behind {branchStatus.behindCount}
       {:else}
         {branchStatus?.disabledReason ?? "当前仓库未启用推送"}
       {/if}
@@ -125,6 +126,22 @@
                         ></path>
                       </svg>
                     </span>
+                    {#if commit.isSafePushTarget}
+                      <span
+                        class="rounded-full border border-emerald-400/25 bg-emerald-400/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200"
+                        title="可安全分步推送"
+                      >
+                        Step
+                      </span>
+                    {:else}
+                      <span
+                        class="rounded-full border border-slate-500/30 bg-slate-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300"
+                        title={commit.pushBlockedReason ??
+                          "当前 Commit 不能安全分步推送"}
+                      >
+                        Unsafe
+                      </span>
+                    {/if}
                   {:else}
                     <svg
                       viewBox="0 0 16 16"

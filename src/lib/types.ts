@@ -8,6 +8,7 @@ export type BranchStatus = {
   branch: string;
   upstream: string | null;
   aheadCount: number;
+  safeAheadCount: number;
   behindCount: number;
   detached: boolean;
   pushAvailable: boolean;
@@ -24,6 +25,8 @@ export type CommitListItem = {
   tags: string[];
   parents: string[];
   isPushed: boolean;
+  isSafePushTarget: boolean;
+  pushBlockedReason: string | null;
 };
 
 export type CommitMeta = {
@@ -37,6 +40,7 @@ export type CommitHistoryPage = {
   nextSkip: number;
   hasMore: boolean;
   unpushedCount: number;
+  safeUnpushedCount: number;
 };
 
 export type CommitFileChange = {

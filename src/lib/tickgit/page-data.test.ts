@@ -36,6 +36,7 @@ function branchStatus(overrides: Partial<BranchStatus> = {}): BranchStatus {
     branch: "main",
     upstream: "origin/main",
     aheadCount: 0,
+    safeAheadCount: 0,
     behindCount: 0,
     detached: false,
     pushAvailable: true,
@@ -44,7 +45,11 @@ function branchStatus(overrides: Partial<BranchStatus> = {}): BranchStatus {
   };
 }
 
-function commit(hash: string, isPushed = false): CommitListItem {
+function commit(
+  hash: string,
+  isPushed = false,
+  isSafePushTarget = !isPushed,
+): CommitListItem {
   return {
     hash,
     shortHash: hash.slice(0, 7),
@@ -55,6 +60,11 @@ function commit(hash: string, isPushed = false): CommitListItem {
     tags: [],
     parents: [],
     isPushed,
+    isSafePushTarget,
+    pushBlockedReason:
+      !isPushed && !isSafePushTarget
+        ? "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标"
+        : null,
   };
 }
 
@@ -89,6 +99,7 @@ function historyPage(
     nextSkip: items.length,
     hasMore: false,
     unpushedCount: items.filter((item) => !item.isPushed).length,
+    safeUnpushedCount: items.filter((item) => item.isSafePushTarget).length,
     ...overrides,
   };
 }
@@ -387,7 +398,7 @@ describe("page data", () => {
     expect(getCommitFileDiff).not.toHaveBeenCalled();
   });
 
-  it("loads extra history pages until all unpushed commits are available", async () => {
+  it("loads extra history pages until all safe step push commits are available", async () => {
     const getCommitHistory = vi
       .fn()
       .mockResolvedValueOnce(
@@ -395,6 +406,7 @@ describe("page data", () => {
           nextSkip: 2,
           hasMore: true,
           unpushedCount: 4,
+          safeUnpushedCount: 4,
         }),
       )
       .mockResolvedValueOnce(
@@ -402,6 +414,7 @@ describe("page data", () => {
           nextSkip: 4,
           hasMore: true,
           unpushedCount: 4,
+          safeUnpushedCount: 4,
         }),
       );
 
@@ -409,7 +422,9 @@ describe("page data", () => {
       createApiMock({
         getBranchStatus: vi
           .fn()
-          .mockResolvedValue(branchStatus({ aheadCount: 4 })),
+          .mockResolvedValue(
+            branchStatus({ aheadCount: 4, safeAheadCount: 4 }),
+          ),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
@@ -429,7 +444,7 @@ describe("page data", () => {
     ]);
   });
 
-  it("keeps paging when loaded commits include pushed items before all unpushed commits", async () => {
+  it("keeps paging when loaded commits include pushed items before all safe commits", async () => {
     const getCommitHistory = vi
       .fn()
       .mockResolvedValueOnce(
@@ -437,6 +452,7 @@ describe("page data", () => {
           nextSkip: 2,
           hasMore: true,
           unpushedCount: 2,
+          safeUnpushedCount: 2,
         }),
       )
       .mockResolvedValueOnce(
@@ -450,7 +466,9 @@ describe("page data", () => {
       createApiMock({
         getBranchStatus: vi
           .fn()
-          .mockResolvedValue(branchStatus({ aheadCount: 2 })),
+          .mockResolvedValue(
+            branchStatus({ aheadCount: 2, safeAheadCount: 2 }),
+          ),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
@@ -468,7 +486,7 @@ describe("page data", () => {
     ]);
   });
 
-  it("stops paging when the first page already covers all unpushed commits", async () => {
+  it("stops paging when the first page already covers all safe commits", async () => {
     const getCommitHistory = vi.fn().mockResolvedValue(
       historyPage([commit("c3"), commit("c2"), commit("c1", true)], {
         nextSkip: 3,
@@ -480,7 +498,9 @@ describe("page data", () => {
       createApiMock({
         getBranchStatus: vi
           .fn()
-          .mockResolvedValue(branchStatus({ aheadCount: 2 })),
+          .mockResolvedValue(
+            branchStatus({ aheadCount: 2, safeAheadCount: 2 }),
+          ),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
@@ -518,12 +538,13 @@ describe("page data", () => {
     expect(getCommitHistory).toHaveBeenCalledTimes(1);
   });
 
-  it("uses history unpushedCount instead of branch aheadCount for paging", async () => {
+  it("uses history safeUnpushedCount instead of branch status counts for paging", async () => {
     const getCommitHistory = vi.fn().mockResolvedValue(
-      historyPage([commit("merge"), commit("main")], {
+      historyPage([commit("merge", false, false), commit("main")], {
         nextSkip: 2,
         hasMore: true,
         unpushedCount: 2,
+        safeUnpushedCount: 1,
       }),
     );
 
@@ -531,7 +552,9 @@ describe("page data", () => {
       createApiMock({
         getBranchStatus: vi
           .fn()
-          .mockResolvedValue(branchStatus({ aheadCount: 4 })),
+          .mockResolvedValue(
+            branchStatus({ aheadCount: 4, safeAheadCount: 4 }),
+          ),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),

@@ -32,16 +32,14 @@ export function buildStepPushHashes(
   commits: CommitListItem[],
   targetHash: string,
 ) {
-  const unpushedCommits = commits.filter((item) => !item.isPushed);
-  const targetIndex = unpushedCommits.findIndex(
-    (item) => item.hash === targetHash,
-  );
+  const safeCommits = commits.filter((item) => item.isSafePushTarget);
+  const targetIndex = safeCommits.findIndex((item) => item.hash === targetHash);
 
   if (targetIndex === -1) {
     return null;
   }
 
-  return unpushedCommits
+  return safeCommits
     .slice(targetIndex)
     .reverse()
     .map((item) => item.hash);
