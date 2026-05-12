@@ -73,9 +73,16 @@ pub fn get_commit_file_diff(
     repo_path: String,
     hash: String,
     file_path: String,
+    previous_path: Option<String>,
     ignore_whitespace: bool,
 ) -> AppResult<String> {
-    git::get_commit_file_diff(&repo_path, &hash, &file_path, ignore_whitespace)
+    git::get_commit_file_diff(
+        &repo_path,
+        &hash,
+        &file_path,
+        previous_path.as_deref(),
+        ignore_whitespace,
+    )
 }
 
 #[tauri::command]
@@ -87,10 +94,11 @@ pub fn push_current_branch(repo_path: String) -> AppResult<()> {
 pub fn start_push_current_branch(
     app: AppHandle,
     jobs: State<'_, jobs::PushToCommitManager>,
+    gate: State<'_, jobs::PushExecutionGate>,
     repo_path: String,
     branch: String,
 ) -> AppResult<PushToCommitJobStarted> {
-    jobs::start_push_current_branch(app, jobs, repo_path, branch)
+    jobs::start_push_current_branch(app, jobs, gate, repo_path, branch)
 }
 
 #[tauri::command]
@@ -112,16 +120,18 @@ pub fn push_to_commit(repo_path: String, branch: String, hash: String) -> AppRes
 pub fn start_push_to_commit(
     app: AppHandle,
     jobs: State<'_, jobs::PushToCommitManager>,
+    gate: State<'_, jobs::PushExecutionGate>,
     request: PushToCommitRequest,
 ) -> AppResult<PushToCommitJobStarted> {
-    jobs::start_push_to_commit(app, jobs, request)
+    jobs::start_push_to_commit(app, jobs, gate, request)
 }
 
 #[tauri::command]
 pub fn start_step_push(
     app: AppHandle,
     jobs: State<'_, jobs::StepPushManager>,
+    gate: State<'_, jobs::PushExecutionGate>,
     request: StepPushRequest,
 ) -> AppResult<StepPushJobStarted> {
-    jobs::start_step_push(app, jobs, request)
+    jobs::start_step_push(app, jobs, gate, request)
 }

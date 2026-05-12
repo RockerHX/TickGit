@@ -24,6 +24,36 @@ enum OutputMode {
     TrimmedText,
 }
 
+fn git_output_bytes(repo_path: &Path, args: &[&str]) -> AppResult<Vec<u8>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(args)
+        .env("LC_ALL", "C")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_PAGER", "cat")
+        .env("PAGER", "cat")
+        .output()
+        .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
+
+    if output.status.success() {
+        return Ok(output.stdout);
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let message = if !stderr.is_empty() { stderr } else { stdout };
+
+    Err(AppError::new(
+        "git_command_failed",
+        if message.is_empty() {
+            "Git 命令执行失败".to_string()
+        } else {
+            message
+        },
+    ))
+}
+
 fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<String> {
     let mut command = Command::new("git");
 
@@ -90,6 +120,10 @@ fn parse_ahead_behind(counts: &str) -> (usize, usize) {
     (ahead, behind)
 }
 
+fn parse_count(output: &str) -> usize {
+    output.trim().parse::<usize>().unwrap_or_default()
+}
+
 fn parse_unpushed_hashes(output: &str) -> HashSet<String> {
     output
         .lines()
@@ -139,30 +173,41 @@ fn parse_commit_history(output: &str, unpushed: &HashSet<String>) -> Vec<CommitL
         .collect()
 }
 
-fn parse_commit_files(output: &str) -> Vec<CommitFileChange> {
+fn parse_commit_files(output: &[u8]) -> Vec<CommitFileChange> {
     let mut files = Vec::new();
+    let mut parts = output
+        .split(|byte| *byte == b'\0')
+        .filter(|part| !part.is_empty());
 
-    for line in output.lines().filter(|line| !line.trim().is_empty()) {
-        let mut parts = line.split('\t');
-        let status = parts.next().unwrap_or_default().trim().to_string();
+    while let Some(status_bytes) = parts.next() {
+        let status = String::from_utf8_lossy(status_bytes).trim().to_string();
 
         if status.starts_with('R') || status.starts_with('C') {
-            let previous_path = parts.next().unwrap_or_default().trim().to_string();
-            let path = parts.next().unwrap_or_default().trim().to_string();
+            let previous_path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
+            let path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
 
             files.push(CommitFileChange {
-                status,
                 display_path: format!("{previous_path} -> {path}"),
                 previous_path: Some(previous_path),
                 path,
+                status,
             });
         } else {
-            let path = parts.next().unwrap_or_default().trim().to_string();
+            let path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
             files.push(CommitFileChange {
-                status,
                 display_path: path.clone(),
                 previous_path: None,
                 path,
+                status,
             });
         }
     }
@@ -225,15 +270,25 @@ fn upstream_name(repo_path: &Path) -> Option<String> {
     .filter(|value| !value.is_empty())
 }
 
+fn upstream_is_origin(upstream: &str) -> bool {
+    upstream.starts_with("origin/")
+}
+
 fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     let range = format!("{upstream}...HEAD");
     let counts = git_trimmed(repo_path, &["rev-list", "--left-right", "--count", &range])?;
     Ok(parse_ahead_behind(&counts))
 }
 
+fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
+    let range = format!("{upstream}..HEAD");
+    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", "--count", &range])?;
+    Ok(parse_count(&output))
+}
+
 fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", &range])?;
+    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
     Ok(parse_unpushed_hashes(&output))
 }
 
@@ -247,17 +302,24 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
     };
 
     let (ahead_count, behind_count) = match upstream.as_deref() {
-        Some(upstream) => ahead_behind(repo_path, upstream)?,
+        Some(upstream) => {
+            let (_, behind_count) = ahead_behind(repo_path, upstream)?;
+            let ahead_count = first_parent_ahead_count(repo_path, upstream)?;
+            (ahead_count, behind_count)
+        }
         None => (0, 0),
     };
 
-    let push_available = !detached && has_origin && upstream.is_some();
+    let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
+    let push_available = !detached && has_origin && upstream_uses_origin;
     let disabled_reason = if detached {
         Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
     } else if !has_origin {
         Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string())
     } else if upstream.is_none() {
         Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string())
+    } else if !upstream_uses_origin {
+        Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string())
     } else {
         None
     };
@@ -333,6 +395,7 @@ pub fn get_commit_history(
         &repo_path,
         &[
             "log",
+            "--first-parent",
             "--skip",
             &skip.to_string(),
             "-n",
@@ -357,7 +420,10 @@ pub fn get_commit_history(
 
 pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let output = git_trimmed(&repo_path, &["show", "--name-status", "--format=", hash])?;
+    let output = git_output_bytes(
+        &repo_path,
+        &["show", "--find-renames", "--name-status", "-z", "--format=", hash],
+    )?;
     Ok(parse_commit_files(&output))
 }
 
@@ -380,11 +446,22 @@ pub fn get_commit_file_diff(
     repo_path: &str,
     hash: &str,
     file_path: &str,
+    previous_path: Option<&str>,
     ignore_whitespace: bool,
 ) -> AppResult<String> {
     let repo_path = resolve_repository_path(repo_path)?;
     let parents = git_trimmed(&repo_path, &["show", "-s", "--format=%P", hash])?;
     let whitespace_arg = ignore_whitespace.then_some("-w");
+    let mut pathspecs = Vec::new();
+
+    if let Some(previous_path) = previous_path
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && *value != file_path)
+    {
+        pathspecs.push(previous_path);
+    }
+
+    pathspecs.push(file_path);
 
     if parents.trim().is_empty() {
         let mut args = vec!["show"];
@@ -393,10 +470,12 @@ pub fn get_commit_file_diff(
             // 这里改成 empty-tree -> commit 的 diff，和普通提交保持一致。
             args = vec!["diff"];
             args.push(arg);
-            args.extend([EMPTY_TREE_HASH, hash, "--", file_path]);
+            args.extend(["--find-renames", EMPTY_TREE_HASH, hash, "--"]);
+            args.extend(pathspecs.iter().copied());
             return git_text(&repo_path, &args);
         }
-        args.extend(["--format=", hash, "--", file_path]);
+        args.extend(["--find-renames", "--format=", hash, "--"]);
+        args.extend(pathspecs.iter().copied());
         return git_text(&repo_path, &args);
     }
 
@@ -405,13 +484,24 @@ pub fn get_commit_file_diff(
     if let Some(arg) = whitespace_arg {
         args.push(arg);
     }
-    args.extend([parent_ref.as_str(), hash, "--", file_path]);
+    args.extend(["--find-renames", parent_ref.as_str(), hash, "--"]);
+    args.extend(pathspecs.iter().copied());
     git_text(&repo_path, &args)
 }
 
 pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
-    git_run(&repo_path, &["push"])
+    let (branch, detached) = current_branch_name(&repo_path)?;
+
+    if detached {
+        return Err(AppError::new(
+            "detached_head",
+            "当前仓库处于 detached HEAD 状态，无法推送当前分支",
+        ));
+    }
+
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
 
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
@@ -423,8 +513,9 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
 #[cfg(test)]
 mod tests {
     use super::{
-        get_commit_file_diff, get_commit_meta, parse_ahead_behind, parse_commit_files,
-        parse_commit_history, parse_shortstat, resolve_repository_path,
+        branch_status_for_path, get_commit_file_diff, get_commit_history, get_commit_meta,
+        parse_ahead_behind, parse_commit_files, parse_commit_history, parse_shortstat,
+        push_current_branch, resolve_repository_path,
     };
     use crate::error::AppError;
     use std::{
@@ -491,6 +582,12 @@ mod tests {
         repo
     }
 
+    fn init_bare_repo() -> TestDir {
+        let repo = TestDir::new("bare-repo");
+        run_git(&repo.path, &["init", "--bare"]);
+        repo
+    }
+
     fn write_file(path: &Path, relative_path: &str, content: &str) {
         let target = path.join(relative_path);
         if let Some(parent) = target.parent() {
@@ -504,6 +601,10 @@ mod tests {
         run_git(path, &["add", relative_path]);
         run_git(path, &["commit", "--no-gpg-sign", "-m", message]);
         run_git(path, &["rev-parse", "HEAD"])
+    }
+
+    fn current_test_branch(path: &Path) -> String {
+        run_git(path, &["branch", "--show-current"])
     }
 
     fn assert_app_error(error: AppError, code: &str, message: &str) {
@@ -561,13 +662,7 @@ mod tests {
 
     #[test]
     fn parses_commit_file_changes() {
-        let output = concat!(
-            "A\tadded.txt\n",
-            "M\tmodified.txt\n",
-            "D\tremoved.txt\n",
-            "R100\told.txt\tnew.txt\n",
-            "C100\tsource.txt\tcopied.txt\n"
-        );
+        let output = b"A\0added.txt\0M\0modified.txt\0D\0removed.txt\0R100\0old.txt\0new.txt\0C100\0source.txt\0copied.txt\0";
 
         let files = parse_commit_files(output);
 
@@ -579,11 +674,134 @@ mod tests {
     }
 
     #[test]
+    fn parses_commit_files_with_tabs_in_paths() {
+        let output = b"R100\0old\tname.txt\0new\tname.txt\0";
+
+        let files = parse_commit_files(output);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].status, "R100");
+        assert_eq!(files[0].previous_path.as_deref(), Some("old\tname.txt"));
+        assert_eq!(files[0].path, "new\tname.txt");
+        assert_eq!(files[0].display_path, "old\tname.txt -> new\tname.txt");
+    }
+
+    #[test]
     fn parses_shortstat_counts() {
         assert_eq!(parse_shortstat(" 1 file changed, 3 insertions(+), 2 deletions(-)"), (3, 2));
         assert_eq!(parse_shortstat(" 1 file changed, 4 insertions(+)"), (4, 0));
         assert_eq!(parse_shortstat(" 1 file changed, 7 deletions(-)"), (0, 7));
         assert_eq!(parse_shortstat(""), (0, 0));
+    }
+
+    #[test]
+    fn disables_push_when_upstream_is_not_origin() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let backup = init_bare_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let branch = current_test_branch(&repo.path);
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(
+            &repo.path,
+            &["remote", "add", "backup", backup.path.to_str().unwrap()],
+        );
+        let backup_refspec = format!("HEAD:refs/heads/{branch}");
+        run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        let expected_upstream = format!("backup/{branch}");
+
+        assert_eq!(status.upstream.as_deref(), Some(expected_upstream.as_str()));
+        assert!(!status.push_available);
+        assert_eq!(
+            status.disabled_reason.as_deref(),
+            Some("当前分支的上游不是 origin 远端，已禁用推送动作")
+        );
+    }
+
+    #[test]
+    fn pushes_current_branch_to_origin_even_when_upstream_points_elsewhere() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let backup = init_bare_repo();
+        commit_file(&repo.path, "file.txt", "hello\n", "initial");
+        let branch = current_test_branch(&repo.path);
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(
+            &repo.path,
+            &["remote", "add", "backup", backup.path.to_str().unwrap()],
+        );
+        let backup_refspec = format!("HEAD:refs/heads/{branch}");
+        run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+        let backup_initial_head = run_git(
+            &backup.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+
+        let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
+
+        push_current_branch(repo.path.to_string_lossy().as_ref()).unwrap();
+
+        let origin_head = run_git(
+            &origin.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+        let backup_head = run_git(
+            &backup.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+
+        assert_eq!(origin_head, second_hash);
+        assert_eq!(backup_head, backup_initial_head);
+    }
+
+    #[test]
+    fn uses_first_parent_history_and_ahead_count_after_merge() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        run_git(&repo.path, &["checkout", "-b", "feature", &base_hash]);
+        let feature_hash = commit_file(&repo.path, "feature.txt", "feature\n", "feature");
+
+        run_git(&repo.path, &["checkout", &branch]);
+        let main_hash = commit_file(&repo.path, "main.txt", "main\n", "main");
+        run_git(
+            &repo.path,
+            &["merge", "--no-ff", "feature", "-m", "merge feature"],
+        );
+        let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        assert_eq!(status.ahead_count, 2);
+        assert_eq!(status.behind_count, 0);
+
+        let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+        let hashes: Vec<&str> = history.items.iter().map(|item| item.hash.as_str()).collect();
+
+        assert_eq!(history.unpushed_count, 2);
+        assert_eq!(hashes, vec![merge_hash.as_str(), main_hash.as_str(), base_hash.as_str()]);
+        assert!(!hashes.contains(&feature_hash.as_str()));
+        assert!(!history.items[0].is_pushed);
+        assert!(!history.items[1].is_pushed);
+        assert!(history.items[2].is_pushed);
     }
 
     #[test]
@@ -595,6 +813,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &initial_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -613,6 +832,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -631,6 +851,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             false,
         )
         .unwrap();
@@ -638,6 +859,7 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &second_hash,
             "file.txt",
+            None,
             true,
         )
         .unwrap();
@@ -655,12 +877,34 @@ mod tests {
             repo.path.to_string_lossy().as_ref(),
             &initial_hash,
             "file.txt",
+            None,
             true,
         )
         .unwrap();
 
         assert!(hidden_diff.contains("diff --git"));
         assert!(hidden_diff.contains("file.txt"));
+    }
+
+    #[test]
+    fn gets_rename_diff_when_previous_path_is_available() {
+        let repo = init_repo();
+        commit_file(&repo.path, "old.txt", "hello\n", "initial");
+        run_git(&repo.path, &["mv", "old.txt", "new.txt"]);
+        run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "rename"]);
+        let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+        let diff = get_commit_file_diff(
+            repo.path.to_string_lossy().as_ref(),
+            &rename_hash,
+            "new.txt",
+            Some("old.txt"),
+            false,
+        )
+        .unwrap();
+
+        assert!(diff.contains("rename from old.txt"));
+        assert!(diff.contains("rename to new.txt"));
     }
 
     #[test]

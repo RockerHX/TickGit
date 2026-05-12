@@ -50,10 +50,7 @@
     </div>
   </div>
 
-  <div
-    class="min-h-0 flex-1 overflow-y-auto"
-    on:scroll={handleScroll}
-  >
+  <div class="min-h-0 flex-1 overflow-y-auto" on:scroll={handleScroll}>
     {#if commits.length === 0 && !loading}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
@@ -74,7 +71,9 @@
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           {#if selectedHash === commit.hash}
-            <div class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#2f81f7]"></div>
+            <div
+              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#2f81f7]"
+            ></div>
           {/if}
 
           <div class="flex items-start gap-3">
@@ -91,7 +90,9 @@
             <div class="min-w-0 flex-1">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-[13px] font-semibold text-[#f0f6fc]">
+                  <div
+                    class="truncate text-[13px] font-semibold text-[#f0f6fc]"
+                  >
                     {commit.summary}
                   </div>
                   {#if commit.tags.length > 0}
@@ -114,8 +115,14 @@
                       class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
                       title="Local commit"
                     >
-                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current" aria-hidden="true">
-                        <path d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"></path>
+                      <svg
+                        viewBox="0 0 16 16"
+                        class="h-3.5 w-3.5 fill-current"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
+                        ></path>
                       </svg>
                     </span>
                   {:else}
@@ -124,7 +131,9 @@
                       class="h-3.5 w-3.5 fill-[#8b949e]"
                       aria-hidden="true"
                     >
-                      <path d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"></path>
+                      <path
+                        d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                      ></path>
                     </svg>
                   {/if}
                 </div>

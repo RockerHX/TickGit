@@ -11,7 +11,7 @@ on:
       version_suffix:
         description: Optional suffix for the prerelease tag/name
         required: false
-        default: ''
+        default: ""
         type: string
 
 permissions:
@@ -79,12 +79,12 @@ jobs:
             tauri-args: --target aarch64-pc-windows-msvc
           - label: macos-dmg
             os: macos-latest
-            rust-target: ''
-            tauri-args: ''
+            rust-target: ""
+            tauri-args: ""
           - label: linux-bundles
             os: ubuntu-22.04
-            rust-target: ''
-            tauri-args: ''
+            rust-target: ""
+            tauri-args: ""
     steps:
       - name: Checkout target ref
         uses: actions/checkout@v6

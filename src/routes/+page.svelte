@@ -51,6 +51,7 @@
   const PAGE_SIZE = 50;
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
+  const PUSH_OVERLAY_DISMISS_MS = 3600;
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
@@ -101,6 +102,24 @@
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
+  }
+
+  function formatPushTargetLabel(
+    target: string,
+    targetKind: PushToCommitUiState["targetKind"],
+  ) {
+    if (targetKind === "commit") {
+      const shortHash = target.length > 7 ? target.slice(0, 7) : target;
+      return {
+        inline: shortHash,
+        message: `Commit ${shortHash}`,
+      };
+    }
+
+    return {
+      inline: target,
+      message: target,
+    };
   }
 
   async function bootstrap() {
@@ -244,11 +263,13 @@
     selectedFilePath = filePath;
 
     try {
+      const selectedFile = commitFiles.find((file) => file.path === filePath);
       diffText = await api.getCommitFileDiff(
         currentRepository.path,
         selectedCommit.hash,
         filePath,
         hideWhitespaceInDiff,
+        selectedFile?.previousPath ?? null,
       );
     } catch (error) {
       diffText = "";
@@ -312,9 +333,11 @@
         currentRepository.path,
         branchStatus.branch,
       );
+      const target = formatPushTargetLabel(started.target, started.targetKind);
       pushToCommitState = {
         jobId: started.jobId,
-        hash: `origin/${branchStatus.branch}`,
+        target: target.inline,
+        targetKind: started.targetKind,
         status: "running",
       };
     } catch (error) {
@@ -352,9 +375,11 @@
         branch: branchStatus.branch,
         hash: commit.hash,
       });
+      const target = formatPushTargetLabel(started.target, started.targetKind);
       pushToCommitState = {
         jobId: started.jobId,
-        hash: commit.shortHash,
+        target: target.inline,
+        targetKind: started.targetKind,
         status: "running",
       };
     } catch (error) {
@@ -438,16 +463,19 @@
 
       disposers.push(
         await listenPushToCommitFinished((payload) => {
+          const target = formatPushTargetLabel(
+            payload.target,
+            payload.targetKind,
+          );
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
+            target: target.inline,
+            targetKind: payload.targetKind,
             status: "finished",
           };
           isPushing = false;
 
-          const target =
-            payload.hash.length > 7 ? `Commit ${payload.hash.slice(0, 7)}` : payload.hash;
-          notify("推送成功", `已推送到 ${target}`, "success");
+          notify("推送成功", `已推送到 ${target.message}`, "success");
 
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
@@ -463,9 +491,14 @@
 
       disposers.push(
         await listenPushToCommitFailed((payload) => {
+          const target = formatPushTargetLabel(
+            payload.target,
+            payload.targetKind,
+          );
           pushToCommitState = {
             jobId: payload.jobId,
-            hash: payload.hash.length > 7 ? payload.hash.slice(0, 7) : payload.hash,
+            target: target.inline,
+            targetKind: payload.targetKind,
             status: "failed",
             message: payload.message,
           };
@@ -476,6 +509,12 @@
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
           }
+
+          window.setTimeout(() => {
+            if (pushToCommitState?.jobId === payload.jobId) {
+              pushToCommitState = null;
+            }
+          }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
 
@@ -512,6 +551,12 @@
           if (currentRepository) {
             void loadRepositoryState(currentRepository.path, true);
           }
+
+          window.setTimeout(() => {
+            if (stepPushState?.jobId === payload.jobId) {
+              stepPushState = null;
+            }
+          }, PUSH_OVERLAY_DISMISS_MS);
         }),
       );
 
@@ -581,8 +626,22 @@
 
 <DropOverlay active={dragActive} />
 <ToastViewport {toasts} />
-<PushToCommitOverlay state={pushToCommitState} />
-<StepPushOverlay state={stepPushState} />
+<PushToCommitOverlay
+  state={pushToCommitState}
+  on:close={() => {
+    if (pushToCommitState?.status === "failed") {
+      pushToCommitState = null;
+    }
+  }}
+/>
+<StepPushOverlay
+  state={stepPushState}
+  on:close={() => {
+    if (stepPushState?.status === "failed") {
+      stepPushState = null;
+    }
+  }}
+/>
 
 <CommitContextMenu
   open={contextMenu.open}
@@ -595,7 +654,9 @@
   on:close={closeContextMenu}
 />
 
-<main class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200">
+<main
+  class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200"
+>
   <header class="shrink-0 border-b border-[#1f2328] bg-[#24292f]">
     <div
       class="grid items-stretch"
@@ -619,7 +680,8 @@
       </div>
 
       <ResizeHandle
-        active={activeResizeTarget === "header" || activeResizeTarget === "history"}
+        active={activeResizeTarget === "header" ||
+          activeResizeTarget === "history"}
         ariaLabel="Resize repository and history panels"
         on:mousedown={(event) => startLayoutResize("header", event.detail)}
       />
@@ -627,8 +689,14 @@
       <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center text-slate-300">
-            <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current" aria-hidden="true">
-              <path d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"></path>
+            <svg
+              viewBox="0 0 16 16"
+              class="h-4.5 w-4.5 fill-current"
+              aria-hidden="true"
+            >
+              <path
+                d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
+              ></path>
             </svg>
           </div>
           <div class="min-w-0 flex-1">
@@ -637,7 +705,9 @@
             >
               Current Branch
             </div>
-            <div class="mt-0.5 truncate text-[1.05rem] font-semibold text-[#f0f6fc]">
+            <div
+              class="mt-0.5 truncate text-[1.05rem] font-semibold text-[#f0f6fc]"
+            >
               {branchStatus?.branch ?? "N/A"}
             </div>
             <div class="mt-0.5 truncate text-xs text-slate-400">
@@ -661,7 +731,9 @@
             class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
             aria-hidden="true"
           >
-            <path d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"></path>
+            <path
+              d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
+            ></path>
           </svg>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[0.95rem] font-semibold">
@@ -673,10 +745,18 @@
                 : "Everything up to date"}
             </span>
           </span>
-          <span class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]">
+          <span
+            class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]"
+          >
             <span>{branchStatus?.aheadCount ?? 0}</span>
-            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
-              <path d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"></path>
+            <svg
+              viewBox="0 0 16 16"
+              class="h-3 w-3 fill-current"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
+              ></path>
             </svg>
           </span>
         </button>
@@ -709,7 +789,8 @@
     />
 
     <ResizeHandle
-      active={activeResizeTarget === "header" || activeResizeTarget === "history"}
+      active={activeResizeTarget === "header" ||
+        activeResizeTarget === "history"}
       ariaLabel="Resize history and details panels"
       on:mousedown={(event) => startLayoutResize("history", event.detail)}
     />

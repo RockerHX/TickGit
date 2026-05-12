@@ -13,8 +13,9 @@ use crate::{
     error::{AppError, AppResult},
     git,
     models::{
-        PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted, PushToCommitRequest,
-        StepPushFailed, StepPushFinished, StepPushJobStarted, StepPushProgress, StepPushRequest,
+        PushTargetKind, PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted,
+        PushToCommitRequest, StepPushFailed, StepPushFinished, StepPushJobStarted,
+        StepPushProgress, StepPushRequest,
     },
 };
 
@@ -23,6 +24,7 @@ pub const STEP_PUSH_FINISHED_EVENT: &str = "step-push-finished";
 pub const STEP_PUSH_FAILED_EVENT: &str = "step-push-failed";
 pub const PUSH_TO_COMMIT_FINISHED_EVENT: &str = "push-to-commit-finished";
 pub const PUSH_TO_COMMIT_FAILED_EVENT: &str = "push-to-commit-failed";
+const REMOTE_NAME: &str = "origin";
 
 pub struct StepPushManager {
     next_job_id: AtomicU64,
@@ -52,6 +54,18 @@ impl PushToCommitManager {
     }
 }
 
+pub struct PushExecutionGate {
+    running_task: Arc<Mutex<Option<String>>>,
+}
+
+impl PushExecutionGate {
+    pub fn new() -> Self {
+        Self {
+            running_task: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
 fn clear_running_job(running_job: &Arc<Mutex<Option<u64>>>, job_id: u64) {
     if let Ok(mut current) = running_job.lock() {
         if current.as_ref() == Some(&job_id) {
@@ -60,9 +74,33 @@ fn clear_running_job(running_job: &Arc<Mutex<Option<u64>>>, job_id: u64) {
     }
 }
 
+fn reserve_push_execution(
+    running_task: &Arc<Mutex<Option<String>>>,
+    task_key: &str,
+) -> AppResult<()> {
+    let mut current = running_task.lock().expect("push execution gate poisoned");
+    if current.is_some() {
+        return Err(AppError::new(
+            "push_busy",
+            "已有推送任务正在运行，请等待完成",
+        ));
+    }
+    *current = Some(task_key.to_string());
+    Ok(())
+}
+
+fn clear_push_execution(running_task: &Arc<Mutex<Option<String>>>, task_key: &str) {
+    if let Ok(mut current) = running_task.lock() {
+        if current.as_deref() == Some(task_key) {
+            *current = None;
+        }
+    }
+}
+
 pub fn start_step_push(
     app: AppHandle,
     jobs: State<'_, StepPushManager>,
+    gate: State<'_, PushExecutionGate>,
     request: StepPushRequest,
 ) -> AppResult<StepPushJobStarted> {
     git::validate_repository(&request.repo_path)?;
@@ -77,10 +115,15 @@ pub fn start_step_push(
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
+    let task_key = format!("step-push:{job_id}");
+    let running_task = Arc::clone(&gate.running_task);
+
+    reserve_push_execution(&running_task, &task_key)?;
 
     {
         let mut current = running_job.lock().expect("step push state poisoned");
         if current.is_some() {
+            clear_push_execution(&running_task, &task_key);
             return Err(AppError::new(
                 "step_push_busy",
                 "已有分步提交任务正在运行，请等待完成",
@@ -94,6 +137,7 @@ pub fn start_step_push(
     let branch = request.branch.clone();
     let hashes = request.hashes.clone();
     let delay_ms = request.delay_ms.unwrap_or(1500);
+    let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
         for (index, hash) in hashes.iter().enumerate() {
@@ -109,6 +153,7 @@ pub fn start_step_push(
                     },
                 );
                 clear_running_job(&running_job, job_id);
+                clear_push_execution(&running_task, &task_key_for_thread);
                 return;
             }
 
@@ -130,6 +175,7 @@ pub fn start_step_push(
 
         let _ = app.emit(STEP_PUSH_FINISHED_EVENT, StepPushFinished { job_id, total });
         clear_running_job(&running_job, job_id);
+        clear_push_execution(&running_task, &task_key_for_thread);
     });
 
     Ok(StepPushJobStarted { job_id, total })
@@ -138,6 +184,7 @@ pub fn start_step_push(
 pub fn start_push_to_commit(
     app: AppHandle,
     jobs: State<'_, PushToCommitManager>,
+    gate: State<'_, PushExecutionGate>,
     request: PushToCommitRequest,
 ) -> AppResult<PushToCommitJobStarted> {
     git::validate_repository(&request.repo_path)?;
@@ -152,10 +199,15 @@ pub fn start_push_to_commit(
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
+    let task_key = format!("push-to-commit:{job_id}");
+    let running_task = Arc::clone(&gate.running_task);
+
+    reserve_push_execution(&running_task, &task_key)?;
 
     {
         let mut current = running_job.lock().expect("push to commit state poisoned");
         if current.is_some() {
+            clear_push_execution(&running_task, &task_key);
             return Err(AppError::new(
                 "push_to_commit_busy",
                 "已有 push to commit 任务正在运行，请等待完成",
@@ -167,7 +219,8 @@ pub fn start_push_to_commit(
     let repo_path = request.repo_path.clone();
     let branch = request.branch.clone();
     let hash = request.hash.clone();
-    let event_hash = hash.clone();
+    let event_target = hash.clone();
+    let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
         if let Err(error) = git::push_to_commit(&repo_path, &branch, &hash) {
@@ -175,11 +228,13 @@ pub fn start_push_to_commit(
                 PUSH_TO_COMMIT_FAILED_EVENT,
                 PushToCommitFailed {
                     job_id,
-                    hash: event_hash,
+                    target: event_target,
+                    target_kind: PushTargetKind::Commit,
                     message: error.message,
                 },
             );
             clear_running_job(&running_job, job_id);
+            clear_push_execution(&running_task, &task_key_for_thread);
             return;
         }
 
@@ -187,21 +242,25 @@ pub fn start_push_to_commit(
             PUSH_TO_COMMIT_FINISHED_EVENT,
             PushToCommitFinished {
                 job_id,
-                hash: event_hash,
+                target: event_target,
+                target_kind: PushTargetKind::Commit,
             },
         );
         clear_running_job(&running_job, job_id);
+        clear_push_execution(&running_task, &task_key_for_thread);
     });
 
     Ok(PushToCommitJobStarted {
         job_id,
-        hash: request.hash,
+        target: request.hash,
+        target_kind: PushTargetKind::Commit,
     })
 }
 
 pub fn start_push_current_branch(
     app: AppHandle,
     jobs: State<'_, PushToCommitManager>,
+    gate: State<'_, PushExecutionGate>,
     repo_path: String,
     branch: String,
 ) -> AppResult<PushToCommitJobStarted> {
@@ -213,10 +272,15 @@ pub fn start_push_current_branch(
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
+    let task_key = format!("push-current-branch:{job_id}");
+    let running_task = Arc::clone(&gate.running_task);
+
+    reserve_push_execution(&running_task, &task_key)?;
 
     {
         let mut current = running_job.lock().expect("push state poisoned");
         if current.is_some() {
+            clear_push_execution(&running_task, &task_key);
             return Err(AppError::new(
                 "push_to_commit_busy",
                 "已有 push 任务正在运行，请等待完成",
@@ -225,7 +289,9 @@ pub fn start_push_current_branch(
         *current = Some(job_id);
     }
 
-    let event_hash = branch.clone();
+    let target = format!("{REMOTE_NAME}/{branch}");
+    let target_for_thread = target.clone();
+    let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
         if let Err(error) = git::push_current_branch(&repo_path) {
@@ -233,11 +299,13 @@ pub fn start_push_current_branch(
                 PUSH_TO_COMMIT_FAILED_EVENT,
                 PushToCommitFailed {
                     job_id,
-                    hash: event_hash,
+                    target: target_for_thread.clone(),
+                    target_kind: PushTargetKind::Branch,
                     message: error.message,
                 },
             );
             clear_running_job(&running_job, job_id);
+            clear_push_execution(&running_task, &task_key_for_thread);
             return;
         }
 
@@ -245,14 +313,49 @@ pub fn start_push_current_branch(
             PUSH_TO_COMMIT_FINISHED_EVENT,
             PushToCommitFinished {
                 job_id,
-                hash: event_hash,
+                target: target_for_thread.clone(),
+                target_kind: PushTargetKind::Branch,
             },
         );
         clear_running_job(&running_job, job_id);
+        clear_push_execution(&running_task, &task_key_for_thread);
     });
 
     Ok(PushToCommitJobStarted {
         job_id,
-        hash: branch,
+        target,
+        target_kind: PushTargetKind::Branch,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{clear_push_execution, reserve_push_execution};
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn rejects_parallel_push_execution_reservations() {
+        let running_task = Arc::new(Mutex::new(None));
+
+        reserve_push_execution(&running_task, "step-push:1").unwrap();
+
+        let error = reserve_push_execution(&running_task, "push-to-commit:1").unwrap_err();
+        assert_eq!(error.code, "push_busy");
+        assert_eq!(error.message, "已有推送任务正在运行，请等待完成");
+    }
+
+    #[test]
+    fn clears_only_matching_push_execution_reservation() {
+        let running_task = Arc::new(Mutex::new(None));
+
+        reserve_push_execution(&running_task, "step-push:1").unwrap();
+        clear_push_execution(&running_task, "push-to-commit:1");
+        assert_eq!(
+            running_task.lock().unwrap().as_deref(),
+            Some("step-push:1")
+        );
+
+        clear_push_execution(&running_task, "step-push:1");
+        assert!(running_task.lock().unwrap().is_none());
+    }
 }

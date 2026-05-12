@@ -117,6 +117,12 @@ fn add_repository_to_store(
     Ok(repository)
 }
 
+fn normalize_repository_store_path(path: &str) -> AppResult<String> {
+    Ok(git::resolve_repository_path(path)?
+        .to_string_lossy()
+        .to_string())
+}
+
 fn set_current_repository_in_store(
     store: &mut RepositoryConfig,
     path: &str,
@@ -282,8 +288,12 @@ pub fn add_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
-    let repository_path = git::resolve_repository_path(&path)?;
-    let repository = add_repository_to_store(&mut store, &repository_path, now_millis())?;
+    let normalized_path = normalize_repository_store_path(&path)?;
+    let repository = add_repository_to_store(
+        &mut store,
+        Path::new(&normalized_path),
+        now_millis(),
+    )?;
     write_store(&config_path, &store)?;
     Ok(repository)
 }
@@ -296,7 +306,8 @@ pub fn set_current_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
-    set_current_repository_in_store(&mut store, &path, now_millis())?;
+    let normalized_path = normalize_repository_store_path(&path)?;
+    set_current_repository_in_store(&mut store, &normalized_path, now_millis())?;
     write_store(&config_path, &store)
 }
 
@@ -313,8 +324,8 @@ pub fn get_current_repository(
 #[cfg(test)]
 mod tests {
     use super::{
-        add_repository_to_store, find_current_repository, read_store,
-        set_current_repository_in_store, sort_repositories, write_store,
+        add_repository_to_store, find_current_repository, normalize_repository_store_path,
+        read_store, set_current_repository_in_store, sort_repositories, write_store,
     };
     use crate::models::{RepositoryConfig, RepositorySummary, WindowSizeConfig};
     use std::{
@@ -440,6 +451,17 @@ mod tests {
 
         assert_eq!(error.code, "repository_exists");
         assert_eq!(error.message, "该仓库已存在于列表中");
+    }
+
+    #[test]
+    fn normalizes_repository_store_path_before_lookup() {
+        let repo = init_repo();
+        let repo_alias = repo.path.join(".");
+
+        let normalized = normalize_repository_store_path(repo_alias.to_string_lossy().as_ref())
+            .unwrap();
+
+        assert_eq!(normalized, repo.path.canonicalize().unwrap().to_string_lossy());
     }
 
     #[test]

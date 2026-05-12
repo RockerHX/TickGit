@@ -47,7 +47,10 @@ export type DiffViewerState =
 
 const HUNK_HEADER_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
-function createParsedDiff(hunks: DiffHunk[], parseError = false): ParsedTextDiff {
+function createParsedDiff(
+  hunks: DiffHunk[],
+  parseError = false,
+): ParsedTextDiff {
   const maxLineNumber = hunks.reduce((currentMax, hunk) => {
     const lineMax = hunk.lines.reduce((lineCurrentMax, line) => {
       return Math.max(
@@ -57,12 +60,7 @@ function createParsedDiff(hunks: DiffHunk[], parseError = false): ParsedTextDiff
       );
     }, 0);
 
-    return Math.max(
-      currentMax,
-      hunk.oldStartLine,
-      hunk.newStartLine,
-      lineMax,
-    );
+    return Math.max(currentMax, hunk.oldStartLine, hunk.newStartLine, lineMax);
   }, 0);
 
   return {
@@ -87,6 +85,7 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
     let oldLineNumber = 0;
     let newLineNumber = 0;
     let originalLineNumber = 0;
+    let sawUnsupportedContent = false;
 
     for (const line of lines) {
       originalLineNumber += 1;
@@ -112,6 +111,9 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
       }
 
       if (!currentHunk) {
+        if (line.trim()) {
+          sawUnsupportedContent = true;
+        }
         continue;
       }
 
@@ -166,10 +168,16 @@ export function parseUnifiedDiff(diffText: string): ParsedTextDiff {
           noTrailingNewLine: false,
         });
         newLineNumber += 1;
+        continue;
+      }
+
+      if (line.trim()) {
+        sawUnsupportedContent = true;
       }
     }
 
-    return createParsedDiff(hunks);
+    const parseError = sawUnsupportedContent && hunks.length === 0;
+    return createParsedDiff(hunks, parseError);
   } catch {
     return createParsedDiff([], true);
   }
