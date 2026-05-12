@@ -291,6 +291,8 @@ fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     Ok(parse_ahead_behind(&counts))
 }
 
+// UI 的 ahead / 历史列表采用完整 upstream..HEAD 口径，尽量贴近 GitHub Desktop；
+// 分步推送和 push to commit 仍只允许 first-parent 安全路径，避免 merge 侧支被当成线性推送目标。
 fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", "--count", &range])?;
@@ -368,6 +370,8 @@ fn ensure_safe_step_push_hashes(repo_path: &Path, hashes: &[String]) -> AppResul
 
     ensure_safe_push_target(repo_path, target_hash)?;
 
+    // 前端传入的 hashes 必须等于“从最旧安全 commit 到目标 commit”的连续前缀；
+    // 这样后端即使收到被篡改的请求，也不会跳过中间必须先推送的安全节点。
     let branch_status = branch_status_for_path(repo_path)?;
     let upstream = branch_status.upstream.as_deref().ok_or_else(|| {
         AppError::new(
@@ -1042,6 +1046,56 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, "unsafe_push_target");
         assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+    }
+
+    #[test]
+    fn allows_push_to_commit_for_safe_first_parent_commit() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let safe_hash = commit_file(&repo.path, "safe.txt", "safe\n", "safe");
+
+        push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &safe_hash).unwrap();
+
+        let origin_head = run_git(
+            &origin.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+        assert_eq!(origin_head, safe_hash);
+    }
+
+    #[test]
+    fn accepts_contiguous_step_push_hashes() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+        let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+        commit_file(&repo.path, "third.txt", "third\n", "third");
+
+        validate_step_push_hashes(
+            repo.path.to_string_lossy().as_ref(),
+            &[first_hash, second_hash],
+        )
+        .unwrap();
     }
 
     #[test]
