@@ -626,7 +626,14 @@
 
 <DropOverlay active={dragActive} />
 <ToastViewport {toasts} />
-<PushToCommitOverlay state={pushToCommitState} />
+<PushToCommitOverlay
+  state={pushToCommitState}
+  on:close={() => {
+    if (pushToCommitState?.status === "failed") {
+      pushToCommitState = null;
+    }
+  }}
+/>
 <StepPushOverlay
   state={stepPushState}
   on:close={() => {
