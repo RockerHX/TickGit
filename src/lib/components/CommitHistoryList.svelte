@@ -78,57 +78,59 @@
           {/if}
 
           <div class="flex items-start gap-3">
-            <div
-              class={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${
-                selectedHash === commit.hash
-                  ? "border-[#539bf5]/40 bg-[#2f81f7]/20 text-[#cae8ff]"
-                  : "border-[#444c56] bg-[#373e47] text-slate-200"
-              }`}
-            >
-              {getInitials(commit.authorName)}
+            <div class="relative mt-0.5 shrink-0">
+              {#if !commit.isPushed}
+                {#if commit.isSafePushTarget}
+                  <span
+                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-emerald-400/45 bg-[#1f2328] text-emerald-200 shadow-sm shadow-black/35"
+                    title="可安全分步推送"
+                    aria-label="可安全分步推送"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="h-3 w-3 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M7.25 2.5a.75.75 0 0 1 1.5 0v6.69l1.22-1.22a.75.75 0 1 1 1.06 1.06l-2.5 2.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06l1.22 1.22V2.5Zm-4 10.75a.75.75 0 0 1 .75-.75h8a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Z"
+                      ></path>
+                    </svg>
+                  </span>
+                {:else}
+                  <span
+                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-rose-400/45 bg-[#1f2328] text-rose-200 shadow-sm shadow-black/35"
+                    title={commit.pushBlockedReason ??
+                      "当前 Commit 不能安全分步推送"}
+                    aria-label="不能安全分步推送"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="h-3 w-3 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5Zm0 1.5a4.75 4.75 0 0 1 3.07 8.37L4.38 4.93A4.73 4.73 0 0 1 8 3.25Zm-3.07 1.68 6.69 6.69A4.75 4.75 0 0 1 4.93 4.93Z"
+                      ></path>
+                    </svg>
+                  </span>
+                {/if}
+              {/if}
+
+              <div
+                class={`flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                  selectedHash === commit.hash
+                    ? "border-[#539bf5]/40 bg-[#2f81f7]/20 text-[#cae8ff]"
+                    : "border-[#444c56] bg-[#373e47] text-slate-200"
+                }`}
+              >
+                {getInitials(commit.authorName)}
+              </div>
             </div>
 
             <div class="min-w-0 flex-1">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <div class="flex min-w-0 items-center gap-1.5">
-                    {#if !commit.isPushed}
-                      {#if commit.isSafePushTarget}
-                        <span
-                          class="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border border-emerald-400/35 bg-emerald-400/12 text-emerald-200"
-                          title="可安全分步推送"
-                          aria-label="可安全分步推送"
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            class="h-3 w-3 fill-current"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M7.25 2.5a.75.75 0 0 1 1.5 0v6.69l1.22-1.22a.75.75 0 1 1 1.06 1.06l-2.5 2.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06l1.22 1.22V2.5Zm-4 10.75a.75.75 0 0 1 .75-.75h8a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Z"
-                            ></path>
-                          </svg>
-                        </span>
-                      {:else}
-                        <span
-                          class="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border border-slate-500/35 bg-slate-500/12 text-slate-300"
-                          title={commit.pushBlockedReason ??
-                            "当前 Commit 不能安全分步推送"}
-                          aria-label="不能安全分步推送"
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            class="h-3 w-3 fill-current"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5Zm0 1.5a4.75 4.75 0 0 1 3.07 8.37L4.38 4.93A4.73 4.73 0 0 1 8 3.25Zm-3.07 1.68 6.69 6.69A4.75 4.75 0 0 1 4.93 4.93Z"
-                            ></path>
-                          </svg>
-                        </span>
-                      {/if}
-                    {/if}
-
                     <div
                       class="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#f0f6fc]"
                     >
