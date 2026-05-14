@@ -50,6 +50,11 @@ pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
 }
 
 #[tauri::command]
+pub fn refresh_remote_tracking(repo_path: String) -> AppResult<()> {
+    git::refresh_remote_tracking(&repo_path)
+}
+
+#[tauri::command]
 pub fn list_local_branches(repo_path: String) -> AppResult<Vec<String>> {
     git::list_local_branches(&repo_path)
 }

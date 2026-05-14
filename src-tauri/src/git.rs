@@ -15,6 +15,8 @@ const REMOTE_NAME: &str = "origin";
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const UNSAFE_PUSH_TARGET_MESSAGE: &str =
     "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标";
+const BRANCH_BEHIND_REMOTE_MESSAGE: &str =
+    "当前分支落后于远端最新状态，无法直接推送，请先同步远端后再重试";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
@@ -285,6 +287,84 @@ fn upstream_is_origin(upstream: &str) -> bool {
     upstream.starts_with("origin/")
 }
 
+fn sync_origin_tracking(repo_path: &Path) -> AppResult<()> {
+    let (_, detached) = current_branch_name(repo_path)?;
+    if detached || !remote_origin_exists(repo_path) {
+        return Ok(());
+    }
+
+    let Some(upstream) = upstream_name(repo_path) else {
+        return Ok(());
+    };
+
+    if !upstream_is_origin(&upstream) {
+        return Ok(());
+    }
+
+    git_run(repo_path, &["fetch", "--prune", REMOTE_NAME])
+}
+
+fn is_ancestor(repo_path: &Path, ancestor: &str, descendant: &str) -> AppResult<bool> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["merge-base", "--is-ancestor", ancestor, descendant])
+        .env("LC_ALL", "C")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_PAGER", "cat")
+        .env("PAGER", "cat")
+        .output()
+        .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
+
+    match output.status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let message = if !stderr.is_empty() { stderr } else { stdout };
+
+            Err(AppError::new(
+                "git_command_failed",
+                if message.is_empty() {
+                    "Git 命令执行失败".to_string()
+                } else {
+                    message
+                },
+            ))
+        }
+    }
+}
+
+fn ensure_remote_fast_forward_target(
+    repo_path: &Path,
+    branch: &str,
+    target_hash: &str,
+) -> AppResult<()> {
+    let refspec = format!("{target_hash}:refs/heads/{branch}");
+
+    match git_run(repo_path, &["push", "--dry-run", REMOTE_NAME, &refspec]) {
+        Ok(()) => Ok(()),
+        Err(error)
+            if error.code == "git_command_failed"
+                && is_remote_outdated_push_error(&error.message) =>
+        {
+            Err(AppError::new(
+                "push_unavailable",
+                BRANCH_BEHIND_REMOTE_MESSAGE,
+            ))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn is_remote_outdated_push_error(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    normalized.contains("non-fast-forward")
+        || normalized.contains("(fetch first)")
+        || normalized.contains("remote contains work that you do not")
+}
+
 fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     let range = format!("{upstream}...HEAD");
     let counts = git_trimmed(repo_path, &["rev-list", "--left-right", "--count", &range])?;
@@ -299,15 +379,6 @@ fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
     Ok(parse_count(&output))
 }
 
-fn first_parent_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
-    let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(
-        repo_path,
-        &["rev-list", "--first-parent", "--count", &range],
-    )?;
-    Ok(parse_count(&output))
-}
-
 fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", &range])?;
@@ -315,12 +386,15 @@ fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String
 }
 
 fn safe_unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
-    let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
-    Ok(parse_unpushed_hashes(&output))
+    Ok(safe_unpushed_hashes_in_push_order(repo_path, upstream)?
+        .into_iter()
+        .collect())
 }
 
-fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+fn first_parent_unpushed_hashes_in_push_order(
+    repo_path: &Path,
+    upstream: &str,
+) -> AppResult<Vec<String>> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
     let mut hashes: Vec<String> = output
@@ -333,7 +407,25 @@ fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppRe
     Ok(hashes)
 }
 
+fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+    let hashes = first_parent_unpushed_hashes_in_push_order(repo_path, upstream)?;
+    let mut first_safe_index = None;
+    for (index, hash) in hashes.iter().enumerate() {
+        if is_ancestor(repo_path, upstream, hash)? {
+            first_safe_index = Some(index);
+            break;
+        }
+    }
+    let Some(first_safe_index) = first_safe_index else {
+        return Ok(Vec::new());
+    };
+
+    Ok(hashes[first_safe_index..].to_vec())
+}
+
 fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
+    sync_origin_tracking(repo_path)?;
+
     let branch_status = branch_status_for_path(repo_path)?;
     let disabled_reason = branch_status.disabled_reason.clone();
     let upstream = branch_status.upstream.as_deref().ok_or_else(|| {
@@ -351,6 +443,15 @@ fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
             disabled_reason.unwrap_or_else(|| "当前分支当前不可推送".to_string()),
         ));
     }
+
+    if branch_status.behind_count > 0 {
+        return Err(AppError::new(
+            "push_unavailable",
+            BRANCH_BEHIND_REMOTE_MESSAGE,
+        ));
+    }
+
+    ensure_remote_fast_forward_target(repo_path, &branch_status.branch, hash)?;
 
     let safe_targets = safe_unpushed_hashes(repo_path, upstream)?;
     if safe_targets.contains(hash) {
@@ -417,12 +518,12 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
         None => (0, 0),
     };
     let safe_ahead_count = match upstream.as_deref() {
-        Some(upstream) => first_parent_ahead_count(repo_path, upstream)?,
+        Some(upstream) => safe_unpushed_hashes(repo_path, upstream)?.len(),
         None => 0,
     };
 
     let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
-    let push_available = !detached && has_origin && upstream_uses_origin;
+    let push_available = !detached && has_origin && upstream_uses_origin && behind_count == 0;
     let disabled_reason = if detached {
         Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
     } else if !has_origin {
@@ -431,6 +532,8 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
         Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string())
     } else if !upstream_uses_origin {
         Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string())
+    } else if behind_count > 0 {
+        Some(BRANCH_BEHIND_REMOTE_MESSAGE.to_string())
     } else {
         None
     };
@@ -491,6 +594,11 @@ pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
     ensure_safe_push_target(&repo_path, hash)
 }
 
+pub fn refresh_remote_tracking(repo_path: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    sync_origin_tracking(&repo_path)
+}
+
 pub fn validate_step_push_hashes(repo_path: &str, hashes: &[String]) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     ensure_safe_step_push_hashes(&repo_path, hashes)
@@ -529,7 +637,7 @@ pub fn get_commit_history(
     let repo_path = resolve_repository_path(repo_path)?;
     let branch_status = branch_status_for_path(&repo_path)?;
     let (unpushed, safe_push_targets) = match branch_status.upstream.as_deref() {
-        Some(upstream) if branch_status.push_available => (
+        Some(upstream) => (
             unpushed_hashes(&repo_path, upstream)?,
             safe_unpushed_hashes(&repo_path, upstream)?,
         ),
@@ -653,6 +761,11 @@ pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
         ));
     }
 
+    sync_origin_tracking(&repo_path)?;
+
+    let head = git_trimmed(&repo_path, &["rev-parse", "HEAD"])?;
+    ensure_remote_fast_forward_target(&repo_path, &branch, &head)?;
+
     let refspec = format!("HEAD:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
@@ -681,7 +794,8 @@ mod tests {
         branch_status_for_path, checkout_branch, get_commit_file_diff, get_commit_history,
         get_commit_meta, list_local_branches, parse_ahead_behind, parse_commit_files,
         parse_commit_history, parse_shortstat, push_current_branch, push_to_commit,
-        resolve_repository_path, validate_step_push_hashes, UNSAFE_PUSH_TARGET_MESSAGE,
+        refresh_remote_tracking, resolve_repository_path, validate_step_push_hashes,
+        BRANCH_BEHIND_REMOTE_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
     };
     use crate::error::AppError;
     use std::{
@@ -771,6 +885,24 @@ mod tests {
 
     fn current_test_branch(path: &Path) -> String {
         run_git(path, &["branch", "--show-current"])
+    }
+
+    fn clone_repo(source: &Path, prefix: &str) -> TestDir {
+        let repo = TestDir::new(prefix);
+        run_git(
+            source.parent().expect("clone source parent"),
+            &[
+                "clone",
+                source.to_str().expect("clone source path"),
+                repo.path.to_str().expect("clone target path"),
+            ],
+        );
+        run_git(&repo.path, &["config", "user.name", "TickGit Tests"]);
+        run_git(
+            &repo.path,
+            &["config", "user.email", "tickgit-tests@example.com"],
+        );
+        repo
     }
 
     fn assert_app_error(error: AppError, code: &str, message: &str) {
@@ -1122,6 +1254,195 @@ mod tests {
         )
         .unwrap_err();
 
+        assert_eq!(error.code, "unsafe_push_target");
+        assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+    }
+
+    #[test]
+    fn rejects_push_to_commit_when_remote_advanced_without_fetch() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let peer = clone_repo(&origin.path, "peer");
+        commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+        run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+        let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+        let error =
+            push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &local_hash).unwrap_err();
+
+        assert_eq!(error.code, "push_unavailable");
+        assert_eq!(error.message, BRANCH_BEHIND_REMOTE_MESSAGE);
+    }
+
+    #[test]
+    fn rejects_step_push_validation_when_remote_advanced_without_fetch() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let peer = clone_repo(&origin.path, "peer");
+        commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+        run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+        let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+        let error = validate_step_push_hashes(repo.path.to_string_lossy().as_ref(), &[local_hash])
+            .unwrap_err();
+
+        assert_eq!(error.code, "push_unavailable");
+        assert_eq!(error.message, BRANCH_BEHIND_REMOTE_MESSAGE);
+    }
+
+    #[test]
+    fn refreshes_remote_tracking_and_marks_branch_behind_remote() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let peer = clone_repo(&origin.path, "peer");
+        commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+        run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+        commit_file(&repo.path, "local.txt", "local\n", "local");
+
+        refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        assert_eq!(status.behind_count, 1);
+        assert!(!status.push_available);
+        assert_eq!(
+            status.disabled_reason.as_deref(),
+            Some(BRANCH_BEHIND_REMOTE_MESSAGE)
+        );
+    }
+
+    #[test]
+    fn keeps_unpushed_commits_visible_when_branch_is_behind_remote() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let peer = clone_repo(&origin.path, "peer");
+        commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+        run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+        let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+        refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+        let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+        let local_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == local_hash)
+            .expect("local commit in history");
+
+        assert!(!local_item.is_pushed);
+        assert!(local_item.is_safe_push_target);
+        assert_eq!(history.unpushed_count, 1);
+        assert_eq!(history.safe_unpushed_count, 1);
+    }
+
+    #[test]
+    fn limits_safe_step_push_targets_to_fast_forwardable_suffix_when_remote_is_merged_side_parent()
+    {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let peer = clone_repo(&origin.path, "peer");
+        commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+        run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+        let local_main_hash = commit_file(&repo.path, "main.txt", "main\n", "main");
+        refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+        run_git(
+            &repo.path,
+            &[
+                "merge",
+                "--no-ff",
+                &format!("origin/{branch}"),
+                "-m",
+                "merge remote",
+            ],
+        );
+        let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+        let status = branch_status_for_path(&repo.path).unwrap();
+        assert_eq!(status.behind_count, 0);
+        assert_eq!(status.ahead_count, 2);
+        assert_eq!(status.safe_ahead_count, 1);
+
+        let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+        let merge_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == merge_hash)
+            .expect("merge commit in history");
+        let main_item = history
+            .items
+            .iter()
+            .find(|item| item.hash == local_main_hash)
+            .expect("main commit in history");
+
+        assert!(merge_item.is_safe_push_target);
+        assert!(!main_item.is_safe_push_target);
+        assert_eq!(history.safe_unpushed_count, 1);
+
+        validate_step_push_hashes(
+            repo.path.to_string_lossy().as_ref(),
+            std::slice::from_ref(&merge_hash),
+        )
+        .unwrap();
+
+        let error = validate_step_push_hashes(
+            repo.path.to_string_lossy().as_ref(),
+            &[local_main_hash, merge_hash],
+        )
+        .unwrap_err();
         assert_eq!(error.code, "unsafe_push_target");
         assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
     }

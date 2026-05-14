@@ -169,6 +169,12 @@
     loadingRepository = true;
 
     try {
+      try {
+        await api.refreshRemoteTracking(path);
+      } catch (error) {
+        notify("同步远端状态失败", getErrorMessage(error), "error");
+      }
+
       // 这里依赖 fetchRepositorySnapshot 预先补齐全部未推送 commits；
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
       const [snapshot, branches] = await Promise.all([

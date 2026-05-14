@@ -21,6 +21,8 @@ export const api = {
     invoke<RepositorySummary | null>("get_current_repository"),
   getBranchStatus: (repoPath: string) =>
     invoke<BranchStatus>("get_branch_status", { repoPath }),
+  refreshRemoteTracking: (repoPath: string) =>
+    invoke<void>("refresh_remote_tracking", { repoPath }),
   listLocalBranches: (repoPath: string) =>
     invoke<string[]>("list_local_branches", { repoPath }),
   checkoutBranch: (repoPath: string, branch: string) =>
