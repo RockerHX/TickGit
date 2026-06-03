@@ -23,6 +23,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 
 - [架构文档](./docs/ARCHITECTURE.md)
 - [AI 开发文档](./docs/AI_DEVELOPMENT.md)
+- [优化与后续开发计划](./docs/OPTIMIZATION_AND_DEVELOPMENT_PLAN.md)
 
 ## 技术栈
 
