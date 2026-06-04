@@ -43,12 +43,28 @@ export function isStepPushRunning(stepPushState: StepPushStatus) {
   return stepPushState?.status === "running";
 }
 
+export function isRepositoryAvailable(repository: RepositorySummary | null) {
+  return repository?.status === "available";
+}
+
+export function shouldClearRepositoryData(
+  repository: RepositorySummary | null,
+) {
+  return !isRepositoryAvailable(repository);
+}
+
+export function shouldShowRepositoryUnavailableState(
+  repository: RepositorySummary | null,
+) {
+  return Boolean(repository && !isRepositoryAvailable(repository));
+}
+
 export function canSwitchBranch(
   state: BranchActionState,
   targetBranch: string,
 ) {
   return (
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     !state.loadingRepository &&
     !state.switchingBranch &&
     !state.isPushing &&
@@ -61,7 +77,7 @@ export function canRefreshBlockedBranchStatus(
   state: RepositoryLoadState & PageBusyState,
 ) {
   return (
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     !state.loadingRepository &&
     !state.switchingBranch &&
     !state.isPushing &&
@@ -73,7 +89,7 @@ export function canRefreshCurrentRepositoryOnFocus(
   state: RepositoryLoadState & { loadingHistory: boolean },
 ) {
   return (
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     !state.loadingRepository &&
     !state.loadingHistory
   );
@@ -83,20 +99,25 @@ export function canLoadHistory(state: {
   currentRepository: RepositorySummary | null;
   loadingHistory: boolean;
 }) {
-  return Boolean(state.currentRepository) && !state.loadingHistory;
+  return (
+    isRepositoryAvailable(state.currentRepository) && !state.loadingHistory
+  );
 }
 
 export function canLoadCommitFiles(state: {
   currentRepository: RepositorySummary | null;
 }) {
-  return Boolean(state.currentRepository);
+  return isRepositoryAvailable(state.currentRepository);
 }
 
 export function canLoadDiff(state: {
   currentRepository: RepositorySummary | null;
   selectedCommit: CommitListItem | null;
 }) {
-  return Boolean(state.currentRepository) && Boolean(state.selectedCommit);
+  return (
+    isRepositoryAvailable(state.currentRepository) &&
+    Boolean(state.selectedCommit)
+  );
 }
 export function canPushCurrentBranch(
   state: PageBusyState & { branchStatus: BranchStatus | null },
@@ -113,7 +134,7 @@ export function canPushCurrentBranch(
 export function canStartTargetCommitPush(state: CommitActionState) {
   return (
     Boolean(state.commit) &&
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     state.branchStatus?.pushAvailable === true &&
     !state.isPushing
   );
@@ -122,7 +143,7 @@ export function canStartTargetCommitPush(state: CommitActionState) {
 export function canStartStepPush(state: CommitActionState) {
   return (
     Boolean(state.commit) &&
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     state.branchStatus?.pushAvailable === true &&
     !isStepPushRunning(state.stepPushState)
   );
@@ -130,7 +151,7 @@ export function canStartStepPush(state: CommitActionState) {
 
 export function canWriteWorkspace(state: WorkspaceWriteState) {
   return (
-    Boolean(state.currentRepository) &&
+    isRepositoryAvailable(state.currentRepository) &&
     !state.loadingRepository &&
     !state.loadingWorkspace &&
     !state.switchingBranch &&

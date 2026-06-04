@@ -5,6 +5,7 @@ import {
   type RepositorySnapshot,
   type TickGitPageApi,
 } from "$lib/tickgit/page-data";
+import { isRepositoryAvailable } from "$lib/tickgit/page-state";
 
 export type RepositoryActionsApi = TickGitPageApi & {
   refreshRemoteTracking: (repoPath: string) => Promise<void>;
@@ -73,7 +74,7 @@ export async function loadBootstrapRepositoryState(
   const repositoryIndex = await fetchRepositoryIndex(api);
   const currentRepository = repositoryIndex.currentRepository;
 
-  if (!currentRepository) {
+  if (!currentRepository || !isRepositoryAvailable(currentRepository)) {
     return {
       ...repositoryIndex,
       repositoryState: null,

@@ -25,6 +25,14 @@ function repository(path: string): RepositorySummary {
   };
 }
 
+function missingRepository(path: string): RepositorySummary {
+  return {
+    ...repository(path),
+    status: "missing",
+    disabledReason: "仓库路径不存在",
+  };
+}
+
 function branchStatus(): BranchStatus {
   return {
     branch: "main",
@@ -147,6 +155,29 @@ describe("repository actions", () => {
     expect(state.currentRepository).toEqual(currentRepository);
     expect(state.repositoryState?.branches).toEqual(["main", "feature"]);
     expect(state.repositoryState?.snapshot.selectedCommit?.hash).toBe("c1");
+  });
+
+  it("does not load repository snapshot when current repository is unavailable", async () => {
+    const repositories = [missingRepository("/repo-a")];
+    const currentRepository = missingRepository("/repo-a");
+    const getBranchStatus = vi.fn().mockResolvedValue(branchStatus());
+    const api = createApiMock({
+      listRepositories: vi.fn().mockResolvedValue(repositories),
+      getCurrentRepository: vi.fn().mockResolvedValue(currentRepository),
+      getBranchStatus,
+    });
+
+    const state = await loadBootstrapRepositoryState(api, {
+      pageSize: 50,
+      keepSelection: false,
+      previousSelectedHash: null,
+      ignoreWhitespace: false,
+    });
+
+    expect(state.repositories).toEqual(repositories);
+    expect(state.currentRepository).toEqual(currentRepository);
+    expect(state.repositoryState).toBeNull();
+    expect(getBranchStatus).not.toHaveBeenCalled();
   });
 
   it("keeps loading snapshot when remote refresh fails", async () => {

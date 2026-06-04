@@ -16,8 +16,11 @@ import {
   canStartTargetCommitPush,
   canSwitchBranch,
   canWriteWorkspace,
+  isRepositoryAvailable,
   isBranchSwitcherDisabled,
   isContextMenuDisabled,
+  shouldClearRepositoryData,
+  shouldShowRepositoryUnavailableState,
 } from "$lib/tickgit/page-state";
 
 function repository(): RepositorySummary {
@@ -27,6 +30,14 @@ function repository(): RepositorySummary {
     lastOpenedAt: 1,
     status: "available",
     disabledReason: null,
+  };
+}
+
+function missingRepository(): RepositorySummary {
+  return {
+    ...repository(),
+    status: "missing",
+    disabledReason: "仓库路径不存在",
   };
 }
 
@@ -156,6 +167,32 @@ describe("page state", () => {
     expect(canLoadDiff({ currentRepository: repo, selectedCommit: null })).toBe(
       false,
     );
+    expect(shouldClearRepositoryData(repo)).toBe(false);
+    expect(shouldShowRepositoryUnavailableState(repo)).toBe(false);
+    expect(shouldClearRepositoryData(null)).toBe(true);
+    expect(shouldShowRepositoryUnavailableState(null)).toBe(false);
+  });
+
+  it("blocks git loading when the current repository is unavailable", () => {
+    const repo = missingRepository();
+
+    expect(isRepositoryAvailable(repo)).toBe(false);
+    expect(
+      canRefreshCurrentRepositoryOnFocus({
+        currentRepository: repo,
+        loadingRepository: false,
+        loadingHistory: false,
+      }),
+    ).toBe(false);
+    expect(
+      canLoadHistory({ currentRepository: repo, loadingHistory: false }),
+    ).toBe(false);
+    expect(canLoadCommitFiles({ currentRepository: repo })).toBe(false);
+    expect(canLoadDiff({ currentRepository: repo, selectedCommit: null })).toBe(
+      false,
+    );
+    expect(shouldClearRepositoryData(repo)).toBe(true);
+    expect(shouldShowRepositoryUnavailableState(repo)).toBe(true);
   });
 
   it("guards commit push and step push actions", () => {

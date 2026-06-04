@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
@@ -46,7 +47,14 @@
     canWriteWorkspace,
     isBranchSwitcherDisabled,
     isContextMenuDisabled,
+    isRepositoryAvailable,
+    shouldClearRepositoryData,
+    shouldShowRepositoryUnavailableState,
   } from "$lib/tickgit/page-state";
+  import {
+    canManageRepositories,
+    repositoryStatusMessage,
+  } from "$lib/tickgit/repositories";
   import {
     dismissFailedOverlay,
     dismissOverlayIfJobMatches,
@@ -129,6 +137,7 @@
   let dragActive = false;
   let isPushing = false;
   let switchingBranch = false;
+  let managingRepositoryPath: string | null = null;
   let activeResizeTarget: "header" | "history" | null = null;
   let leftPaneWidth = 360;
 
@@ -225,6 +234,57 @@
     });
   }
 
+  function clearRepositoryData() {
+    branchStatus = null;
+    localBranches = [];
+    commits = [];
+    selectedCommit = null;
+    selectedCommitMeta = null;
+    commitFiles = [];
+    selectedFilePath = null;
+    diffResult = EMPTY_DIFF_RESULT;
+    nextSkip = 0;
+    hasMore = false;
+    loadingHistory = false;
+    loadingFiles = false;
+    loadingDiff = false;
+    isPushing = false;
+    switchingBranch = false;
+    pushToCommitState = null;
+    stepPushState = null;
+    contextMenu = { open: false, x: 0, y: 0, commit: null };
+    resetWorkspaceState();
+  }
+
+  function canRunRepositoryManagement() {
+    return (
+      !managingRepositoryPath &&
+      canManageRepositories({
+        loadingRepository,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
+    );
+  }
+
+  async function loadCurrentRepositoryState(keepSelection = false) {
+    if (shouldClearRepositoryData(currentRepository)) {
+      clearRepositoryData();
+      return;
+    }
+
+    if (!currentRepository) {
+      return;
+    }
+
+    await loadRepositoryState(currentRepository.path, keepSelection);
+
+    if (activeMainView === "changes") {
+      await loadWorkspaceState(currentRepository.path, keepSelection);
+    }
+  }
+
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
     if (state.remoteRefreshError) {
       notify(
@@ -250,7 +310,11 @@
   async function switchMainView(view: "history" | "changes") {
     activeMainView = view;
 
-    if (view === "changes" && currentRepository) {
+    if (
+      view === "changes" &&
+      currentRepository &&
+      isRepositoryAvailable(currentRepository)
+    ) {
       await loadWorkspaceState(currentRepository.path, true);
     }
   }
@@ -271,6 +335,8 @@
       if (bootstrapState.repositoryState) {
         notifyRemoteRefreshError(bootstrapState.repositoryState);
         applyRepositoryState(bootstrapState.repositoryState);
+      } else if (shouldClearRepositoryData(currentRepository)) {
+        clearRepositoryData();
       }
     } catch (error) {
       notify("初始化失败", getErrorMessage(error), "error");
@@ -291,12 +357,7 @@
       await refreshRepositories();
       resetWorkspaceState();
 
-      if (currentRepository) {
-        await loadRepositoryState(currentRepository.path);
-        if (activeMainView === "changes") {
-          await loadWorkspaceState(currentRepository.path);
-        }
-      }
+      await loadCurrentRepositoryState();
     } catch (error) {
       notify("切换仓库失败", getErrorMessage(error), "error");
     }
@@ -396,10 +457,7 @@
       return;
     }
 
-    await loadRepositoryState(repository.path, true);
-    if (activeMainView === "changes") {
-      await loadWorkspaceState(repository.path, true);
-    }
+    await loadCurrentRepositoryState(true);
   }
 
   async function refreshBlockedBranchStatus() {
@@ -631,6 +689,64 @@
     }
   }
 
+  async function chooseRepositoryDirectory() {
+    const selected = await openDialog({
+      title: "选择新的仓库目录",
+      directory: true,
+      multiple: false,
+    });
+
+    if (!selected) {
+      return null;
+    }
+
+    return Array.isArray(selected) ? (selected[0] ?? null) : selected;
+  }
+
+  async function removeRepositoryFromList(path: string) {
+    if (!canRunRepositoryManagement()) {
+      return;
+    }
+
+    managingRepositoryPath = path;
+
+    try {
+      await api.removeRepository(path);
+      await refreshRepositories();
+      await loadCurrentRepositoryState();
+      notify("仓库已移除", "仅从 TickGit 列表移除，本地文件未删除", "success");
+    } catch (error) {
+      notify("移除仓库失败", getErrorMessage(error), "error");
+    } finally {
+      managingRepositoryPath = null;
+    }
+  }
+
+  async function relocateRepositoryPath(path: string) {
+    if (!canRunRepositoryManagement()) {
+      return;
+    }
+
+    managingRepositoryPath = path;
+
+    try {
+      const newPath = await chooseRepositoryDirectory();
+
+      if (!newPath) {
+        return;
+      }
+
+      await api.relocateRepository(path, newPath);
+      await refreshRepositories();
+      await loadCurrentRepositoryState();
+      notify("仓库已重新定位", "已更新仓库路径并刷新状态", "success");
+    } catch (error) {
+      notify("重新定位失败", getErrorMessage(error), "error");
+    } finally {
+      managingRepositoryPath = null;
+    }
+  }
+
   async function handleDrop(paths: string[]) {
     dragActive = false;
     if (paths.length === 0) {
@@ -652,10 +768,7 @@
     if (added) {
       await refreshRepositories();
       if (currentRepository) {
-        await loadRepositoryState(currentRepository.path);
-        if (activeMainView === "changes") {
-          await loadWorkspaceState(currentRepository.path);
-        }
+        await loadCurrentRepositoryState();
       }
       notify("仓库已添加", "新的 Git 仓库已加入 TickGit", "success");
     }
@@ -903,9 +1016,7 @@
 
           notify("推送成功", `已推送到 ${target.message}`, "success");
 
-          if (currentRepository) {
-            void loadRepositoryState(currentRepository.path, true);
-          }
+          void loadCurrentRepositoryState(true);
 
           window.setTimeout(() => {
             pushToCommitState = dismissOverlayIfJobMatches(
@@ -927,9 +1038,7 @@
 
           notify("推送失败", payload.message, "error");
 
-          if (currentRepository) {
-            void loadRepositoryState(currentRepository.path, true);
-          }
+          void loadCurrentRepositoryState(true);
 
           window.setTimeout(() => {
             pushToCommitState = dismissOverlayIfJobMatches(
@@ -952,9 +1061,7 @@
 
           notify("分步提交完成", "所有目标 Commit 已按顺序推送", "success");
 
-          if (currentRepository) {
-            void loadRepositoryState(currentRepository.path, true);
-          }
+          void loadCurrentRepositoryState(true);
 
           window.setTimeout(() => {
             stepPushState = dismissOverlayIfJobMatches(
@@ -971,9 +1078,7 @@
 
           notify("分步提交失败", payload.message, "error");
 
-          if (currentRepository) {
-            void loadRepositoryState(currentRepository.path, true);
-          }
+          void loadCurrentRepositoryState(true);
 
           window.setTimeout(() => {
             stepPushState = dismissOverlayIfJobMatches(
@@ -1109,7 +1214,10 @@
             <RepositorySwitcher
               {repositories}
               currentPath={currentRepository?.path ?? null}
+              managementDisabled={!canRunRepositoryManagement()}
               on:change={(event) => switchRepository(event.detail.path)}
+              on:remove={(event) => removeRepositoryFromList(event.detail.path)}
+              on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
             />
           </div>
         </div>
@@ -1314,7 +1422,56 @@
     </div>
   </header>
 
-  {#if activeMainView === "history"}
+  {#if shouldShowRepositoryUnavailableState(currentRepository)}
+    <section
+      class="flex min-h-0 flex-1 items-center justify-center bg-[#2b3036] px-6"
+    >
+      <div
+        class="max-w-2xl rounded-lg border border-amber-300/25 bg-[#24292f] p-6 text-center shadow-lg shadow-black/20"
+      >
+        <div
+          class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-400/12 text-xl font-bold text-amber-200"
+        >
+          !
+        </div>
+        <h2 class="mt-4 text-lg font-semibold text-[#f0f6fc]">
+          仓库路径不可用
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-slate-300">
+          {currentRepository
+            ? repositoryStatusMessage(currentRepository)
+            : "当前仓库不可用"}
+        </p>
+        {#if currentRepository}
+          <p class="mt-2 break-all font-mono text-xs text-slate-500">
+            {currentRepository.path}
+          </p>
+          <div class="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <button
+              type="button"
+              class="rounded-md border border-[#539bf5]/45 bg-[#347dff]/15 px-4 py-2 text-sm font-semibold text-[#cae8ff] transition hover:bg-[#347dff]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canRunRepositoryManagement()}
+              on:click={() =>
+                currentRepository &&
+                relocateRepositoryPath(currentRepository.path)}
+            >
+              重新定位
+            </button>
+            <button
+              type="button"
+              class="rounded-md border border-rose-400/35 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canRunRepositoryManagement()}
+              on:click={() =>
+                currentRepository &&
+                removeRepositoryFromList(currentRepository.path)}
+            >
+              从列表移除
+            </button>
+          </div>
+        {/if}
+      </div>
+    </section>
+  {:else if activeMainView === "history"}
     <section
       class="grid min-h-0 flex-1 bg-[#2b3036]"
       style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
