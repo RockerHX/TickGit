@@ -61,8 +61,9 @@ Svelte 页面与组件
 - `page-data.ts` / `repository-actions.ts`：仓库索引、远端刷新、快照加载和详情加载编排
 - `page-state.ts`：loading / push / selection 等页面 guard 纯函数
 - `push-events.ts`：push / step push event payload 到 UI state 的转换和 overlay 关闭规则
-- `page-helpers.ts`：分步提交 hash 计算、错误消息和 toast 数据辅助
-- `diff.ts`：unified diff 解析与 split 视图数据派生
+- `page-helpers.ts`：错误消息和 toast 数据辅助
+- `step-push-plan.ts`：分步推送 plan hashes 提取与确认后启动 job 的状态转换
+- `diff.ts`：unified diff 解析、diff 降级状态与 split 视图数据派生
 - 对应 Vitest 单元测试承载
 
 ### `src/lib/components/*`
@@ -71,9 +72,11 @@ Svelte 页面与组件
 
 当前 Diff Viewer 约束：
 
-- 前端先解析 unified diff，再派生 unified / split 两种视图
+- 后端 diff 返回 `CommitFileDiffResult`，包含文本与 binary/image/tooLarge/truncated/byteCount/lineCount metadata
+- 前端先判断 diff metadata，binary/image/tooLarge 进入降级提示，不解析为文本 diff
+- 文本 diff 再解析 unified diff，并派生 unified / split 两种视图
+- split rows 仅在 split 模式且 diff ready 时构建
 - hide whitespace 会重新请求后端 diff，而不是在前端做字符串过滤
-- 当前只覆盖文本 diff，不处理图片 / 二进制专用展示
 
 ### `src/lib/tauri/api.ts`
 
@@ -95,21 +98,23 @@ Svelte 页面与组件
 
 Tauri command 边界层，只做参数接收和模块转发。
 
-### `src-tauri/src/git.rs`
+### `src-tauri/src/git/`
 
-Git 领域核心模块，统一负责：
+Git 领域核心模块目录，统一负责 Git 相关查询、解析和写操作。当前模块边界：
 
-- 仓库校验
-- 当前分支 / upstream 状态
-- ahead / behind 计算
-- 全量未推送 Commit 与 first-parent 安全推送集合计算
-- Commit 历史、文件列表、Diff
-- 常规推送
-- 推送到指定 Commit
-- 刷新 origin 远端跟踪信息，用于判断 ahead / behind 状态
-- 统一封装 Git 命令执行环境，避免受本地语言、颜色、分页器和交互提示影响
+```text
+src-tauri/src/git/
+  mod.rs          # 对外 re-export 与 Git 固定约束常量
+  command.rs      # git command 执行封装
+  repository.rs   # repo path / validate / branch / upstream / tracking refresh
+  history.rs      # commit history / file list / meta
+  diff.rs         # file diff / metadata / 大文件保护
+  push.rs         # push current / push to commit / step push plan / safe target
+  parse.rs        # 文本解析函数
+  tests.rs        # Git 行为集成测试
+```
 
-所有 Git 操作都从这里进入。
+所有 Git 操作都从这里进入，并由 `commands.rs` 或 `jobs.rs` 调用公开函数。
 
 Git 命令执行规则：
 
@@ -121,11 +126,12 @@ Git 命令执行规则：
 
 ### `src-tauri/src/jobs.rs`
 
-后台任务模块。当前只负责分步提交：
+后台任务模块。当前负责异步推送任务：
 
-- 单任务模式
-- 不可取消
-- 顺序推送 commit
+- 单任务 gate，避免多个 push job 并发执行
+- 分步推送不可取消
+- 分步推送按 plan hashes 顺序推送 commit
+- push current branch / push to commit / step push 均在后端启动前做当前分支与安全校验
 - 通过 Tauri event 回传进度 / 完成 / 失败
 
 ### `src-tauri/src/repo_store.rs`
@@ -158,8 +164,9 @@ Git 命令执行规则：
 - `origin` 缺失、upstream 缺失或 detached HEAD 时禁用推送
 - 前端不能直接执行 Git
 - 不引入 `libgit2`
-- Diff 当前为结构化文本视图，支持 unified / split 与 hide whitespace
+- Diff 为结构化文本视图，支持 unified / split 与 hide whitespace，并对 binary/image/tooLarge 做降级展示
 - 分步提交为单任务、不可取消
+- Step push plan 由后端生成，前端只展示并在用户确认后传回 plan hashes；job 启动前仍由后端二次校验
 
 ---
 
@@ -185,11 +192,14 @@ Git 命令执行规则：
    - 相对 upstream 的全量未推送 Commit 集合
    - 基于 first-parent 路径的“可安全分步推送”未推送 Commit 集合
 3. 前端历史默认展示完整历史，但只在可安全路径上开放 step push / push to commit
-4. 前端只在这条可安全路径上整理要推送的 commit hash（旧 -> 新）
-5. 调用 `start_step_push`
-6. 后端逐个执行 `git push origin <hash>:refs/heads/<branch>`
-7. 每成功一步，就把远端分支推进到下一个安全目标
-8. 通过 event 推送进度、完成或失败
+4. 用户右键 Step Push 时，前端调用 `get_step_push_plan(repo_path, target_hash)`
+5. 后端刷新 origin tracking，判断 behind/diverged/upstream/origin/first-parent 安全性
+6. 可推送时，后端返回旧到新的 plan items；不可推送时，返回结构化 blocked reason
+7. 前端展示 `StepPushPlanDialog`，用户确认后把同一份 plan hashes 传给 `start_step_push`
+8. `start_step_push` 启动前再次校验 hashes 必须等于后端当前安全路径的连续前缀，避免 stale plan 或篡改请求绕过安全策略
+9. 后端逐个执行 `git push origin <hash>:refs/heads/<branch>`
+10. 每成功一步，就把远端分支推进到下一个安全目标
+11. 通过 event 推送进度、完成或失败
 
 这样做的核心目的，是保证分步推送始终沿着一条真正可 fast-forward 的主线前进，而不是把 merge 进来的侧支 Commit 误塞进队列。
 

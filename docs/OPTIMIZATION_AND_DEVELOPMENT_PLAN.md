@@ -19,49 +19,33 @@
 当前项目整体分层清晰：
 
 - 前端通过 `src/lib/tauri/api.ts` / `events.ts` 集中访问 Tauri command 与 event
-- Git 核心能力集中在 Rust 侧
+- Git 核心能力集中在 Rust 侧，并已拆分到 `src-tauri/src/git/` 模块目录
 - first-parent 安全分步推送已有明确产品约束和较多 Rust 单元测试
-- 前端 diff / 页面 helper 已有 Vitest 覆盖
+- 前端 diff、页面状态、仓库数据编排、推送事件与分步推送计划 helper 已有 Vitest 覆盖
 - 发布 workflow 已覆盖多平台打包
 
 当前主要短板：
 
-- Rust 单测存在 1 个失败用例，说明实现、测试预期或文档口径已有漂移
-- `pnpm format:check` 当前失败，格式门禁未保持干净
 - 缺少日常 push / PR 级 CI，只在 release / manual package 阶段做部分验证
-- `src-tauri/src/git.rs` 和 `src/routes/+page.svelte` 已经偏大，后续继续堆功能会增加维护成本
-- Diff、推送任务、behind/diverged 分支状态等真实使用场景还需要更强的体验和安全兜底
+- 同步版 push command/API 仍需确认是否保留
+- 推送任务取消与运行状态查询仍暂缓
+- 工作区变更视图、提交创建、历史搜索等 GitHub Desktop 类能力仍待扩展
 
 ---
 
 ## 3. 已验证的基线
 
-本次盘点执行过以下命令。
-
-通过：
+本次盘点初始发现的 Rust 单测漂移与格式门禁问题已在 P0/P2 实施中修复。截至 2026-06-04 P2 收尾，本地完整质量门禁已通过：
 
 ```bash
-pnpm test:run
-pnpm typecheck
-pnpm build
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+rtk pnpm test:run
+rtk proxy pnpm typecheck
+rtk pnpm build
+rtk pnpm format:check
+rtk cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+rtk cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+rtk cargo test --manifest-path src-tauri/Cargo.toml
 ```
-
-失败：
-
-```bash
-cargo test --manifest-path src-tauri/Cargo.toml
-pnpm format:check
-```
-
-失败原因：
-
-- `cargo test`：`git::tests::keeps_unpushed_commits_visible_when_branch_is_behind_remote` 失败。
-  - 当前实现会在本地分支落后且与远端分叉时取消 safe push target。
-  - 该行为与“behind 时禁用推送”的约束更一致，疑似测试预期过期。
-- `pnpm format:check`：`src-tauri/tauri.conf.json` 格式不符合 Prettier。
 
 ---
 
@@ -291,7 +275,28 @@ pnpm build
 
 ## 6. P2：核心体验增强
 
-当前实施顺序：6.4 Diff 大文件保护 → 6.2 Step push plan preview。6.1 主要目标已由 P0.1 覆盖，6.3 暂缓。
+完成状态：6.4 Diff 大文件保护与 6.2 Step push plan preview 已于 2026-06-04 完成。6.1 主要目标已由 P0.1 覆盖，6.3 继续暂缓。
+
+完成摘要：
+
+- `get_commit_file_diff` 保持 command 名不变，返回 `CommitFileDiffResult`：`text`、`isBinary`、`isImage`、`isTooLarge`、`truncated`、`byteCount`、`lineCount`。
+- Rust diff 模块按 `1 MiB` patch 字节数与 `5000` 变更行阈值进行保护，二进制/图片/超大 diff 不返回完整 patch。
+- 前端 Diff Viewer 对 binary、image、too large、hide whitespace empty diff 均展示明确降级状态，split rows 仅在 split 模式构建。
+- 新增 `get_step_push_plan(repo_path, target_hash)` 后端接口，返回当前分支、目标 commit、旧到新的计划列表、`available` 与结构化 blocked reason。
+- 前端右键 Step Push 改为先请求后端 plan 并展示 `StepPushPlanDialog`，用户确认后使用同一份 plan hashes 启动 `startStepPush`。
+- `start_step_push` 保留原有后端二次校验，避免 stale plan 或前端篡改绕过安全检查。
+
+本地验收命令：
+
+```bash
+rtk pnpm test:run
+rtk proxy pnpm typecheck
+rtk pnpm build
+rtk pnpm format:check
+rtk cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+rtk cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+rtk cargo test --manifest-path src-tauri/Cargo.toml
+```
 
 ### 6.1 behind/diverged 同步引导
 
@@ -311,32 +316,22 @@ pnpm build
 
 ### 6.2 Step push plan preview
 
-目标：
+状态：已完成。
 
-- 用户点击分步推送前，先看到实际会推送哪些 commit。
+已实现：
 
-建议新增后端接口：
+- 新增后端 command `get_step_push_plan(repo_path, target_hash)`。
+- 返回目标 commit、当前分支、旧到新的 step push commit 列表、`available` 与结构化 blocked reason。
+- 前端不再使用本地 `buildStepPushHashes` 构建队列，右键 Step Push 后先展示后端 plan 预览。
+- 用户确认后使用 plan 中的 hashes 调用 `startStepPush`。
+- `start_step_push` 继续在 job 启动前二次校验 hashes，避免 stale plan 或篡改请求绕过后端安全策略。
 
-```text
-get_step_push_plan(repo_path, target_hash)
-```
+已验证：
 
-返回：
-
-- 目标 commit
-- 将推送的 commit 列表，旧到新
-- 如果不可推送，返回结构化原因
-
-收益：
-
-- 前端不再依赖“预加载足够多历史页”来构建推送队列。
-- 后端成为 step push plan 的唯一真相来源。
-
-验收：
-
-- merge 侧支 commit 不出现在 plan 中。
-- diverged / behind 时返回不可推送原因。
-- 前端 preview 与实际 job 使用同一份 plan。
+- safe first-parent target 返回旧到新的 plan。
+- merge 侧支 commit 不出现在 plan 中，并返回不可推送原因。
+- behind/diverged、missing upstream、non-origin upstream 返回结构化 blocked reason。
+- 前端 preview 使用后端返回顺序，blocked plan 不会启动 step push，原 progress overlay 行为保持不变。
 
 ### 6.3 推送任务取消与状态查询
 
@@ -355,28 +350,25 @@ get_step_push_plan(repo_path, target_hash)
 
 ### 6.4 Diff 大文件保护
 
-现状：
+状态：已完成。
 
-- 当前 diff 为结构化文本 diff。
-- 前端每次 diff 变化都会解析 unified diff 并构建 split rows。
-- 未见大文件截断、二进制文件、图片 diff、超大 patch 的降级策略。
+已实现：
 
-建议：
+- `get_commit_file_diff` 返回 `CommitFileDiffResult`，包含文本与 binary/image/tooLarge/truncated/byteCount/lineCount metadata。
+- Rust 侧默认保护阈值：最大 patch 字节数 `1 MiB`，最大变更行数 `5000`。
+- 图片按常见扩展名识别：png/jpg/jpeg/gif/webp/svg/bmp/ico/avif。
+- 二进制、图片、超大 diff 不返回完整 patch，避免前端误展示空白或解析大文本。
+- hide whitespace 后 empty diff 保持正常空文本结果，不误标 too large/binary。
+- 前端 Diff Viewer 展示 binary、image、too large 与 whitespace-only 的明确降级提示。
+- Split rows 仅在 `diffViewMode === "split"` 且 diff ready 时构建。
 
-- Rust 侧限制单文件 diff 最大字节数或最大行数。
-- 返回 diff metadata：
-  - `isBinary`
-  - `isTooLarge`
-  - `isImage`
-  - `truncated`
-- 前端按状态展示降级提示。
-- Split view 仅在用户切换到 split 时构建。
+已验证：
 
-验收：
-
-- 大文件不会造成 UI 卡死。
-- 二进制文件不展示空白或解析失败误导。
-- Hide whitespace 后的 empty diff 有明确提示。
+- 普通文本 diff 返回 text。
+- 二进制文件标记 `isBinary`。
+- 图片文件标记 `isImage`。
+- 超大 diff 标记 `isTooLarge` 与 `truncated`。
+- hide whitespace empty diff 不标记 too large/binary。
 
 ---
 
