@@ -10,7 +10,9 @@ use tauri::{AppHandle, Manager, PhysicalSize, Size, State, WebviewWindow};
 use crate::{
     error::{AppError, AppResult},
     git,
-    models::{RepositoryConfig, RepositorySummary, WindowSizeConfig},
+    models::{
+        RepositoryConfig, RepositoryStatus, RepositorySummary, StoredRepository, WindowSizeConfig,
+    },
 };
 
 const DEFAULT_WINDOW_WIDTH_RATIO: f64 = 0.75;
@@ -76,8 +78,13 @@ fn repository_name(path: &Path) -> String {
         .unwrap_or_else(|| path.to_string_lossy().to_string())
 }
 
-fn sort_repositories(repositories: &mut [RepositorySummary]) {
-    repositories.sort_by_key(|repository| std::cmp::Reverse(repository.last_opened_at));
+fn sort_repositories(repositories: &mut [StoredRepository]) {
+    repositories.sort_by(|left, right| {
+        right
+            .last_opened_at
+            .cmp(&left.last_opened_at)
+            .then_with(|| left.path.cmp(&right.path))
+    });
 }
 
 fn find_current_repository(store: &RepositoryConfig) -> Option<RepositorySummary> {
@@ -86,8 +93,36 @@ fn find_current_repository(store: &RepositoryConfig) -> Option<RepositorySummary
             .repositories
             .iter()
             .find(|repository| &repository.path == path)
-            .cloned()
+            .map(repository_summary)
     })
+}
+
+fn repository_status(path: &str) -> (RepositoryStatus, Option<String>) {
+    let path = Path::new(path);
+
+    if !path.exists() {
+        return (
+            RepositoryStatus::Missing,
+            Some("仓库路径不存在".to_string()),
+        );
+    }
+
+    match git::resolve_repository_path(path.to_string_lossy().as_ref()) {
+        Ok(_) => (RepositoryStatus::Available, None),
+        Err(error) => (RepositoryStatus::Invalid, Some(error.message)),
+    }
+}
+
+fn repository_summary(repository: &StoredRepository) -> RepositorySummary {
+    let (status, disabled_reason) = repository_status(&repository.path);
+
+    RepositorySummary {
+        name: repository.name.clone(),
+        path: repository.path.clone(),
+        last_opened_at: repository.last_opened_at,
+        status,
+        disabled_reason,
+    }
 }
 
 fn add_repository_to_store(
@@ -105,7 +140,7 @@ fn add_repository_to_store(
         return Err(AppError::new("repository_exists", "该仓库已存在于列表中"));
     }
 
-    let repository = RepositorySummary {
+    let repository = StoredRepository {
         name: repository_name(repository_path),
         path: normalized_path.clone(),
         last_opened_at: opened_at,
@@ -114,7 +149,7 @@ fn add_repository_to_store(
     store.repositories.push(repository.clone());
     store.current_path = Some(normalized_path);
 
-    Ok(repository)
+    Ok(repository_summary(&repository))
 }
 
 fn normalize_repository_store_path(path: &str) -> AppResult<String> {
@@ -138,6 +173,59 @@ fn set_current_repository_in_store(
     store.current_path = Some(path.to_string());
 
     Ok(())
+}
+
+fn remove_repository_from_store(
+    store: &mut RepositoryConfig,
+    path: &str,
+) -> AppResult<Option<RepositorySummary>> {
+    let position = store
+        .repositories
+        .iter()
+        .position(|repository| repository.path == path)
+        .ok_or_else(|| AppError::new("repository_not_found", "仓库不存在"))?;
+
+    store.repositories.remove(position);
+
+    if store.current_path.as_deref() == Some(path) {
+        sort_repositories(&mut store.repositories);
+        store.current_path = store
+            .repositories
+            .first()
+            .map(|repository| repository.path.clone());
+    }
+
+    Ok(find_current_repository(store))
+}
+
+fn relocate_repository_in_store(
+    store: &mut RepositoryConfig,
+    old_path: &str,
+    new_path: &Path,
+    opened_at: i64,
+) -> AppResult<RepositorySummary> {
+    let normalized_new_path = new_path.to_string_lossy().to_string();
+
+    if store
+        .repositories
+        .iter()
+        .any(|repository| repository.path == normalized_new_path && repository.path != old_path)
+    {
+        return Err(AppError::new("repository_exists", "该仓库已存在于列表中"));
+    }
+
+    let repository = store
+        .repositories
+        .iter_mut()
+        .find(|repository| repository.path == old_path)
+        .ok_or_else(|| AppError::new("repository_not_found", "仓库不存在"))?;
+
+    repository.name = repository_name(new_path);
+    repository.path = normalized_new_path.clone();
+    repository.last_opened_at = opened_at;
+    store.current_path = Some(normalized_new_path);
+
+    Ok(repository_summary(repository))
 }
 
 fn sanitize_window_size(
@@ -277,7 +365,7 @@ pub fn list_repositories(
     let path = store_path(app)?;
     let mut repositories = read_store(&path)?.repositories;
     sort_repositories(&mut repositories);
-    Ok(repositories)
+    Ok(repositories.iter().map(repository_summary).collect())
 }
 
 pub fn add_repository(
@@ -303,8 +391,7 @@ pub fn set_current_repository(
     let _guard = state.lock.lock().expect("repository store poisoned");
     let config_path = store_path(app)?;
     let mut store = read_store(&config_path)?;
-    let normalized_path = normalize_repository_store_path(&path)?;
-    set_current_repository_in_store(&mut store, &normalized_path, now_millis())?;
+    set_current_repository_in_store(&mut store, &path, now_millis())?;
     write_store(&config_path, &store)
 }
 
@@ -318,13 +405,47 @@ pub fn get_current_repository(
     Ok(find_current_repository(&store))
 }
 
+pub fn remove_repository(
+    app: &AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    path: String,
+) -> AppResult<Option<RepositorySummary>> {
+    let _guard = state.lock.lock().expect("repository store poisoned");
+    let config_path = store_path(app)?;
+    let mut store = read_store(&config_path)?;
+    let current_repository = remove_repository_from_store(&mut store, &path)?;
+    write_store(&config_path, &store)?;
+    Ok(current_repository)
+}
+
+pub fn relocate_repository(
+    app: &AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    old_path: String,
+    new_path: String,
+) -> AppResult<RepositorySummary> {
+    let _guard = state.lock.lock().expect("repository store poisoned");
+    let config_path = store_path(app)?;
+    let mut store = read_store(&config_path)?;
+    let normalized_new_path = normalize_repository_store_path(&new_path)?;
+    let repository = relocate_repository_in_store(
+        &mut store,
+        &old_path,
+        Path::new(&normalized_new_path),
+        now_millis(),
+    )?;
+    write_store(&config_path, &store)?;
+    Ok(repository)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         add_repository_to_store, find_current_repository, normalize_repository_store_path,
-        read_store, set_current_repository_in_store, sort_repositories, write_store,
+        read_store, relocate_repository_in_store, remove_repository_from_store, repository_summary,
+        set_current_repository_in_store, sort_repositories, write_store,
     };
-    use crate::models::{RepositoryConfig, RepositorySummary, WindowSizeConfig};
+    use crate::models::{RepositoryConfig, RepositoryStatus, StoredRepository, WindowSizeConfig};
     use std::{
         env, fs,
         path::{Path, PathBuf},
@@ -386,8 +507,8 @@ mod tests {
         repo
     }
 
-    fn repository(path: &str, last_opened_at: i64) -> RepositorySummary {
-        RepositorySummary {
+    fn repository(path: &str, last_opened_at: i64) -> StoredRepository {
+        StoredRepository {
             name: Path::new(path)
                 .file_name()
                 .unwrap()
@@ -441,6 +562,45 @@ mod tests {
     }
 
     #[test]
+    fn sorts_repositories_stably_when_opened_at_matches() {
+        let mut repositories = vec![
+            repository("/tmp/repo-c", 10),
+            repository("/tmp/repo-a", 10),
+            repository("/tmp/repo-b", 10),
+        ];
+
+        sort_repositories(&mut repositories);
+
+        let paths = repositories
+            .iter()
+            .map(|repository| repository.path.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(paths, vec!["/tmp/repo-a", "/tmp/repo-b", "/tmp/repo-c"]);
+    }
+
+    #[test]
+    fn marks_missing_and_invalid_repository_summaries() {
+        let missing = repository("/tmp/tickgit-missing-repo-summary", 10);
+        let plain_dir = TestDir::new("plain-repo-summary");
+
+        let missing_summary = repository_summary(&missing);
+        let invalid_summary =
+            repository_summary(&repository(plain_dir.path.to_string_lossy().as_ref(), 20));
+
+        assert_eq!(missing_summary.status, RepositoryStatus::Missing);
+        assert_eq!(
+            missing_summary.disabled_reason.as_deref(),
+            Some("仓库路径不存在")
+        );
+        assert_eq!(invalid_summary.status, RepositoryStatus::Invalid);
+        assert_eq!(
+            invalid_summary.disabled_reason.as_deref(),
+            Some("当前目录不是 Git 仓库")
+        );
+    }
+
+    #[test]
     fn rejects_duplicate_repository_paths() {
         let repo = init_repo();
         let mut store = RepositoryConfig::default();
@@ -486,6 +646,7 @@ mod tests {
         let current = find_current_repository(&store).unwrap();
         assert_eq!(current.path, repo_a_summary.path);
         assert_eq!(current.last_opened_at, 30);
+        assert_eq!(current.status, RepositoryStatus::Available);
     }
 
     #[test]
@@ -511,5 +672,108 @@ mod tests {
 
         assert_eq!(error.code, "repository_not_found");
         assert_eq!(error.message, "仓库不存在");
+    }
+
+    #[test]
+    fn removes_current_repository_and_selects_most_recent_remaining() {
+        let mut store = RepositoryConfig {
+            repositories: vec![
+                repository("/tmp/repo-a", 10),
+                repository("/tmp/repo-b", 30),
+                repository("/tmp/repo-c", 20),
+            ],
+            current_path: Some("/tmp/repo-b".to_string()),
+            window_size: None,
+        };
+
+        let current = remove_repository_from_store(&mut store, "/tmp/repo-b").unwrap();
+
+        assert_eq!(store.repositories.len(), 2);
+        assert_eq!(store.current_path.as_deref(), Some("/tmp/repo-c"));
+        assert_eq!(
+            current.map(|repository| repository.path),
+            Some("/tmp/repo-c".to_string())
+        );
+    }
+
+    #[test]
+    fn removes_non_current_repository_without_changing_current() {
+        let mut store = RepositoryConfig {
+            repositories: vec![repository("/tmp/repo-a", 10), repository("/tmp/repo-b", 20)],
+            current_path: Some("/tmp/repo-a".to_string()),
+            window_size: None,
+        };
+
+        let current = remove_repository_from_store(&mut store, "/tmp/repo-b").unwrap();
+
+        assert_eq!(store.repositories.len(), 1);
+        assert_eq!(store.current_path.as_deref(), Some("/tmp/repo-a"));
+        assert_eq!(
+            current.map(|repository| repository.path),
+            Some("/tmp/repo-a".to_string())
+        );
+    }
+
+    #[test]
+    fn clears_current_repository_when_removing_last_repository() {
+        let mut store = RepositoryConfig {
+            repositories: vec![repository("/tmp/repo-a", 10)],
+            current_path: Some("/tmp/repo-a".to_string()),
+            window_size: None,
+        };
+
+        let current = remove_repository_from_store(&mut store, "/tmp/repo-a").unwrap();
+
+        assert!(store.repositories.is_empty());
+        assert_eq!(store.current_path, None);
+        assert!(current.is_none());
+    }
+
+    #[test]
+    fn relocates_repository_and_selects_new_path() {
+        let old_path = "/tmp/moved-repo";
+        let new_repo = init_repo();
+        let mut store = RepositoryConfig {
+            repositories: vec![repository(old_path, 10)],
+            current_path: Some(old_path.to_string()),
+            window_size: None,
+        };
+
+        let relocated =
+            relocate_repository_in_store(&mut store, old_path, &new_repo.path, 40).unwrap();
+
+        assert_eq!(relocated.path, new_repo.path.to_string_lossy());
+        assert_eq!(
+            relocated.name,
+            new_repo.path.file_name().unwrap().to_string_lossy()
+        );
+        assert_eq!(relocated.last_opened_at, 40);
+        assert_eq!(relocated.status, RepositoryStatus::Available);
+        assert_eq!(store.current_path.as_deref(), Some(relocated.path.as_str()));
+    }
+
+    #[test]
+    fn rejects_relocating_repository_to_duplicate_path() {
+        let repo_a = init_repo();
+        let repo_b = init_repo();
+        let mut store = RepositoryConfig {
+            repositories: vec![
+                repository(repo_a.path.to_string_lossy().as_ref(), 10),
+                repository(repo_b.path.to_string_lossy().as_ref(), 20),
+            ],
+            current_path: Some(repo_a.path.to_string_lossy().to_string()),
+            window_size: None,
+        };
+
+        let error = relocate_repository_in_store(
+            &mut store,
+            repo_a.path.to_string_lossy().as_ref(),
+            &repo_b.path,
+            30,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, "repository_exists");
+        assert_eq!(error.message, "该仓库已存在于列表中");
     }
 }

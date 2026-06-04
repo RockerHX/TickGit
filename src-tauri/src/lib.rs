@@ -24,6 +24,8 @@ pub fn run() {
             commands::add_repository,
             commands::set_current_repository,
             commands::get_current_repository,
+            commands::remove_repository,
+            commands::relocate_repository,
             commands::get_branch_status,
             commands::refresh_remote_tracking,
             commands::list_local_branches,

@@ -46,6 +46,25 @@ pub fn get_current_repository(
 }
 
 #[tauri::command]
+pub fn remove_repository(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    path: String,
+) -> AppResult<Option<RepositorySummary>> {
+    repo_store::remove_repository(&app, state, path)
+}
+
+#[tauri::command]
+pub fn relocate_repository(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+    old_path: String,
+    new_path: String,
+) -> AppResult<RepositorySummary> {
+    repo_store::relocate_repository(&app, state, old_path, new_path)
+}
+
+#[tauri::command]
 pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
     git::get_branch_status(&repo_path)
 }

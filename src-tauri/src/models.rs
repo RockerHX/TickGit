@@ -6,6 +6,24 @@ pub struct RepositorySummary {
     pub name: String,
     pub path: String,
     pub last_opened_at: i64,
+    pub status: RepositoryStatus,
+    pub disabled_reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RepositoryStatus {
+    Available,
+    Missing,
+    Invalid,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredRepository {
+    pub name: String,
+    pub path: String,
+    pub last_opened_at: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -232,7 +250,7 @@ pub struct PushToCommitFailed {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryConfig {
-    pub repositories: Vec<RepositorySummary>,
+    pub repositories: Vec<StoredRepository>,
     pub current_path: Option<String>,
     pub window_size: Option<WindowSizeConfig>,
 }
