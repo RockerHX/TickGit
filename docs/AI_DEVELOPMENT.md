@@ -46,6 +46,7 @@
 - `src/lib/types.ts`
 - `src/lib/tauri/api.ts`
 - `src/lib/tauri/events.ts`
+- 如新增 Tauri 插件，还需同步 `package.json`、`src-tauri/Cargo.toml`、`src-tauri/src/lib.rs` 与 `src-tauri/capabilities/*`
 
 ### 2.4 控制范围
 

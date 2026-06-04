@@ -45,6 +45,7 @@ Svelte 页面与组件
 当前页面主编排层，负责：
 
 - 当前仓库与仓库列表
+- 仓库搜索、失效路径提示、移除和重新定位
 - 分支状态
 - Commit 历史分页
 - 当前选中 Commit / 文件 / Diff
@@ -151,7 +152,12 @@ Git 命令执行规则：
 
 - 仓库列表
 - 当前选中仓库
+- 仓库 runtime 状态标记：available / missing / invalid
+- 从列表移除仓库
+- 重新定位已移动仓库
 - `repositories.json` 读写
+
+持久化文件只保存仓库记录本身；missing / invalid 状态在 list / get current 时动态计算，不写入配置文件。
 
 ### `src-tauri/src/models.rs`
 
@@ -178,8 +184,20 @@ Git 命令执行规则：
 - Diff 为结构化文本视图，支持 unified / split 与 hide whitespace，并对 binary/image/tooLarge 做降级展示
 - 工作区支持 staged / unstaged / untracked 查看、文件级 stage / unstage，以及只提交 staged 内容
 - 当前不支持 hunk / 行级暂存、discard changes、冲突解决
+- 仓库列表保留失效路径，通过 runtime status 标记 missing / invalid，不自动清理用户配置
+- 从 TickGit 移除仓库只移除持久化记录，不删除磁盘文件
+- 重新定位仓库通过 Tauri dialog 选择目录，后端仍负责校验新路径是 Git work tree
 - 分步提交为单任务、不可取消
 - Step push plan 由后端生成，前端只展示并在用户确认后传回 plan hashes；job 启动前仍由后端二次校验
+
+### Tauri 插件与权限
+
+当前启用插件：
+
+- `tauri-plugin-opener`：保留默认 opener 能力
+- `tauri-plugin-dialog`：用于仓库重新定位时选择本地目录
+
+`src-tauri/capabilities/default.json` 只开放当前需要的 dialog open 权限。
 
 ---
 

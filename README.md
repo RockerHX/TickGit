@@ -8,6 +8,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 
 - 拖拽添加本地 Git 仓库
 - 仓库列表持久化与切换
+- 仓库搜索、从列表移除、失效路径提示和重新定位
 - 当前仓库本地分支切换与整页刷新
 - 左侧 Commit 历史分页加载
 - 已推送 / 未推送 Commit 区分
@@ -48,6 +49,8 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - “分步推送 / Push to Commit” 的可操作目标只来自 **first-parent 安全路径**
 - 分步提交任务为 **单任务、不可取消**
 - 当前不内置 `git pull` / `merge` / `rebase`，远端已有更新时只禁用推送并提示用户使用 GitHub Desktop 或 SourceTree 同步
+- 从 TickGit 移除仓库只删除列表记录，不删除本地仓库文件
+- 仓库路径失效时会保留列表项，并提供重新定位或移除入口
 - 工作区提交只提交 **staged** 内容，未暂存文件会保留在工作区
 - 工作区暂存粒度为 **整文件**，暂不支持 hunk / 行级暂存、discard changes、冲突解决
 - Diff 当前为 **结构化文本展示**，支持 **Unified / Split** 与 **Hide Whitespace Changes**，对图片、二进制和超大 Diff 做保护性降级，暂不做语法高亮和图片专用 Diff
