@@ -1,0 +1,805 @@
+use super::repository::branch_status_for_path;
+use super::{
+    checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta,
+    list_local_branches, push_current_branch, push_to_commit, refresh_remote_tracking,
+    resolve_repository_path, validate_current_branch, validate_step_push_hashes,
+    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
+};
+use crate::error::AppError;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+static NEXT_TEST_ID: AtomicUsize = AtomicUsize::new(1);
+
+struct TestDir {
+    path: PathBuf,
+}
+
+impl TestDir {
+    fn new(prefix: &str) -> Self {
+        let suffix = NEXT_TEST_ID.fetch_add(1, Ordering::SeqCst);
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let path = env::temp_dir().join(format!(
+            "tickgit-{prefix}-{}-{timestamp}-{suffix}",
+            std::process::id()
+        ));
+
+        fs::create_dir_all(&path).expect("create temp test directory");
+        Self { path }
+    }
+}
+
+impl Drop for TestDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+fn run_git(path: &Path, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .output()
+        .expect("run git command");
+
+    if output.status.success() {
+        return String::from_utf8_lossy(&output.stdout).trim().to_string();
+    }
+
+    panic!("{}", String::from_utf8_lossy(&output.stderr));
+}
+
+fn init_repo() -> TestDir {
+    let repo = TestDir::new("repo");
+    run_git(&repo.path, &["init"]);
+    run_git(&repo.path, &["config", "user.name", "TickGit Tests"]);
+    run_git(
+        &repo.path,
+        &["config", "user.email", "tickgit-tests@example.com"],
+    );
+    repo
+}
+
+fn init_bare_repo() -> TestDir {
+    let repo = TestDir::new("bare-repo");
+    run_git(&repo.path, &["init", "--bare"]);
+    repo
+}
+
+fn write_file(path: &Path, relative_path: &str, content: &str) {
+    let target = path.join(relative_path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create parent directory");
+    }
+    fs::write(target, content).expect("write file");
+}
+
+fn commit_file(path: &Path, relative_path: &str, content: &str, message: &str) -> String {
+    write_file(path, relative_path, content);
+    run_git(path, &["add", relative_path]);
+    run_git(path, &["commit", "--no-gpg-sign", "-m", message]);
+    run_git(path, &["rev-parse", "HEAD"])
+}
+
+fn current_test_branch(path: &Path) -> String {
+    run_git(path, &["branch", "--show-current"])
+}
+
+fn clone_repo(source: &Path, prefix: &str) -> TestDir {
+    let repo = TestDir::new(prefix);
+    run_git(
+        source.parent().expect("clone source parent"),
+        &[
+            "clone",
+            source.to_str().expect("clone source path"),
+            repo.path.to_str().expect("clone target path"),
+        ],
+    );
+    run_git(&repo.path, &["config", "user.name", "TickGit Tests"]);
+    run_git(
+        &repo.path,
+        &["config", "user.email", "tickgit-tests@example.com"],
+    );
+    repo
+}
+
+fn assert_app_error(error: AppError, code: &str, message: &str) {
+    assert_eq!(error.code, code);
+    assert_eq!(error.message, message);
+}
+
+#[test]
+fn resolves_valid_repository_path() {
+    let repo = init_repo();
+    let resolved = resolve_repository_path(repo.path.to_string_lossy().as_ref()).unwrap();
+    assert_eq!(resolved, repo.path.canonicalize().unwrap());
+}
+
+#[test]
+fn rejects_missing_repository_path() {
+    let error = resolve_repository_path("/tmp/tickgit-missing-repo-path").unwrap_err();
+    assert_app_error(error, "invalid_repository", "仓库路径不存在");
+}
+
+#[test]
+fn rejects_non_git_directory() {
+    let dir = TestDir::new("plain-dir");
+    let error = resolve_repository_path(dir.path.to_string_lossy().as_ref()).unwrap_err();
+    assert_app_error(error, "invalid_repository", "当前目录不是 Git 仓库");
+}
+
+#[test]
+fn disables_push_when_upstream_is_not_origin() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    let backup = init_bare_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let branch = current_test_branch(&repo.path);
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(
+        &repo.path,
+        &["remote", "add", "backup", backup.path.to_str().unwrap()],
+    );
+    let backup_refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    let expected_upstream = format!("backup/{branch}");
+
+    assert_eq!(status.upstream.as_deref(), Some(expected_upstream.as_str()));
+    assert!(!status.push_available);
+    assert_eq!(
+        status.disabled_reason.as_deref(),
+        Some("当前分支的上游不是 origin 远端，已禁用推送动作")
+    );
+}
+
+#[test]
+fn pushes_current_branch_to_origin_even_when_upstream_points_elsewhere() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    let backup = init_bare_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let branch = current_test_branch(&repo.path);
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(
+        &repo.path,
+        &["remote", "add", "backup", backup.path.to_str().unwrap()],
+    );
+    let backup_refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(&repo.path, &["push", "-u", "backup", &backup_refspec]);
+    let backup_initial_head = run_git(
+        &backup.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+
+    let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
+
+    push_current_branch(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    let origin_head = run_git(
+        &origin.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+    let backup_head = run_git(
+        &backup.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+
+    assert_eq!(origin_head, second_hash);
+    assert_eq!(backup_head, backup_initial_head);
+}
+
+#[test]
+fn separates_total_history_from_safe_step_push_targets_after_merge() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    run_git(&repo.path, &["checkout", "-b", "feature", &base_hash]);
+    let feature_hash = commit_file(&repo.path, "feature.txt", "feature\n", "feature");
+
+    run_git(&repo.path, &["checkout", &branch]);
+    let main_hash = commit_file(&repo.path, "main.txt", "main\n", "main");
+    run_git(
+        &repo.path,
+        &["merge", "--no-ff", "feature", "-m", "merge feature"],
+    );
+    let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.ahead_count, 3);
+    assert_eq!(status.safe_ahead_count, 2);
+    assert_eq!(status.behind_count, 0);
+
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let hashes: Vec<&str> = history
+        .items
+        .iter()
+        .map(|item| item.hash.as_str())
+        .collect();
+
+    assert_eq!(history.unpushed_count, 3);
+    assert_eq!(history.safe_unpushed_count, 2);
+    assert!(hashes.contains(&merge_hash.as_str()));
+    assert!(hashes.contains(&main_hash.as_str()));
+    assert!(hashes.contains(&feature_hash.as_str()));
+    assert!(hashes.contains(&base_hash.as_str()));
+
+    let merge_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == merge_hash)
+        .expect("merge commit in history");
+    let main_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == main_hash)
+        .expect("main commit in history");
+    let feature_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == feature_hash)
+        .expect("feature commit in history");
+    let base_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == base_hash)
+        .expect("base commit in history");
+
+    assert!(!merge_item.is_pushed);
+    assert!(merge_item.is_safe_push_target);
+    assert_eq!(merge_item.push_blocked_reason, None);
+    assert!(!main_item.is_pushed);
+    assert!(main_item.is_safe_push_target);
+    assert_eq!(main_item.push_blocked_reason, None);
+    assert!(!feature_item.is_pushed);
+    assert!(!feature_item.is_safe_push_target);
+    assert_eq!(
+        feature_item.push_blocked_reason.as_deref(),
+        Some(UNSAFE_PUSH_TARGET_MESSAGE)
+    );
+    assert!(base_item.is_pushed);
+}
+
+#[test]
+fn rejects_push_to_commit_for_unsafe_merge_side_branch_commit() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    run_git(&repo.path, &["checkout", "-b", "feature", &base_hash]);
+    let feature_hash = commit_file(&repo.path, "feature.txt", "feature\n", "feature");
+
+    run_git(&repo.path, &["checkout", &branch]);
+    commit_file(&repo.path, "main.txt", "main\n", "main");
+    run_git(
+        &repo.path,
+        &["merge", "--no-ff", "feature", "-m", "merge feature"],
+    );
+
+    let error =
+        push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &feature_hash).unwrap_err();
+    assert_eq!(error.code, "unsafe_push_target");
+    assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+}
+
+#[test]
+fn validates_requested_branch_must_match_current_branch() {
+    let repo = init_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+
+    let current = validate_current_branch(repo.path.to_string_lossy().as_ref(), &branch).unwrap();
+    assert_eq!(current, branch);
+
+    let mismatch =
+        validate_current_branch(repo.path.to_string_lossy().as_ref(), "not-current").unwrap_err();
+    assert_app_error(mismatch, "branch_mismatch", BRANCH_MISMATCH_MESSAGE);
+
+    let empty = validate_current_branch(repo.path.to_string_lossy().as_ref(), "   ").unwrap_err();
+    assert_app_error(empty, "invalid_branch", "目标分支不能为空");
+}
+
+#[test]
+fn rejects_push_to_commit_when_requested_branch_differs_from_current() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let safe_hash = commit_file(&repo.path, "safe.txt", "safe\n", "safe");
+    let error = push_to_commit(
+        repo.path.to_string_lossy().as_ref(),
+        "not-current",
+        &safe_hash,
+    )
+    .unwrap_err();
+
+    assert_app_error(error, "branch_mismatch", BRANCH_MISMATCH_MESSAGE);
+
+    let origin_head = run_git(
+        &origin.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+    assert_eq!(origin_head, base_hash);
+}
+
+#[test]
+fn allows_push_to_commit_for_safe_first_parent_commit() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let safe_hash = commit_file(&repo.path, "safe.txt", "safe\n", "safe");
+
+    push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &safe_hash).unwrap();
+
+    let origin_head = run_git(
+        &origin.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+    assert_eq!(origin_head, safe_hash);
+}
+
+#[test]
+fn accepts_contiguous_step_push_hashes() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+    commit_file(&repo.path, "third.txt", "third\n", "third");
+
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        &[first_hash, second_hash],
+    )
+    .unwrap();
+}
+
+#[test]
+fn rejects_non_contiguous_step_push_hashes() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    commit_file(&repo.path, "second.txt", "second\n", "second");
+    let third_hash = commit_file(&repo.path, "third.txt", "third\n", "third");
+
+    let error = validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        &[first_hash, third_hash],
+    )
+    .unwrap_err();
+
+    assert_eq!(error.code, "unsafe_push_target");
+    assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+}
+
+#[test]
+fn rejects_push_to_commit_when_remote_advanced_without_fetch() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+    let error =
+        push_to_commit(repo.path.to_string_lossy().as_ref(), &branch, &local_hash).unwrap_err();
+
+    assert_eq!(error.code, "push_unavailable");
+    assert_eq!(error.message, BRANCH_BEHIND_REMOTE_MESSAGE);
+}
+
+#[test]
+fn rejects_step_push_validation_when_remote_advanced_without_fetch() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+    let error =
+        validate_step_push_hashes(repo.path.to_string_lossy().as_ref(), &[local_hash]).unwrap_err();
+
+    assert_eq!(error.code, "push_unavailable");
+    assert_eq!(error.message, BRANCH_BEHIND_REMOTE_MESSAGE);
+}
+
+#[test]
+fn refreshes_remote_tracking_and_marks_branch_behind_remote() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    commit_file(&repo.path, "local.txt", "local\n", "local");
+
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.behind_count, 1);
+    assert!(!status.push_available);
+    assert_eq!(
+        status.disabled_reason.as_deref(),
+        Some(BRANCH_BEHIND_REMOTE_MESSAGE)
+    );
+}
+
+#[test]
+fn keeps_unpushed_commits_visible_when_branch_is_behind_remote() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let status = branch_status_for_path(&repo.path).unwrap();
+    let local_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == local_hash)
+        .expect("local commit in history");
+
+    assert_eq!(status.behind_count, 1);
+    assert!(!status.push_available);
+    assert_eq!(status.safe_ahead_count, 0);
+    assert!(!local_item.is_pushed);
+    assert!(!local_item.is_safe_push_target);
+    assert_eq!(
+        local_item.push_blocked_reason.as_deref(),
+        Some(BRANCH_BEHIND_REMOTE_MESSAGE)
+    );
+    assert_eq!(history.unpushed_count, 1);
+    assert_eq!(history.safe_unpushed_count, 0);
+}
+
+#[test]
+fn limits_safe_step_push_targets_to_fast_forwardable_suffix_when_remote_is_merged_side_parent() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_main_hash = commit_file(&repo.path, "main.txt", "main\n", "main");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+    run_git(
+        &repo.path,
+        &[
+            "merge",
+            "--no-ff",
+            &format!("origin/{branch}"),
+            "-m",
+            "merge remote",
+        ],
+    );
+    let merge_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.behind_count, 0);
+    assert_eq!(status.ahead_count, 2);
+    assert_eq!(status.safe_ahead_count, 1);
+
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let merge_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == merge_hash)
+        .expect("merge commit in history");
+    let main_item = history
+        .items
+        .iter()
+        .find(|item| item.hash == local_main_hash)
+        .expect("main commit in history");
+
+    assert!(merge_item.is_safe_push_target);
+    assert!(!main_item.is_safe_push_target);
+    assert_eq!(history.safe_unpushed_count, 1);
+
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        std::slice::from_ref(&merge_hash),
+    )
+    .unwrap();
+
+    let error = validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        &[local_main_hash, merge_hash],
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "unsafe_push_target");
+    assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+}
+
+#[test]
+fn gets_diff_for_initial_commit() {
+    let repo = init_repo();
+    let initial_hash = commit_file(&repo.path, "file.txt", "hello\n", "initial");
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &initial_hash,
+        "file.txt",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.contains("diff --git"));
+    assert!(diff.contains("+hello"));
+}
+
+#[test]
+fn gets_diff_for_non_initial_commit() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &second_hash,
+        "file.txt",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.contains("@@"));
+    assert!(diff.contains("+world"));
+}
+
+#[test]
+fn hides_whitespace_only_diff_for_non_initial_commit() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let second_hash = commit_file(&repo.path, "file.txt", "hello \n", "whitespace");
+
+    let normal_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &second_hash,
+        "file.txt",
+        None,
+        false,
+    )
+    .unwrap();
+    let hidden_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &second_hash,
+        "file.txt",
+        None,
+        true,
+    )
+    .unwrap();
+
+    assert!(normal_diff.contains("@@"));
+    assert!(hidden_diff.trim().is_empty());
+}
+
+#[test]
+fn gets_diff_for_initial_commit_when_hiding_whitespace() {
+    let repo = init_repo();
+    let initial_hash = commit_file(&repo.path, "file.txt", "   \n", "initial");
+
+    let hidden_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &initial_hash,
+        "file.txt",
+        None,
+        true,
+    )
+    .unwrap();
+
+    assert!(hidden_diff.contains("diff --git"));
+    assert!(hidden_diff.contains("file.txt"));
+}
+
+#[test]
+fn gets_rename_diff_when_previous_path_is_available() {
+    let repo = init_repo();
+    commit_file(&repo.path, "old.txt", "hello\n", "initial");
+    run_git(&repo.path, &["mv", "old.txt", "new.txt"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "rename"]);
+    let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &rename_hash,
+        "new.txt",
+        Some("old.txt"),
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.contains("rename from old.txt"));
+    assert!(diff.contains("rename to new.txt"));
+}
+
+#[test]
+fn gets_commit_meta() {
+    let repo = init_repo();
+    write_file(&repo.path, "file.txt", "before\n");
+    run_git(&repo.path, &["add", "file.txt"]);
+    run_git(
+        &repo.path,
+        &[
+            "commit",
+            "--no-gpg-sign",
+            "-m",
+            "summary",
+            "-m",
+            "details line",
+        ],
+    );
+    write_file(&repo.path, "file.txt", "before\nafter\n");
+    run_git(&repo.path, &["add", "file.txt"]);
+    run_git(
+        &repo.path,
+        &[
+            "commit",
+            "--no-gpg-sign",
+            "-m",
+            "follow up",
+            "-m",
+            "more context",
+        ],
+    );
+
+    let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+    let meta = get_commit_meta(repo.path.to_string_lossy().as_ref(), &hash).unwrap();
+
+    assert_eq!(meta.body, "more context");
+    assert_eq!(meta.additions, 1);
+    assert_eq!(meta.deletions, 0);
+}
+
+#[test]
+fn lists_local_branches() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let current_branch = current_test_branch(&repo.path);
+    run_git(&repo.path, &["branch", "feature"]);
+
+    let branches = list_local_branches(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    assert_eq!(branches, vec!["feature".to_string(), current_branch]);
+}
+
+#[test]
+fn checks_out_selected_local_branch() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    run_git(&repo.path, &["branch", "feature"]);
+
+    checkout_branch(repo.path.to_string_lossy().as_ref(), "feature").unwrap();
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.branch, "feature");
+}
