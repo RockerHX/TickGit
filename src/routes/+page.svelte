@@ -12,6 +12,7 @@
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
+  import WorkspaceChangesPanel from "$lib/components/WorkspaceChangesPanel.svelte";
   import { api } from "$lib/tauri/api";
   import {
     listenPushToCommitFailed,
@@ -57,6 +58,11 @@
   } from "$lib/tickgit/push-events";
   import { startStepPushFromPlan } from "$lib/tickgit/step-push-plan";
   import {
+    EMPTY_WORKSPACE_STATUS,
+    fetchWorkspaceSnapshot,
+    type WorkspaceSelection,
+  } from "$lib/tickgit/workspace";
+  import {
     MAX_LEFT_PANE_WIDTH,
     MIN_BRANCH_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -73,6 +79,8 @@
     StepPushPlan,
     StepPushUiState,
     ToastItem,
+    WorkspaceChangeSection,
+    WorkspaceStatus,
   } from "$lib/types";
 
   const PAGE_SIZE = 50;
@@ -94,6 +102,12 @@
   let diffResult: CommitFileDiffResult = EMPTY_DIFF_RESULT;
   let diffViewMode: "unified" | "split" = "unified";
   let hideWhitespaceInDiff = false;
+  let activeMainView: "history" | "changes" = "history";
+
+  let workspaceStatus: WorkspaceStatus = EMPTY_WORKSPACE_STATUS;
+  let selectedWorkspaceSection: WorkspaceChangeSection | null = null;
+  let selectedWorkspaceFilePath: string | null = null;
+  let workspaceDiffResult: CommitFileDiffResult = EMPTY_DIFF_RESULT;
 
   let nextSkip = 0;
   let hasMore = false;
@@ -101,6 +115,8 @@
   let loadingRepository = true;
   let loadingFiles = false;
   let loadingDiff = false;
+  let loadingWorkspace = false;
+  let loadingWorkspaceDiff = false;
 
   let dragActive = false;
   let isPushing = false;
@@ -143,6 +159,33 @@
     diffResult = snapshot.diffResult;
   }
 
+  function currentWorkspaceSelection(): WorkspaceSelection | null {
+    if (!selectedWorkspaceSection || !selectedWorkspaceFilePath) {
+      return null;
+    }
+
+    return {
+      section: selectedWorkspaceSection,
+      path: selectedWorkspaceFilePath,
+    };
+  }
+
+  function resetWorkspaceState() {
+    workspaceStatus = EMPTY_WORKSPACE_STATUS;
+    selectedWorkspaceSection = null;
+    selectedWorkspaceFilePath = null;
+    workspaceDiffResult = EMPTY_DIFF_RESULT;
+  }
+
+  function applyWorkspaceSnapshot(
+    snapshot: Awaited<ReturnType<typeof fetchWorkspaceSnapshot>>,
+  ) {
+    workspaceStatus = snapshot.status;
+    selectedWorkspaceSection = snapshot.selectedSection;
+    selectedWorkspaceFilePath = snapshot.selectedFilePath;
+    workspaceDiffResult = snapshot.diffResult;
+  }
+
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
     if (state.remoteRefreshError) {
       notify(
@@ -163,6 +206,14 @@
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
+  }
+
+  async function switchMainView(view: "history" | "changes") {
+    activeMainView = view;
+
+    if (view === "changes" && currentRepository) {
+      await loadWorkspaceState(currentRepository.path, true);
+    }
   }
 
   async function bootstrap() {
@@ -199,9 +250,13 @@
     try {
       await api.setCurrentRepository(path);
       await refreshRepositories();
+      resetWorkspaceState();
 
       if (currentRepository) {
         await loadRepositoryState(currentRepository.path);
+        if (activeMainView === "changes") {
+          await loadWorkspaceState(currentRepository.path);
+        }
       }
     } catch (error) {
       notify("切换仓库失败", getErrorMessage(error), "error");
@@ -227,6 +282,26 @@
       notify("读取仓库失败", getErrorMessage(error), "error");
     } finally {
       loadingRepository = false;
+    }
+  }
+
+  async function loadWorkspaceState(path: string, keepSelection = false) {
+    loadingWorkspace = true;
+
+    try {
+      const snapshot = await fetchWorkspaceSnapshot(
+        api,
+        path,
+        keepSelection,
+        currentWorkspaceSelection(),
+        hideWhitespaceInDiff,
+      );
+      applyWorkspaceSnapshot(snapshot);
+    } catch (error) {
+      resetWorkspaceState();
+      notify("读取工作区失败", getErrorMessage(error), "error");
+    } finally {
+      loadingWorkspace = false;
     }
   }
 
@@ -256,6 +331,9 @@
     try {
       await api.checkoutBranch(repository.path, branch);
       await loadRepositoryState(repository.path);
+      if (activeMainView === "changes") {
+        await loadWorkspaceState(repository.path);
+      }
       notify("分支已切换", `当前已切换到 ${branch}`, "success");
     } catch (error) {
       notify("切换分支失败", getErrorMessage(error), "error");
@@ -280,6 +358,9 @@
     }
 
     await loadRepositoryState(repository.path, true);
+    if (activeMainView === "changes") {
+      await loadWorkspaceState(repository.path, true);
+    }
   }
 
   async function refreshBlockedBranchStatus() {
@@ -396,6 +477,40 @@
     }
   }
 
+  async function loadWorkspaceDiff(
+    section: WorkspaceChangeSection,
+    filePath: string,
+  ) {
+    const repository = currentRepository;
+
+    if (!repository) {
+      return;
+    }
+
+    loadingWorkspaceDiff = true;
+    selectedWorkspaceSection = section;
+    selectedWorkspaceFilePath = filePath;
+
+    try {
+      const selectedFile = [
+        ...workspaceStatus.staged,
+        ...workspaceStatus.unstaged,
+      ].find((file) => file.section === section && file.path === filePath);
+      workspaceDiffResult = await api.getWorkspaceFileDiff(
+        repository.path,
+        section,
+        filePath,
+        hideWhitespaceInDiff,
+        selectedFile?.previousPath ?? null,
+      );
+    } catch (error) {
+      workspaceDiffResult = EMPTY_DIFF_RESULT;
+      notify("读取工作区 Diff 失败", getErrorMessage(error), "error");
+    } finally {
+      loadingWorkspaceDiff = false;
+    }
+  }
+
   async function handleDrop(paths: string[]) {
     dragActive = false;
     if (paths.length === 0) {
@@ -418,6 +533,9 @@
       await refreshRepositories();
       if (currentRepository) {
         await loadRepositoryState(currentRepository.path);
+        if (activeMainView === "changes") {
+          await loadWorkspaceState(currentRepository.path);
+        }
       }
       notify("仓库已添加", "新的 Git 仓库已加入 TickGit", "success");
     }
@@ -430,7 +548,21 @@
 
     hideWhitespaceInDiff = value;
 
-    if (!currentRepository || !selectedCommit || !selectedFilePath) {
+    if (!currentRepository) {
+      return;
+    }
+
+    if (activeMainView === "changes") {
+      if (selectedWorkspaceSection && selectedWorkspaceFilePath) {
+        await loadWorkspaceDiff(
+          selectedWorkspaceSection,
+          selectedWorkspaceFilePath,
+        );
+      }
+      return;
+    }
+
+    if (!selectedCommit || !selectedFilePath) {
       return;
     }
 
@@ -1039,45 +1171,86 @@
         </div>
       {/if}
     {/if}
+
+    <div class="border-t border-[#1f2328] bg-[#24292f] px-4 py-2">
+      <div
+        class="inline-flex overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b] p-0.5"
+      >
+        {#each [{ id: "history", label: "History" }, { id: "changes", label: "Changes" }] as item}
+          <button
+            type="button"
+            class={`rounded px-3 py-1.5 text-xs font-semibold transition ${
+              activeMainView === item.id
+                ? "bg-[#347dff]/20 text-[#f0f6fc]"
+                : "text-slate-400 hover:bg-[#373e47] hover:text-slate-200"
+            }`}
+            on:click={() =>
+              void switchMainView(item.id as "history" | "changes")}
+          >
+            {item.label}
+          </button>
+        {/each}
+      </div>
+    </div>
   </header>
 
-  <section
-    class="grid min-h-0 flex-1 bg-[#2b3036]"
-    style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
-  >
-    <CommitHistoryList
-      {commits}
-      selectedHash={selectedCommit?.hash ?? null}
-      loading={loadingHistory || loadingRepository}
-      {hasMore}
-      {branchStatus}
-      on:select={(event) => selectCommit(event.detail.commit)}
-      on:loadMore={() => loadHistory(true)}
-      on:openMenu={(event) =>
-        openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
-    />
+  {#if activeMainView === "history"}
+    <section
+      class="grid min-h-0 flex-1 bg-[#2b3036]"
+      style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
+    >
+      <CommitHistoryList
+        {commits}
+        selectedHash={selectedCommit?.hash ?? null}
+        loading={loadingHistory || loadingRepository}
+        {hasMore}
+        {branchStatus}
+        on:select={(event) => selectCommit(event.detail.commit)}
+        on:loadMore={() => loadHistory(true)}
+        on:openMenu={(event) =>
+          openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
+      />
 
-    <ResizeHandle
-      active={activeResizeTarget === "header" ||
-        activeResizeTarget === "history"}
-      ariaLabel="Resize history and details panels"
-      on:mousedown={(event) => startLayoutResize("history", event.detail)}
-    />
+      <ResizeHandle
+        active={activeResizeTarget === "header" ||
+          activeResizeTarget === "history"}
+        ariaLabel="Resize history and details panels"
+        on:mousedown={(event) => startLayoutResize("history", event.detail)}
+      />
 
-    <CommitDetailPanel
-      commit={selectedCommit}
-      commitMeta={selectedCommitMeta}
-      files={commitFiles}
-      {loadingFiles}
-      {loadingDiff}
-      {selectedFilePath}
-      {diffResult}
-      {diffViewMode}
-      {hideWhitespaceInDiff}
-      on:selectFile={(event) => loadDiff(event.detail.path)}
-      on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
-      on:hideWhitespaceChange={(event) =>
-        setHideWhitespaceInDiff(event.detail.value)}
-    />
-  </section>
+      <CommitDetailPanel
+        commit={selectedCommit}
+        commitMeta={selectedCommitMeta}
+        files={commitFiles}
+        {loadingFiles}
+        {loadingDiff}
+        {selectedFilePath}
+        {diffResult}
+        {diffViewMode}
+        {hideWhitespaceInDiff}
+        on:selectFile={(event) => loadDiff(event.detail.path)}
+        on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
+        on:hideWhitespaceChange={(event) =>
+          setHideWhitespaceInDiff(event.detail.value)}
+      />
+    </section>
+  {:else}
+    <section class="min-h-0 flex-1 bg-[#2b3036]">
+      <WorkspaceChangesPanel
+        status={workspaceStatus}
+        selectedSection={selectedWorkspaceSection}
+        selectedFilePath={selectedWorkspaceFilePath}
+        diffResult={workspaceDiffResult}
+        {loadingWorkspace}
+        loadingDiff={loadingWorkspaceDiff}
+        {diffViewMode}
+        {hideWhitespaceInDiff}
+        on:selectFile={(event) =>
+          loadWorkspaceDiff(event.detail.section, event.detail.path)}
+        on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
+        on:hideWhitespaceChange={(event) =>
+          setHideWhitespaceInDiff(event.detail.value)}
+      />
+    </section>
+  {/if}
 </main>

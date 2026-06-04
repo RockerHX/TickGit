@@ -60,6 +60,37 @@ export type CommitFileDiffResult = {
   lineCount: number;
 };
 
+export type WorkspaceChangeSection = "staged" | "unstaged";
+
+export type WorkspaceChangeKind =
+  | "modified"
+  | "added"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "untracked"
+  | "unknown";
+
+export type WorkspaceFileChange = {
+  section: WorkspaceChangeSection;
+  kind: WorkspaceChangeKind;
+  status: string;
+  path: string;
+  previousPath: string | null;
+  displayPath: string;
+};
+
+export type WorkspaceStatus = {
+  staged: WorkspaceFileChange[];
+  unstaged: WorkspaceFileChange[];
+};
+
+export type CommitCreated = {
+  hash: string;
+  shortHash: string;
+  summary: string;
+};
+
 export type StepPushPlan = {
   branch: string;
   targetHash: string;

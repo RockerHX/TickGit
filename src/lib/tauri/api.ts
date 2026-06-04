@@ -11,6 +11,8 @@ import type {
   StepPushJobStarted,
   StepPushPlan,
   StepPushRequest,
+  WorkspaceChangeSection,
+  WorkspaceStatus,
 } from "$lib/types";
 
 export const api = {
@@ -45,6 +47,22 @@ export const api = {
     invoke<CommitFileDiffResult>("get_commit_file_diff", {
       repoPath,
       hash,
+      filePath,
+      previousPath: previousPath ?? null,
+      ignoreWhitespace,
+    }),
+  getWorkspaceStatus: (repoPath: string) =>
+    invoke<WorkspaceStatus>("get_workspace_status", { repoPath }),
+  getWorkspaceFileDiff: (
+    repoPath: string,
+    section: WorkspaceChangeSection,
+    filePath: string,
+    ignoreWhitespace = false,
+    previousPath?: string | null,
+  ) =>
+    invoke<CommitFileDiffResult>("get_workspace_file_diff", {
+      repoPath,
+      section,
       filePath,
       previousPath: previousPath ?? null,
       ignoreWhitespace,
