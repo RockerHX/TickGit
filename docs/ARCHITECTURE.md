@@ -48,6 +48,8 @@ Svelte 页面与组件
 - 分支状态
 - Commit 历史分页
 - 当前选中 Commit / 文件 / Diff
+- 工作区 Changes / History 视图切换
+- 工作区 staged / unstaged / untracked 文件、文件级暂存和提交表单
 - 拖拽添加仓库
 - 右键动作
 - 分步提交进度状态
@@ -64,11 +66,19 @@ Svelte 页面与组件
 - `page-helpers.ts`：错误消息和 toast 数据辅助
 - `step-push-plan.ts`：分步推送 plan hashes 提取与确认后启动 job 的状态转换
 - `diff.ts`：unified diff 解析、diff 降级状态与 split 视图数据派生
+- `workspace.ts`：工作区状态默认选择、Diff 加载快照与提交后 UI effect
 - 对应 Vitest 单元测试承载
 
 ### `src/lib/components/*`
 
 负责展示和局部交互，不直接承担后端协议封装。
+
+当前工作区视图约束：
+
+- 前端显示 staged / unstaged / untracked 两类文件分组
+- stage / unstage 为文件级操作
+- commit 表单只提交 staged 内容
+- hunk / 行级暂存、discard changes、冲突解决不在当前范围
 
 当前 Diff Viewer 约束：
 
@@ -110,6 +120,7 @@ src-tauri/src/git/
   history.rs      # commit history / file list / meta
   diff.rs         # file diff / metadata / 大文件保护
   push.rs         # push current / push to commit / step push plan / safe target
+  workspace.rs    # workspace status / diff / stage / unstage / commit
   parse.rs        # 文本解析函数
   tests.rs        # Git 行为集成测试
 ```
@@ -165,6 +176,8 @@ Git 命令执行规则：
 - 前端不能直接执行 Git
 - 不引入 `libgit2`
 - Diff 为结构化文本视图，支持 unified / split 与 hide whitespace，并对 binary/image/tooLarge 做降级展示
+- 工作区支持 staged / unstaged / untracked 查看、文件级 stage / unstage，以及只提交 staged 内容
+- 当前不支持 hunk / 行级暂存、discard changes、冲突解决
 - 分步提交为单任务、不可取消
 - Step push plan 由后端生成，前端只展示并在用户确认后传回 plan hashes；job 启动前仍由后端二次校验
 

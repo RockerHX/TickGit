@@ -63,7 +63,7 @@
 - 页面编排：`src/routes/+page.svelte`
 - 页面逻辑辅助与纯函数：`src/lib/tickgit/*`
 - Tauri command / event 封装：`src/lib/tauri/*`
-- Git 逻辑：`src-tauri/src/git.rs`
+- Git 逻辑：`src-tauri/src/git/*`
 - 后台任务：`src-tauri/src/jobs.rs`
 - 仓库持久化：`src-tauri/src/repo_store.rs`
 - DTO / 公共模型：`src-tauri/src/models.rs` 与 `src/lib/types.ts`

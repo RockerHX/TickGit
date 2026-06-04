@@ -380,17 +380,29 @@ rtk cargo test --manifest-path src-tauri/Cargo.toml
 
 - 补齐接近 GitHub Desktop 的基础体验。
 
-建议功能：
+已实施（2026-06-04）：
 
-- 显示 modified / added / deleted / untracked
-- 工作区文件 diff
-- staged / unstaged 状态
-- commit message 输入与提交
+- 显示 staged / unstaged / untracked 工作区变更，覆盖 modified / added / deleted / untracked 等状态
+- 工作区文件 Diff 复用现有 Unified / Split、Hide Whitespace 与 binary / image / tooLarge 降级保护
+- 支持文件级 stage / unstage
+- 支持 commit message 输入并提交已 staged 内容
+
+本轮明确不纳入：
+
+- hunk / 行级暂存
+- discard changes
+- 冲突解决
+- pull / merge / rebase
 
 注意：
 
-- 这是新功能面，应在 P0/P1 稳定后再做。
 - Git 逻辑仍应全部在 Rust 侧。
+
+已验证：
+
+- Rust 工作区 status / diff / stage / unstage / commit 行为测试通过。
+- 前端 workspace 选择、guard、提交 effect 与页面 helper 测试通过。
+- 完整门禁见本节实施提交。
 
 ### 7.2 仓库管理能力
 
