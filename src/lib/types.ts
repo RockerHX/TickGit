@@ -60,6 +60,25 @@ export type CommitFileDiffResult = {
   lineCount: number;
 };
 
+export type StepPushPlan = {
+  branch: string;
+  targetHash: string;
+  available: boolean;
+  items: StepPushPlanItem[];
+  blockedReason: StepPushPlanBlockedReason | null;
+};
+
+export type StepPushPlanItem = {
+  hash: string;
+  shortHash: string;
+  summary: string;
+};
+
+export type StepPushPlanBlockedReason = {
+  code: string;
+  message: string;
+};
+
 export type StepPushRequest = {
   repoPath: string;
   branch: string;

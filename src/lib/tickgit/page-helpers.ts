@@ -19,24 +19,6 @@ export function getErrorMessage(error: unknown) {
   return "未知错误";
 }
 
-export function buildStepPushHashes(
-  commits: CommitListItem[],
-  targetHash: string,
-) {
-  // 历史列表现在是全量口径；分步推送只能从后端标记过的 first-parent 安全路径里取 hash。
-  const safeCommits = commits.filter((item) => item.isSafePushTarget);
-  const targetIndex = safeCommits.findIndex((item) => item.hash === targetHash);
-
-  if (targetIndex === -1) {
-    return null;
-  }
-
-  return safeCommits
-    .slice(targetIndex)
-    .reverse()
-    .map((item) => item.hash);
-}
-
 export function pickSelectedCommit(
   commits: CommitListItem[],
   previousSelectedHash: string | null,

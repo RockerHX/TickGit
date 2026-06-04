@@ -9,6 +9,7 @@
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
+  import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
   import { api } from "$lib/tauri/api";
@@ -29,11 +30,7 @@
     loadRepositoryStateSnapshot,
     type RepositoryStateResult,
   } from "$lib/tickgit/repository-actions";
-  import {
-    buildStepPushHashes,
-    createToastItem,
-    getErrorMessage,
-  } from "$lib/tickgit/page-helpers";
+  import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
   import {
     canLoadCommitFiles,
     canLoadDiff,
@@ -58,6 +55,7 @@
     toRunningPushToCommitState,
     toRunningStepPushState,
   } from "$lib/tickgit/push-events";
+  import { startStepPushFromPlan } from "$lib/tickgit/step-push-plan";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_BRANCH_PANE_WIDTH,
@@ -72,6 +70,7 @@
     CommitListItem,
     PushToCommitUiState,
     RepositorySummary,
+    StepPushPlan,
     StepPushUiState,
     ToastItem,
   } from "$lib/types";
@@ -113,6 +112,13 @@
   let toastId = 1;
   let pushToCommitState: PushToCommitUiState | null = null;
   let stepPushState: StepPushUiState | null = null;
+  let stepPushPlanOpen = false;
+  let loadingStepPushPlan = false;
+  let submittingStepPushPlan = false;
+  let stepPushPlan: StepPushPlan | null = null;
+  let stepPushPlanErrorMessage: string | null = null;
+  let stepPushPlanRepoPath: string | null = null;
+  let stepPushPlanRequestId = 0;
 
   let contextMenu = {
     open: false,
@@ -471,6 +477,24 @@
     contextMenu = { open: false, x: 0, y: 0, commit: null };
   }
 
+  function clearStepPushPlanDialog() {
+    stepPushPlanOpen = false;
+    loadingStepPushPlan = false;
+    submittingStepPushPlan = false;
+    stepPushPlan = null;
+    stepPushPlanErrorMessage = null;
+    stepPushPlanRepoPath = null;
+  }
+
+  function closeStepPushPlanDialog() {
+    if (submittingStepPushPlan) {
+      return;
+    }
+
+    stepPushPlanRequestId += 1;
+    clearStepPushPlanDialog();
+  }
+
   async function pushToTargetCommit() {
     const commit = contextMenu.commit;
     const repository = currentRepository;
@@ -530,31 +554,56 @@
       return;
     }
 
-    const hashes = buildStepPushHashes(commits, commit.hash);
+    stepPushPlanOpen = true;
+    loadingStepPushPlan = true;
+    submittingStepPushPlan = false;
+    stepPushPlan = null;
+    stepPushPlanErrorMessage = null;
+    stepPushPlanRepoPath = repository.path;
 
-    if (!hashes) {
-      notify(
-        "无法分步提交",
-        commit.pushBlockedReason ?? "目标 Commit 不在可安全分步推送路径上",
-        "error",
-      );
+    const requestId = ++stepPushPlanRequestId;
+
+    try {
+      const plan = await api.getStepPushPlan(repository.path, commit.hash);
+      if (requestId !== stepPushPlanRequestId) {
+        return;
+      }
+
+      stepPushPlan = plan;
+    } catch (error) {
+      if (requestId !== stepPushPlanRequestId) {
+        return;
+      }
+
+      stepPushPlanErrorMessage = getErrorMessage(error);
+    } finally {
+      if (requestId === stepPushPlanRequestId) {
+        loadingStepPushPlan = false;
+      }
+    }
+  }
+
+  async function confirmStepPushPlan() {
+    if (!stepPushPlan || !stepPushPlanRepoPath || loadingStepPushPlan) {
       return;
     }
 
-    try {
-      const started = await api.startStepPush({
-        repoPath: repository.path,
-        branch: status.branch,
-        hashes,
-        delayMs: 1500,
-      });
+    submittingStepPushPlan = true;
 
-      stepPushState = toRunningStepPushState({
-        ...started,
-        hash: hashes[0],
-      });
+    try {
+      stepPushState = await startStepPushFromPlan(
+        api,
+        stepPushPlan,
+        stepPushPlanRepoPath,
+      );
+      stepPushPlanRequestId += 1;
+      clearStepPushPlanDialog();
     } catch (error) {
-      notify("无法开始分步提交", getErrorMessage(error), "error");
+      const message = getErrorMessage(error);
+      stepPushPlanErrorMessage = message;
+      notify("无法开始分步提交", message, "error");
+    } finally {
+      submittingStepPushPlan = false;
     }
   }
 
@@ -756,6 +805,14 @@
 <StepPushOverlay
   state={stepPushState}
   on:close={() => (stepPushState = dismissFailedOverlay(stepPushState))}
+/>
+<StepPushPlanDialog
+  open={stepPushPlanOpen}
+  loading={loadingStepPushPlan || submittingStepPushPlan}
+  plan={stepPushPlan}
+  errorMessage={stepPushPlanErrorMessage}
+  on:confirm={confirmStepPushPlan}
+  on:cancel={closeStepPushPlanDialog}
 />
 
 <CommitContextMenu

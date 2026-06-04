@@ -9,6 +9,7 @@ import type {
   PushToCommitRequest,
   RepositorySummary,
   StepPushJobStarted,
+  StepPushPlan,
   StepPushRequest,
 } from "$lib/types";
 
@@ -59,6 +60,8 @@ export const api = {
     invoke<void>("save_window_size", { width, height }),
   pushToCommit: (repoPath: string, branch: string, hash: string) =>
     invoke<void>("push_to_commit", { repoPath, branch, hash }),
+  getStepPushPlan: (repoPath: string, targetHash: string) =>
+    invoke<StepPushPlan>("get_step_push_plan", { repoPath, targetHash }),
   startPushToCommit: (request: PushToCommitRequest) =>
     invoke<PushToCommitJobStarted>("start_push_to_commit", { request }),
   startStepPush: (request: StepPushRequest) =>
