@@ -25,6 +25,8 @@ function repository(): RepositorySummary {
     name: "repo",
     path: "/repo",
     lastOpenedAt: 1,
+    status: "available",
+    disabledReason: null,
   };
 }
 

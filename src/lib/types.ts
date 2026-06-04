@@ -1,7 +1,11 @@
+export type RepositoryStatus = "available" | "missing" | "invalid";
+
 export type RepositorySummary = {
   name: string;
   path: string;
   lastOpenedAt: number;
+  status: RepositoryStatus;
+  disabledReason: string | null;
 };
 
 export type BranchStatus = {

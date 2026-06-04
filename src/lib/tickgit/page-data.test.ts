@@ -29,6 +29,8 @@ function repository(path: string): RepositorySummary {
     name: path.split("/").at(-1) ?? path,
     path,
     lastOpenedAt: 1,
+    status: "available",
+    disabledReason: null,
   };
 }
 

@@ -24,6 +24,10 @@ export const api = {
     invoke<void>("set_current_repository", { path }),
   getCurrentRepository: () =>
     invoke<RepositorySummary | null>("get_current_repository"),
+  removeRepository: (path: string) =>
+    invoke<RepositorySummary | null>("remove_repository", { path }),
+  relocateRepository: (oldPath: string, newPath: string) =>
+    invoke<RepositorySummary>("relocate_repository", { oldPath, newPath }),
   getBranchStatus: (repoPath: string) =>
     invoke<BranchStatus>("get_branch_status", { repoPath }),
   refreshRemoteTracking: (repoPath: string) =>
