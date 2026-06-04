@@ -103,11 +103,7 @@ pub fn start_step_push(
     gate: State<'_, PushExecutionGate>,
     request: StepPushRequest,
 ) -> AppResult<StepPushJobStarted> {
-    git::validate_repository(&request.repo_path)?;
-
-    if request.branch.trim().is_empty() {
-        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
-    }
+    let branch = git::validate_current_branch(&request.repo_path, &request.branch)?;
 
     if request.hashes.is_empty() {
         return Err(AppError::new("empty_hashes", "没有可推送的 Commit"));
@@ -136,7 +132,6 @@ pub fn start_step_push(
 
     let total = request.hashes.len();
     let repo_path = request.repo_path.clone();
-    let branch = request.branch.clone();
     let hashes = request.hashes.clone();
     let delay_ms = request.delay_ms.unwrap_or(1500);
     let task_key_for_thread = task_key.clone();
@@ -189,11 +184,7 @@ pub fn start_push_to_commit(
     gate: State<'_, PushExecutionGate>,
     request: PushToCommitRequest,
 ) -> AppResult<PushToCommitJobStarted> {
-    git::validate_repository(&request.repo_path)?;
-
-    if request.branch.trim().is_empty() {
-        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
-    }
+    let branch = git::validate_current_branch(&request.repo_path, &request.branch)?;
 
     if request.hash.trim().is_empty() {
         return Err(AppError::new("invalid_hash", "目标 Commit 不能为空"));
@@ -221,7 +212,6 @@ pub fn start_push_to_commit(
     }
 
     let repo_path = request.repo_path.clone();
-    let branch = request.branch.clone();
     let hash = request.hash.clone();
     let event_target = hash.clone();
     let task_key_for_thread = task_key.clone();
@@ -268,11 +258,7 @@ pub fn start_push_current_branch(
     repo_path: String,
     branch: String,
 ) -> AppResult<PushToCommitJobStarted> {
-    git::validate_repository(&repo_path)?;
-
-    if branch.trim().is_empty() {
-        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
-    }
+    let branch = git::validate_current_branch(&repo_path, &branch)?;
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
@@ -298,7 +284,7 @@ pub fn start_push_current_branch(
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
-        if let Err(error) = git::push_current_branch(&repo_path) {
+        if let Err(error) = git::push_current_branch_checked(&repo_path, &branch) {
             let _ = app.emit(
                 PUSH_TO_COMMIT_FAILED_EVENT,
                 PushToCommitFailed {

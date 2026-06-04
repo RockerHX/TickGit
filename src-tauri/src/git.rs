@@ -17,6 +17,7 @@ const UNSAFE_PUSH_TARGET_MESSAGE: &str =
     "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标";
 const BRANCH_BEHIND_REMOTE_MESSAGE: &str =
     "远端已有更新，TickGit 暂不能安全推送。请先使用 GitHub Desktop 或 SourceTree 同步远端后，再回到 TickGit 刷新重试。";
+const BRANCH_MISMATCH_MESSAGE: &str = "目标分支与当前检出分支不一致，已拒绝推送";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
@@ -267,6 +268,29 @@ fn current_branch_name(repo_path: &Path) -> AppResult<(String, bool)> {
     } else {
         Ok((branch, false))
     }
+}
+
+fn current_branch_matching(repo_path: &Path, branch: &str) -> AppResult<String> {
+    let requested_branch = branch.trim();
+
+    if requested_branch.is_empty() {
+        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
+    }
+
+    let (current_branch, detached) = current_branch_name(repo_path)?;
+
+    if detached {
+        return Err(AppError::new(
+            "detached_head",
+            "当前仓库处于 detached HEAD 状态，无法推送当前分支",
+        ));
+    }
+
+    if requested_branch != current_branch {
+        return Err(AppError::new("branch_mismatch", BRANCH_MISMATCH_MESSAGE));
+    }
+
+    Ok(current_branch)
 }
 
 fn remote_origin_exists(repo_path: &Path) -> bool {
@@ -593,9 +617,9 @@ pub fn resolve_repository_path(repo_path: &str) -> AppResult<PathBuf> {
     Ok(canonical_path)
 }
 
-pub fn validate_repository(repo_path: &str) -> AppResult<()> {
-    let _ = resolve_repository_path(repo_path)?;
-    Ok(())
+pub fn validate_current_branch(repo_path: &str, branch: &str) -> AppResult<String> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    current_branch_matching(&repo_path, branch)
 }
 
 pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
@@ -790,6 +814,19 @@ pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
 
+pub fn push_current_branch_checked(repo_path: &str, branch: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let branch = current_branch_matching(&repo_path, branch)?;
+
+    sync_origin_tracking(&repo_path)?;
+
+    let head = git_trimmed(&repo_path, &["rev-parse", "HEAD"])?;
+    ensure_remote_fast_forward_target(&repo_path, &branch, &head)?;
+
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
+}
+
 pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     let branch = branch.trim();
@@ -803,6 +840,7 @@ pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
 
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
+    let branch = current_branch_matching(&repo_path, branch)?;
     ensure_safe_push_target(&repo_path, hash)?;
     let refspec = format!("{hash}:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
@@ -814,8 +852,9 @@ mod tests {
         branch_status_for_path, checkout_branch, get_commit_file_diff, get_commit_history,
         get_commit_meta, list_local_branches, parse_ahead_behind, parse_commit_files,
         parse_commit_history, parse_shortstat, push_current_branch, push_to_commit,
-        refresh_remote_tracking, resolve_repository_path, validate_step_push_hashes,
-        BRANCH_BEHIND_REMOTE_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
+        refresh_remote_tracking, resolve_repository_path, validate_current_branch,
+        validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
+        UNSAFE_PUSH_TARGET_MESSAGE,
     };
     use crate::error::AppError;
     use std::{
@@ -1198,6 +1237,56 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, "unsafe_push_target");
         assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+    }
+
+    #[test]
+    fn validates_requested_branch_must_match_current_branch() {
+        let repo = init_repo();
+        commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+
+        let current =
+            validate_current_branch(repo.path.to_string_lossy().as_ref(), &branch).unwrap();
+        assert_eq!(current, branch);
+
+        let mismatch = validate_current_branch(repo.path.to_string_lossy().as_ref(), "not-current")
+            .unwrap_err();
+        assert_app_error(mismatch, "branch_mismatch", BRANCH_MISMATCH_MESSAGE);
+
+        let empty =
+            validate_current_branch(repo.path.to_string_lossy().as_ref(), "   ").unwrap_err();
+        assert_app_error(empty, "invalid_branch", "目标分支不能为空");
+    }
+
+    #[test]
+    fn rejects_push_to_commit_when_requested_branch_differs_from_current() {
+        let repo = init_repo();
+        let origin = init_bare_repo();
+        let base_hash = commit_file(&repo.path, "base.txt", "base\n", "base");
+        let branch = current_test_branch(&repo.path);
+        let refspec = format!("HEAD:refs/heads/{branch}");
+
+        run_git(
+            &repo.path,
+            &["remote", "add", "origin", origin.path.to_str().unwrap()],
+        );
+        run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+        let safe_hash = commit_file(&repo.path, "safe.txt", "safe\n", "safe");
+        let error = push_to_commit(
+            repo.path.to_string_lossy().as_ref(),
+            "not-current",
+            &safe_hash,
+        )
+        .unwrap_err();
+
+        assert_app_error(error, "branch_mismatch", BRANCH_MISMATCH_MESSAGE);
+
+        let origin_head = run_git(
+            &origin.path,
+            &["rev-parse", &format!("refs/heads/{branch}")],
+        );
+        assert_eq!(origin_head, base_hash);
     }
 
     #[test]
