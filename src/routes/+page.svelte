@@ -35,6 +35,12 @@
     toRunningStepPushState,
   } from "$lib/tickgit/page-helpers";
   import {
+    canPushCurrentBranch,
+    canRefreshBlockedBranchStatus,
+    isBranchSwitcherDisabled,
+    isContextMenuDisabled,
+  } from "$lib/tickgit/page-state";
+  import {
     MAX_LEFT_PANE_WIDTH,
     MIN_BRANCH_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -701,7 +707,7 @@
   x={contextMenu.x}
   y={contextMenu.y}
   commit={contextMenu.commit}
-  disabled={switchingBranch || isPushing || stepPushState?.status === "running"}
+  disabled={isContextMenuDisabled({ switchingBranch, isPushing, stepPushState })}
   pushToCommitDisabled={!contextMenu.commit?.isSafePushTarget}
   stepPushDisabled={!contextMenu.commit?.isSafePushTarget}
   pushToCommitReason={contextMenu.commit?.isSafePushTarget
@@ -770,11 +776,13 @@
               <BranchSwitcher
                 branches={localBranches}
                 currentBranch={branchStatus?.branch ?? null}
-                disabled={!currentRepository ||
-                  loadingRepository ||
-                  switchingBranch ||
-                  isPushing ||
-                  stepPushState?.status === "running"}
+                disabled={isBranchSwitcherDisabled({
+                  currentRepository,
+                  loadingRepository,
+                  switchingBranch,
+                  isPushing,
+                  stepPushState,
+                })}
                 on:change={(event) => switchBranch(event.detail.branch)}
               />
             </div>
@@ -788,11 +796,12 @@
       <div class="flex items-center px-4 py-3">
         <button
           class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
-          disabled={!branchStatus?.pushAvailable ||
-            branchStatus.aheadCount === 0 ||
-            switchingBranch ||
-            isPushing ||
-            stepPushState?.status === "running"}
+          disabled={!canPushCurrentBranch({
+            branchStatus,
+            switchingBranch,
+            isPushing,
+            stepPushState,
+          })}
           on:click={pushCurrentBranch}
         >
           <svg
@@ -861,11 +870,13 @@
             </div>
             <button
               class="h-8 shrink-0 rounded-sm border border-amber-300/35 bg-amber-300/10 px-3 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/18 disabled:cursor-not-allowed disabled:opacity-55"
-              disabled={!currentRepository ||
-                loadingRepository ||
-                switchingBranch ||
-                isPushing ||
-                stepPushState?.status === "running"}
+              disabled={!canRefreshBlockedBranchStatus({
+                currentRepository,
+                loadingRepository,
+                switchingBranch,
+                isPushing,
+                stepPushState,
+              })}
               on:click={refreshBlockedBranchStatus}
             >
               {loadingRepository ? "刷新中…" : "刷新状态"}
