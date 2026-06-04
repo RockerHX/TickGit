@@ -78,6 +78,31 @@ pub struct CommitFileDiffResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct StepPushPlan {
+    pub branch: String,
+    pub target_hash: String,
+    pub available: bool,
+    pub items: Vec<StepPushPlanItem>,
+    pub blocked_reason: Option<StepPushPlanBlockedReason>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StepPushPlanItem {
+    pub hash: String,
+    pub short_hash: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StepPushPlanBlockedReason {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct StepPushRequest {
     pub repo_path: String,
     pub branch: String,

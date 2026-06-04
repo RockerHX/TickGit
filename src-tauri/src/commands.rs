@@ -6,7 +6,7 @@ use crate::{
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryPage, CommitMeta,
         PushToCommitJobStarted, PushToCommitRequest, RepositorySummary, StepPushJobStarted,
-        StepPushRequest,
+        StepPushPlan, StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -130,6 +130,11 @@ pub fn save_window_size(
 #[tauri::command]
 pub fn push_to_commit(repo_path: String, branch: String, hash: String) -> AppResult<()> {
     git::push_to_commit(&repo_path, &branch, &hash)
+}
+
+#[tauri::command]
+pub fn get_step_push_plan(repo_path: String, target_hash: String) -> AppResult<StepPushPlan> {
+    git::get_step_push_plan(&repo_path, &target_hash)
 }
 
 #[tauri::command]

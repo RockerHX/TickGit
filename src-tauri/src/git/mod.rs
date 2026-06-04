@@ -8,8 +8,8 @@ mod repository;
 pub use diff::get_commit_file_diff;
 pub use history::{get_commit_files, get_commit_history, get_commit_meta};
 pub use push::{
-    push_current_branch, push_current_branch_checked, push_to_commit, validate_push_target,
-    validate_step_push_hashes,
+    get_step_push_plan, push_current_branch, push_current_branch_checked, push_to_commit,
+    validate_push_target, validate_step_push_hashes,
 };
 pub use repository::{
     checkout_branch, get_branch_status, list_local_branches, refresh_remote_tracking,

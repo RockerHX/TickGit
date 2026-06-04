@@ -36,6 +36,7 @@ pub fn run() {
             commands::start_push_current_branch,
             commands::save_window_size,
             commands::push_to_commit,
+            commands::get_step_push_plan,
             commands::start_push_to_commit,
             commands::start_step_push,
         ])
