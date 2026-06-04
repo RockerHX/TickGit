@@ -19,21 +19,42 @@
     listenStepPushFinished,
     listenStepPushProgress,
   } from "$lib/tauri/events";
+  import { fetchCommitDetails } from "$lib/tickgit/page-data";
   import {
-    fetchCommitDetails,
-    fetchRepositoryIndex,
-    fetchRepositorySnapshot,
-  } from "$lib/tickgit/page-data";
+    loadBootstrapRepositoryState,
+    loadRepositoryIndex,
+    loadRepositoryStateSnapshot,
+    type RepositoryStateResult,
+  } from "$lib/tickgit/repository-actions";
   import {
     buildStepPushHashes,
-    dismissFailedOverlay,
-    dismissOverlayIfJobMatches,
     createToastItem,
     getErrorMessage,
-    toFailedStepPushState,
-    toFinishedStepPushState,
-    toRunningStepPushState,
   } from "$lib/tickgit/page-helpers";
+  import {
+    canLoadCommitFiles,
+    canLoadDiff,
+    canLoadHistory,
+    canPushCurrentBranch,
+    canRefreshBlockedBranchStatus,
+    canRefreshCurrentRepositoryOnFocus,
+    canStartStepPush,
+    canStartTargetCommitPush,
+    canSwitchBranch,
+    isBranchSwitcherDisabled,
+    isContextMenuDisabled,
+  } from "$lib/tickgit/page-state";
+  import {
+    dismissFailedOverlay,
+    dismissOverlayIfJobMatches,
+    formatPushTargetLabel,
+    toFailedPushToCommitState,
+    toFailedStepPushState,
+    toFinishedPushToCommitState,
+    toFinishedStepPushState,
+    toRunningPushToCommitState,
+    toRunningStepPushState,
+  } from "$lib/tickgit/push-events";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_BRANCH_PANE_WIDTH,
@@ -98,6 +119,30 @@
 
   let saveWindowSizeTimer: number | null = null;
 
+  function applyRepositoryState(state: RepositoryStateResult) {
+    const { snapshot, branches } = state;
+    branchStatus = snapshot.branchStatus;
+    localBranches = branches;
+    commits = snapshot.commits;
+    nextSkip = snapshot.nextSkip;
+    hasMore = snapshot.hasMore;
+    selectedCommit = snapshot.selectedCommit;
+    selectedCommitMeta = snapshot.commitMeta;
+    commitFiles = snapshot.commitFiles;
+    selectedFilePath = snapshot.selectedFilePath;
+    diffText = snapshot.diffText;
+  }
+
+  function notifyRemoteRefreshError(state: RepositoryStateResult) {
+    if (state.remoteRefreshError) {
+      notify(
+        "同步远端状态失败",
+        getErrorMessage(state.remoteRefreshError),
+        "error",
+      );
+    }
+  }
+
   function notify(
     title: string,
     message: string,
@@ -110,34 +155,22 @@
     }, TOAST_TIMEOUT);
   }
 
-  function formatPushTargetLabel(
-    target: string,
-    targetKind: PushToCommitUiState["targetKind"],
-  ) {
-    if (targetKind === "commit") {
-      const shortHash = target.length > 7 ? target.slice(0, 7) : target;
-      return {
-        inline: shortHash,
-        message: `Commit ${shortHash}`,
-      };
-    }
-
-    return {
-      inline: target,
-      message: target,
-    };
-  }
-
   async function bootstrap() {
     loadingRepository = true;
 
     try {
-      const repositoryIndex = await fetchRepositoryIndex(api);
-      repositories = repositoryIndex.repositories;
-      currentRepository = repositoryIndex.currentRepository;
+      const bootstrapState = await loadBootstrapRepositoryState(api, {
+        pageSize: PAGE_SIZE,
+        keepSelection: false,
+        previousSelectedHash: null,
+        ignoreWhitespace: hideWhitespaceInDiff,
+      });
+      repositories = bootstrapState.repositories;
+      currentRepository = bootstrapState.currentRepository;
 
-      if (currentRepository) {
-        await loadRepositoryState(currentRepository.path);
+      if (bootstrapState.repositoryState) {
+        notifyRemoteRefreshError(bootstrapState.repositoryState);
+        applyRepositoryState(bootstrapState.repositoryState);
       }
     } catch (error) {
       notify("初始化失败", getErrorMessage(error), "error");
@@ -147,7 +180,7 @@
   }
 
   async function refreshRepositories() {
-    const repositoryIndex = await fetchRepositoryIndex(api);
+    const repositoryIndex = await loadRepositoryIndex(api);
     repositories = repositoryIndex.repositories;
     currentRepository = repositoryIndex.currentRepository;
   }
@@ -169,36 +202,17 @@
     loadingRepository = true;
 
     try {
-      try {
-        await api.refreshRemoteTracking(path);
-      } catch (error) {
-        notify("同步远端状态失败", getErrorMessage(error), "error");
-      }
-
-      // 这里依赖 fetchRepositorySnapshot 预先补齐全部未推送 commits；
+      // 这里依赖 loadRepositoryStateSnapshot 预先补齐全部未推送 commits；
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
-      const [snapshot, branches] = await Promise.all([
-        fetchRepositorySnapshot(
-          api,
-          path,
-          PAGE_SIZE,
-          keepSelection,
-          selectedCommit?.hash ?? null,
-          hideWhitespaceInDiff,
-        ),
-        api.listLocalBranches(path),
-      ]);
+      const repositoryState = await loadRepositoryStateSnapshot(api, path, {
+        pageSize: PAGE_SIZE,
+        keepSelection,
+        previousSelectedHash: selectedCommit?.hash ?? null,
+        ignoreWhitespace: hideWhitespaceInDiff,
+      });
 
-      branchStatus = snapshot.branchStatus;
-      localBranches = branches;
-      commits = snapshot.commits;
-      nextSkip = snapshot.nextSkip;
-      hasMore = snapshot.hasMore;
-      selectedCommit = snapshot.selectedCommit;
-      selectedCommitMeta = snapshot.commitMeta;
-      commitFiles = snapshot.commitFiles;
-      selectedFilePath = snapshot.selectedFilePath;
-      diffText = snapshot.diffText;
+      notifyRemoteRefreshError(repositoryState);
+      applyRepositoryState(repositoryState);
     } catch (error) {
       notify("读取仓库失败", getErrorMessage(error), "error");
     } finally {
@@ -207,16 +221,22 @@
   }
 
   async function switchBranch(branch: string) {
-    if (
-      !currentRepository ||
-      switchingBranch ||
-      isPushing ||
-      stepPushState?.status === "running"
-    ) {
-      return;
-    }
+    const repository = currentRepository;
 
-    if (branch === branchStatus?.branch) {
+    if (
+      !repository ||
+      !canSwitchBranch(
+        {
+          currentRepository: repository,
+          loadingRepository,
+          switchingBranch,
+          isPushing,
+          stepPushState,
+          branchStatus,
+        },
+        branch,
+      )
+    ) {
       return;
     }
 
@@ -224,8 +244,8 @@
     loadingRepository = true;
 
     try {
-      await api.checkoutBranch(currentRepository.path, branch);
-      await loadRepositoryState(currentRepository.path);
+      await api.checkoutBranch(repository.path, branch);
+      await loadRepositoryState(repository.path);
       notify("分支已切换", `当前已切换到 ${branch}`, "success");
     } catch (error) {
       notify("切换分支失败", getErrorMessage(error), "error");
@@ -236,23 +256,48 @@
   }
 
   async function refreshCurrentRepositoryOnFocus() {
-    if (!currentRepository || loadingRepository || loadingHistory) {
+    const repository = currentRepository;
+
+    if (
+      !repository ||
+      !canRefreshCurrentRepositoryOnFocus({
+        currentRepository: repository,
+        loadingRepository,
+        loadingHistory,
+      })
+    ) {
       return;
     }
 
-    await loadRepositoryState(currentRepository.path, true);
+    await loadRepositoryState(repository.path, true);
   }
 
   async function refreshBlockedBranchStatus() {
-    if (!currentRepository || loadingRepository) {
+    const repository = currentRepository;
+
+    if (
+      !repository ||
+      !canRefreshBlockedBranchStatus({
+        currentRepository: repository,
+        loadingRepository,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
+    ) {
       return;
     }
 
-    await loadRepositoryState(currentRepository.path, true);
+    await loadRepositoryState(repository.path, true);
   }
 
   async function loadHistory(append: boolean) {
-    if (!currentRepository || loadingHistory) {
+    const repository = currentRepository;
+
+    if (
+      !repository ||
+      !canLoadHistory({ currentRepository: repository, loadingHistory })
+    ) {
       return;
     }
 
@@ -260,7 +305,7 @@
 
     try {
       const page = await api.getCommitHistory(
-        currentRepository.path,
+        repository.path,
         append ? nextSkip : 0,
         PAGE_SIZE,
       );
@@ -280,7 +325,9 @@
   }
 
   async function loadCommitFiles(hash: string) {
-    if (!currentRepository) {
+    const repository = currentRepository;
+
+    if (!repository || !canLoadCommitFiles({ currentRepository: repository })) {
       return;
     }
 
@@ -291,7 +338,7 @@
     try {
       const details = await fetchCommitDetails(
         api,
-        currentRepository.path,
+        repository.path,
         hash,
         hideWhitespaceInDiff,
       );
@@ -308,7 +355,14 @@
   }
 
   async function loadDiff(filePath: string) {
-    if (!currentRepository || !selectedCommit) {
+    const repository = currentRepository;
+    const commit = selectedCommit;
+
+    if (
+      !repository ||
+      !commit ||
+      !canLoadDiff({ currentRepository: repository, selectedCommit: commit })
+    ) {
       return;
     }
 
@@ -318,8 +372,8 @@
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);
       diffText = await api.getCommitFileDiff(
-        currentRepository.path,
-        selectedCommit.hash,
+        repository.path,
+        commit.hash,
         filePath,
         hideWhitespaceInDiff,
         selectedFile?.previousPath ?? null,
@@ -375,7 +429,19 @@
   }
 
   async function pushCurrentBranch() {
-    if (!currentRepository || !branchStatus?.pushAvailable || isPushing) {
+    const repository = currentRepository;
+    const status = branchStatus;
+
+    if (
+      !repository ||
+      !status ||
+      !canPushCurrentBranch({
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
+    ) {
       return;
     }
 
@@ -383,16 +449,10 @@
 
     try {
       const started = await api.startPushCurrentBranch(
-        currentRepository.path,
-        branchStatus.branch,
+        repository.path,
+        status.branch,
       );
-      const target = formatPushTargetLabel(started.target, started.targetKind);
-      pushToCommitState = {
-        jobId: started.jobId,
-        target: target.inline,
-        targetKind: started.targetKind,
-        status: "running",
-      };
+      pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
       notify("推送失败", getErrorMessage(error), "error");
@@ -409,13 +469,22 @@
 
   async function pushToTargetCommit() {
     const commit = contextMenu.commit;
+    const repository = currentRepository;
+    const status = branchStatus;
     closeContextMenu();
 
     if (
       !commit ||
-      !currentRepository ||
-      !branchStatus?.pushAvailable ||
-      isPushing
+      !repository ||
+      !status ||
+      !canStartTargetCommitPush({
+        commit,
+        currentRepository: repository,
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
     ) {
       return;
     }
@@ -424,17 +493,11 @@
 
     try {
       const started = await api.startPushToCommit({
-        repoPath: currentRepository.path,
-        branch: branchStatus.branch,
+        repoPath: repository.path,
+        branch: status.branch,
         hash: commit.hash,
       });
-      const target = formatPushTargetLabel(started.target, started.targetKind);
-      pushToCommitState = {
-        jobId: started.jobId,
-        target: target.inline,
-        targetKind: started.targetKind,
-        status: "running",
-      };
+      pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
       notify("推送失败", getErrorMessage(error), "error");
@@ -443,13 +506,22 @@
 
   async function startStepPush() {
     const commit = contextMenu.commit;
+    const repository = currentRepository;
+    const status = branchStatus;
     closeContextMenu();
 
     if (
       !commit ||
-      !currentRepository ||
-      !branchStatus?.pushAvailable ||
-      stepPushState?.status === "running"
+      !repository ||
+      !status ||
+      !canStartStepPush({
+        commit,
+        currentRepository: repository,
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
     ) {
       return;
     }
@@ -467,19 +539,16 @@
 
     try {
       const started = await api.startStepPush({
-        repoPath: currentRepository.path,
-        branch: branchStatus.branch,
+        repoPath: repository.path,
+        branch: status.branch,
         hashes,
         delayMs: 1500,
       });
 
-      stepPushState = {
-        jobId: started.jobId,
-        current: 0,
-        total: started.total,
+      stepPushState = toRunningStepPushState({
+        ...started,
         hash: hashes[0],
-        status: "running",
-      };
+      });
     } catch (error) {
       notify("无法开始分步提交", getErrorMessage(error), "error");
     }
@@ -524,12 +593,7 @@
             payload.target,
             payload.targetKind,
           );
-          pushToCommitState = {
-            jobId: payload.jobId,
-            target: target.inline,
-            targetKind: payload.targetKind,
-            status: "finished",
-          };
+          pushToCommitState = toFinishedPushToCommitState(payload);
           isPushing = false;
 
           notify("推送成功", `已推送到 ${target.message}`, "success");
@@ -553,13 +617,7 @@
             payload.target,
             payload.targetKind,
           );
-          pushToCommitState = {
-            jobId: payload.jobId,
-            target: target.inline,
-            targetKind: payload.targetKind,
-            status: "failed",
-            message: payload.message,
-          };
+          pushToCommitState = toFailedPushToCommitState(payload);
           isPushing = false;
 
           notify("推送失败", payload.message, "error");
@@ -701,7 +759,11 @@
   x={contextMenu.x}
   y={contextMenu.y}
   commit={contextMenu.commit}
-  disabled={switchingBranch || isPushing || stepPushState?.status === "running"}
+  disabled={isContextMenuDisabled({
+    switchingBranch,
+    isPushing,
+    stepPushState,
+  })}
   pushToCommitDisabled={!contextMenu.commit?.isSafePushTarget}
   stepPushDisabled={!contextMenu.commit?.isSafePushTarget}
   pushToCommitReason={contextMenu.commit?.isSafePushTarget
@@ -770,11 +832,13 @@
               <BranchSwitcher
                 branches={localBranches}
                 currentBranch={branchStatus?.branch ?? null}
-                disabled={!currentRepository ||
-                  loadingRepository ||
-                  switchingBranch ||
-                  isPushing ||
-                  stepPushState?.status === "running"}
+                disabled={isBranchSwitcherDisabled({
+                  currentRepository,
+                  loadingRepository,
+                  switchingBranch,
+                  isPushing,
+                  stepPushState,
+                })}
                 on:change={(event) => switchBranch(event.detail.branch)}
               />
             </div>
@@ -788,11 +852,12 @@
       <div class="flex items-center px-4 py-3">
         <button
           class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
-          disabled={!branchStatus?.pushAvailable ||
-            branchStatus.aheadCount === 0 ||
-            switchingBranch ||
-            isPushing ||
-            stepPushState?.status === "running"}
+          disabled={!canPushCurrentBranch({
+            branchStatus,
+            switchingBranch,
+            isPushing,
+            stepPushState,
+          })}
           on:click={pushCurrentBranch}
         >
           <svg
@@ -861,11 +926,13 @@
             </div>
             <button
               class="h-8 shrink-0 rounded-sm border border-amber-300/35 bg-amber-300/10 px-3 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/18 disabled:cursor-not-allowed disabled:opacity-55"
-              disabled={!currentRepository ||
-                loadingRepository ||
-                switchingBranch ||
-                isPushing ||
-                stepPushState?.status === "running"}
+              disabled={!canRefreshBlockedBranchStatus({
+                currentRepository,
+                loadingRepository,
+                switchingBranch,
+                isPushing,
+                stepPushState,
+              })}
               on:click={refreshBlockedBranchStatus}
             >
               {loadingRepository ? "刷新中…" : "刷新状态"}
