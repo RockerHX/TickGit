@@ -36,6 +36,7 @@ pub fn run() {
             commands::get_workspace_file_diff,
             commands::stage_workspace_file,
             commands::unstage_workspace_file,
+            commands::create_commit,
             commands::push_current_branch,
             commands::start_push_current_branch,
             commands::save_window_size,

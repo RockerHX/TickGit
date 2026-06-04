@@ -17,7 +17,8 @@ pub use repository::{
     resolve_repository_path, validate_current_branch,
 };
 pub use workspace::{
-    get_workspace_file_diff, get_workspace_status, stage_workspace_file, unstage_workspace_file,
+    create_commit, get_workspace_file_diff, get_workspace_status, stage_workspace_file,
+    unstage_workspace_file,
 };
 
 const REMOTE_NAME: &str = "origin";

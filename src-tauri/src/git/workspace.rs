@@ -3,8 +3,8 @@ use std::path::Path;
 use crate::{
     error::{AppError, AppResult},
     models::{
-        CommitFileDiffResult, WorkspaceChangeKind, WorkspaceChangeSection, WorkspaceFileChange,
-        WorkspaceStatus,
+        CommitCreated, CommitFileDiffResult, WorkspaceChangeKind, WorkspaceChangeSection,
+        WorkspaceFileChange, WorkspaceStatus,
     },
 };
 
@@ -251,4 +251,40 @@ pub fn unstage_workspace_file(repo_path: &str, file_path: &str) -> AppResult<()>
     let repo_path = resolve_repository_path(repo_path)?;
     let file_path = workspace_file_path(file_path)?;
     git_run(&repo_path, &["restore", "--staged", "--", file_path])
+}
+
+fn staged_change_count(repo_path: &Path) -> AppResult<usize> {
+    let output = git_trimmed(repo_path, &["diff", "--cached", "--name-only", "--"])?;
+    Ok(output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count())
+}
+
+pub fn create_commit(repo_path: &str, message: &str) -> AppResult<CommitCreated> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let message = message.trim();
+
+    if message.is_empty() {
+        return Err(AppError::new("invalid_commit_message", "提交信息不能为空"));
+    }
+
+    if staged_change_count(&repo_path)? == 0 {
+        return Err(AppError::new(
+            "empty_commit",
+            "没有已暂存的变更，无法创建提交",
+        ));
+    }
+
+    git_run(&repo_path, &["commit", "-m", message])?;
+
+    let hash = git_trimmed(&repo_path, &["rev-parse", "HEAD"])?;
+    let short_hash = git_trimmed(&repo_path, &["rev-parse", "--short", "HEAD"])?;
+    let summary = git_trimmed(&repo_path, &["show", "-s", "--format=%s", "HEAD"])?;
+
+    Ok(CommitCreated {
+        hash,
+        short_hash,
+        summary,
+    })
 }

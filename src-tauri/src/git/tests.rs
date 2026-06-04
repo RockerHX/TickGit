@@ -1,10 +1,11 @@
 use super::repository::branch_status_for_path;
 use super::{
-    checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
-    get_workspace_file_diff, get_workspace_status, list_local_branches, push_current_branch,
-    push_to_commit, refresh_remote_tracking, resolve_repository_path, stage_workspace_file,
-    unstage_workspace_file, validate_current_branch, validate_step_push_hashes,
-    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
+    checkout_branch, create_commit, get_commit_file_diff, get_commit_history, get_commit_meta,
+    get_step_push_plan, get_workspace_file_diff, get_workspace_status, list_local_branches,
+    push_current_branch, push_to_commit, refresh_remote_tracking, resolve_repository_path,
+    stage_workspace_file, unstage_workspace_file, validate_current_branch,
+    validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
+    UNSAFE_PUSH_TARGET_MESSAGE,
 };
 use crate::{
     error::AppError,
@@ -990,6 +991,76 @@ fn rejects_empty_workspace_file_path_for_stage_operations() {
 
     assert_app_error(stage_error, "invalid_file_path", "文件路径不能为空");
     assert_app_error(unstage_error, "invalid_file_path", "文件路径不能为空");
+}
+
+#[test]
+fn rejects_empty_commit_message() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    write_file(&repo.path, "file.txt", "content\n");
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+
+    let error = create_commit(repo.path.to_string_lossy().as_ref(), "   ").unwrap_err();
+
+    assert_app_error(error, "invalid_commit_message", "提交信息不能为空");
+}
+
+#[test]
+fn rejects_commit_without_staged_changes() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    write_file(&repo.path, "file.txt", "unstaged\n");
+
+    let error = create_commit(repo.path.to_string_lossy().as_ref(), "commit").unwrap_err();
+
+    assert_app_error(error, "empty_commit", "没有已暂存的变更，无法创建提交");
+}
+
+#[test]
+fn creates_commit_from_staged_changes() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    write_file(&repo.path, "file.txt", "content\n");
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+
+    let created = create_commit(repo.path.to_string_lossy().as_ref(), "create file").unwrap();
+    let head = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    assert_eq!(created.hash, head);
+    assert_eq!(created.summary, "create file");
+    assert!(head.starts_with(&created.short_hash));
+}
+
+#[test]
+fn creates_commit_with_only_staged_content() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "initial");
+    write_file(&repo.path, "file.txt", "staged\n");
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+    write_file(&repo.path, "file.txt", "unstaged\n");
+
+    create_commit(repo.path.to_string_lossy().as_ref(), "staged only").unwrap();
+
+    let committed_content = run_git(&repo.path, &["show", "HEAD:file.txt"]);
+    let worktree_content = fs::read_to_string(repo.path.join("file.txt")).unwrap();
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    assert_eq!(committed_content, "staged");
+    assert_eq!(worktree_content, "unstaged\n");
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
 }
 
 #[test]

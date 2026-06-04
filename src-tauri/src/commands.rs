@@ -4,9 +4,9 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryPage, CommitMeta,
-        PushToCommitJobStarted, PushToCommitRequest, RepositorySummary, StepPushJobStarted,
-        StepPushPlan, StepPushRequest, WorkspaceChangeSection, WorkspaceStatus,
+        BranchStatus, CommitCreated, CommitFileChange, CommitFileDiffResult, CommitHistoryPage,
+        CommitMeta, PushToCommitJobStarted, PushToCommitRequest, RepositorySummary,
+        StepPushJobStarted, StepPushPlan, StepPushRequest, WorkspaceChangeSection, WorkspaceStatus,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -131,6 +131,11 @@ pub fn stage_workspace_file(repo_path: String, file_path: String) -> AppResult<(
 #[tauri::command]
 pub fn unstage_workspace_file(repo_path: String, file_path: String) -> AppResult<()> {
     git::unstage_workspace_file(&repo_path, &file_path)
+}
+
+#[tauri::command]
+pub fn create_commit(repo_path: String, message: String) -> AppResult<CommitCreated> {
+    git::create_commit(&repo_path, &message)
 }
 
 #[tauri::command]
