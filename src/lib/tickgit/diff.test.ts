@@ -228,7 +228,6 @@ describe("diff parser", () => {
     ]);
   });
 
-
   it("computes diff viewer state for protected diffs", () => {
     const parsedDiff = parseUnifiedDiff("");
     const base = {
@@ -245,10 +244,14 @@ describe("diff parser", () => {
   });
 
   it("builds split rows only for split mode", () => {
-    const diff = parseUnifiedDiff(["@@ -1,1 +1,1 @@", "-before", "+after"].join("\n"));
+    const diff = parseUnifiedDiff(
+      ["@@ -1,1 +1,1 @@", "-before", "+after"].join("\n"),
+    );
 
     expect(getSplitDiffRowsForMode(diff, "unified")).toEqual([]);
-    expect(getSplitDiffRowsForMode(diff, "split")).toEqual(buildSplitDiffRows(diff));
+    expect(getSplitDiffRowsForMode(diff, "split")).toEqual(
+      buildSplitDiffRows(diff),
+    );
   });
 
   it("computes diff viewer state for whitespace-only diffs", () => {

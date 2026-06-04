@@ -78,7 +78,6 @@ function commitMeta(overrides: Partial<CommitMeta> = {}): CommitMeta {
   };
 }
 
-
 function diffResult(text = ""): CommitFileDiffResult {
   return {
     text,

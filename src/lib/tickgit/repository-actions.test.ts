@@ -60,7 +60,6 @@ function commitMeta(): CommitMeta {
   };
 }
 
-
 function diffResult(text = ""): CommitFileDiffResult {
   return {
     text,
