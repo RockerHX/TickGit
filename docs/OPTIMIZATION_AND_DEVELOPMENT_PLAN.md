@@ -194,6 +194,14 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## 5. P1：降低维护复杂度
 
+完成状态：已于 2026-06-04 完成。
+
+完成摘要：
+
+- `src-tauri/src/git.rs` 已拆为 `src-tauri/src/git/` 目录，包含 `mod.rs`、`command.rs`、`repository.rs`、`history.rs`、`diff.rs`、`push.rs`、`parse.rs`、`tests.rs`。
+- `src/routes/+page.svelte` 的非视觉逻辑已下沉到 `src/lib/tickgit/page-state.ts`、`push-events.ts`、`repository-actions.ts`，并补充对应 Vitest。
+- 本地已通过完整质量门禁：`pnpm test:run`、`pnpm typecheck`、`pnpm build`、`pnpm format:check`、`cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`、`cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`、`cargo test --manifest-path src-tauri/Cargo.toml`。
+
 ### 5.1 拆分 `src-tauri/src/git.rs`
 
 现状：

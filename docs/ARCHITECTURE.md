@@ -58,11 +58,12 @@ Svelte 页面与组件
 
 页面编排层使用的非视觉 helper，负责：
 
-- 仓库启动与快照加载辅助
-- 分步提交 hash 计算
-- unified diff 解析与 split 视图数据派生
-- 错误消息归一化
-- 页面纯函数单元测试承载
+- `page-data.ts` / `repository-actions.ts`：仓库索引、远端刷新、快照加载和详情加载编排
+- `page-state.ts`：loading / push / selection 等页面 guard 纯函数
+- `push-events.ts`：push / step push event payload 到 UI state 的转换和 overlay 关闭规则
+- `page-helpers.ts`：分步提交 hash 计算、错误消息和 toast 数据辅助
+- `diff.ts`：unified diff 解析与 split 视图数据派生
+- 对应 Vitest 单元测试承载
 
 ### `src/lib/components/*`
 
@@ -229,7 +230,7 @@ A --- B --- M   (当前分支 HEAD)
 
 ## 7. 新功能放置规则
 
-- 新的 Git 查询或操作：`src-tauri/src/git.rs`
+- 新的 Git 查询或操作：`src-tauri/src/git/`，按 command / repository / history / diff / push / parse 职责放置
 - 新的后台异步任务：`src-tauri/src/jobs.rs`
 - 新的持久化配置：优先 `src-tauri/src/repo_store.rs`
 - 新的前后端接口：同步修改 `commands.rs`、`models.rs`、`api.ts`、`types.ts`
