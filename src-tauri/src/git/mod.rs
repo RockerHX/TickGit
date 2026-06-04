@@ -1,11 +1,12 @@
 use std::{collections::HashSet, path::Path, process::Command};
 
 mod command;
+mod history;
 mod parse;
 mod repository;
 
-use command::{git_output_bytes, git_run, git_text, git_trimmed};
-use parse::{parse_commit_files, parse_commit_history, parse_shortstat, parse_unpushed_hashes};
+use command::{git_run, git_text, git_trimmed};
+pub use history::{get_commit_files, get_commit_history, get_commit_meta};
 use repository::{
     branch_status_for_path, current_branch_matching, current_branch_name, sync_origin_tracking,
 };
@@ -14,10 +15,7 @@ pub use repository::{
     resolve_repository_path, validate_current_branch,
 };
 
-use crate::{
-    error::{AppError, AppResult},
-    models::{CommitFileChange, CommitHistoryPage, CommitMeta},
-};
+use crate::error::{AppError, AppResult};
 
 const REMOTE_NAME: &str = "origin";
 // Git 约定的空树对象。初始提交没有 parent 时，使用它与目标提交做 diff，
@@ -92,12 +90,6 @@ fn is_remote_outdated_push_error(message: &str) -> bool {
 
 // UI 的 ahead / 历史列表采用完整 upstream..HEAD 口径，尽量贴近 GitHub Desktop；
 // 分步推送和 push to commit 仍只允许 first-parent 安全路径，避免 merge 侧支被当成线性推送目标。
-fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
-    let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", &range])?;
-    Ok(parse_unpushed_hashes(&output))
-}
-
 fn safe_unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     Ok(safe_unpushed_hashes_in_push_order(repo_path, upstream)?
         .into_iter()
@@ -221,91 +213,6 @@ pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
 pub fn validate_step_push_hashes(repo_path: &str, hashes: &[String]) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     ensure_safe_step_push_hashes(&repo_path, hashes)
-}
-
-pub fn get_commit_history(
-    repo_path: &str,
-    skip: usize,
-    limit: usize,
-) -> AppResult<CommitHistoryPage> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let branch_status = branch_status_for_path(&repo_path)?;
-    let (unpushed, safe_push_targets, unsafe_push_reason) = match branch_status.upstream.as_deref()
-    {
-        Some(upstream) => {
-            let unpushed = unpushed_hashes(&repo_path, upstream)?;
-            let safe_push_targets = if branch_status.behind_count > 0 {
-                HashSet::new()
-            } else {
-                safe_unpushed_hashes(&repo_path, upstream)?
-            };
-            let unsafe_push_reason = if branch_status.behind_count > 0 {
-                branch_status.disabled_reason.as_deref()
-            } else {
-                None
-            };
-            (unpushed, safe_push_targets, unsafe_push_reason)
-        }
-        _ => (HashSet::new(), HashSet::new(), None),
-    };
-
-    let output = git_trimmed(
-        &repo_path,
-        &[
-            "log",
-            "--topo-order",
-            "--skip",
-            &skip.to_string(),
-            "-n",
-            &limit.to_string(),
-            "--date=iso-strict",
-            "--decorate=short",
-            "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1e",
-            "HEAD",
-        ],
-    )?;
-
-    let items = parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
-    let item_count = items.len();
-
-    Ok(CommitHistoryPage {
-        items,
-        next_skip: skip + item_count,
-        has_more: item_count == limit,
-        unpushed_count: unpushed.len(),
-        safe_unpushed_count: safe_push_targets.len(),
-    })
-}
-
-pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let output = git_output_bytes(
-        &repo_path,
-        &[
-            "show",
-            "--find-renames",
-            "--name-status",
-            "-z",
-            "--format=",
-            hash,
-        ],
-    )?;
-    Ok(parse_commit_files(&output))
-}
-
-pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let body = git_text(&repo_path, &["show", "-s", "--format=%b", hash])?
-        .trim()
-        .to_string();
-    let shortstat = git_trimmed(&repo_path, &["show", "--shortstat", "--format=", hash])?;
-    let (additions, deletions) = parse_shortstat(&shortstat);
-
-    Ok(CommitMeta {
-        body,
-        additions,
-        deletions,
-    })
 }
 
 pub fn get_commit_file_diff(
