@@ -291,33 +291,23 @@ pnpm build
 
 ## 6. P2：核心体验增强
 
+当前实施顺序：6.4 Diff 大文件保护 → 6.2 Step push plan preview。6.1 主要目标已由 P0.1 覆盖，6.3 暂缓。
+
 ### 6.1 behind/diverged 同步引导
 
-目标：
+状态：主要目标已由 P0.1 覆盖，本轮不再作为独立 P2 实施项。
 
-- 当本地分支落后远端或与远端分叉时，用户能明确知道为什么不能 push，以及下一步该怎么做。
+已覆盖：
 
-建议能力：
+- behind / diverged 时禁用推送。
+- 本地未推送 commit 继续可见，但不标记为 safe push target。
+- UI 提示用户使用 GitHub Desktop / SourceTree 同步后回到 TickGit 刷新。
+- TickGit 不内置 pull / merge / rebase。
 
-- 区分：
-  - behind only
-  - ahead only
-  - ahead + behind / diverged
-  - upstream missing
-  - upstream is not origin
-- UI 展示更明确的状态条。
-- 初期不必直接实现 pull/rebase/merge 操作，可以先提供清晰说明和刷新按钮。
+后续仅保留为可选体验增强：
 
-后续可选：
-
-- `git pull --ff-only`
-- fetch 后展示远端新增 commit
-- 用户明确确认后再执行 merge/rebase
-
-验收：
-
-- 对每种分支状态有 Rust 测试。
-- UI 文案不会把 diverged 错误描述成普通 first-parent 不安全。
+- 更细地区分 behind only、ahead + behind / diverged、upstream missing、upstream is not origin 的文案。
+- fetch 后展示远端新增 commit。
 
 ### 6.2 Step push plan preview
 
@@ -350,22 +340,18 @@ get_step_push_plan(repo_path, target_hash)
 
 ### 6.3 推送任务取消与状态查询
 
-现状：
+状态：暂缓，本轮不实施。
 
-- 分步提交任务为单任务、不可取消。
-- 任务状态主要依赖 event。
+暂缓原因：
 
-建议：
+- 取消只能在下一步 push 前生效，无法安全强杀正在执行的 `git push`。
+- running job query / cancel 会扩大后台任务状态模型和前后端 event 协议。
+- 当前优先处理更直接的稳定性风险和 step push plan 真相来源问题。
 
-- 增加 cancel request 标记，而不是强杀线程。
-- 每一步 push 前检查 cancel 标记。
-- 增加 `get_running_push_job` 之类查询接口，便于窗口刷新或事件丢失后恢复 UI。
+触发条件：
 
-验收：
-
-- 取消后已完成的 push 不回滚。
-- 未执行的 commit 不继续推送。
-- UI 能区分 failed / cancelled / finished。
+- 用户反馈误触分步推送后需要停止。
+- 窗口刷新或事件丢失导致推送 UI 状态无法恢复。
 
 ### 6.4 Diff 大文件保护
 
