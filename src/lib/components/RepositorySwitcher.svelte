@@ -1,11 +1,22 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import {
+    filterRepositories,
+    repositoryStatusLabel,
+    repositoryStatusMessage,
+    repositoryStatusTone,
+  } from "$lib/tickgit/repositories";
   import type { RepositorySummary } from "$lib/types";
 
   export let repositories: RepositorySummary[] = [];
   export let currentPath: string | null = null;
+  export let managementDisabled = false;
 
-  const dispatch = createEventDispatcher<{ change: { path: string } }>();
+  const dispatch = createEventDispatcher<{
+    change: { path: string };
+    remove: { path: string };
+    relocate: { path: string };
+  }>();
 
   let open = false;
   let filterText = "";
@@ -13,13 +24,7 @@
 
   $: currentRepository =
     repositories.find((repository) => repository.path === currentPath) ?? null;
-  $: normalizedFilter = filterText.trim().toLowerCase();
-  $: filteredRepositories = repositories.filter((repository) =>
-    normalizedFilter.length === 0
-      ? true
-      : repository.name.toLowerCase().includes(normalizedFilter) ||
-        repository.path.toLowerCase().includes(normalizedFilter),
-  );
+  $: filteredRepositories = filterRepositories(repositories, filterText);
 
   function toggleOpen() {
     open = !open;
@@ -38,6 +43,14 @@
     dispatch("change", { path });
   }
 
+  function removeRepository(path: string) {
+    dispatch("remove", { path });
+  }
+
+  function relocateRepository(path: string) {
+    dispatch("relocate", { path });
+  }
+
   function handleWindowClick(event: MouseEvent) {
     if (container?.contains(event.target as Node)) {
       return;
@@ -51,7 +64,7 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`flex h-[50px] w-full items-center justify-between rounded-sm border px-4 text-left transition ${
+    class={`flex min-h-[56px] w-full items-center justify-between rounded-sm border px-4 py-2 text-left transition ${
       open
         ? "border-[#539bf5] bg-[#2d333b]"
         : "border-[#444c56] bg-[#2d333b] hover:border-[#6e7681]"
@@ -63,6 +76,18 @@
       <span class="block truncate text-[1rem] font-semibold text-[#f0f6fc]">
         {currentRepository?.name ?? "Select repository"}
       </span>
+      {#if currentRepository}
+        <span class="mt-0.5 flex min-w-0 items-center gap-2 text-xs">
+          <span class="truncate text-slate-400">{currentRepository.path}</span>
+          {#if currentRepository.status !== "available"}
+            <span
+              class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${repositoryStatusTone(currentRepository.status)}`}
+            >
+              {repositoryStatusLabel(currentRepository.status)}
+            </span>
+          {/if}
+        </span>
+      {/if}
     </span>
 
     <span
@@ -122,35 +147,77 @@
           </div>
         {:else}
           {#each filteredRepositories as repository (repository.path)}
-            <button
-              class={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition ${
+            <div
+              class={`flex items-stretch gap-2 rounded-md px-2 py-2 transition ${
                 repository.path === currentPath
                   ? "bg-[#345fc2] text-white"
                   : "text-[#f0f6fc] hover:bg-[#373e47]/70"
               }`}
-              type="button"
-              on:click={() => selectRepository(repository.path)}
             >
-              <span class="flex w-5 shrink-0 items-center justify-center">
-                {#if repository.path === currentPath}
-                  <svg
-                    viewBox="0 0 16 16"
-                    class="h-4.5 w-4.5 fill-current"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
-                    ></path>
-                  </svg>
-                {/if}
-              </span>
-
-              <span
-                class="min-w-0 flex-1 truncate text-[1.05rem] font-semibold"
+              <button
+                class="flex min-w-0 flex-1 items-start gap-3 rounded-md px-1 py-1 text-left"
+                type="button"
+                on:click={() => selectRepository(repository.path)}
               >
-                {repository.name}
-              </span>
-            </button>
+                <span
+                  class="flex w-5 shrink-0 items-center justify-center pt-1"
+                >
+                  {#if repository.path === currentPath}
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="h-4.5 w-4.5 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                      ></path>
+                    </svg>
+                  {/if}
+                </span>
+
+                <span class="min-w-0 flex-1">
+                  <span class="flex min-w-0 items-center gap-2">
+                    <span
+                      class="min-w-0 flex-1 truncate text-[1.05rem] font-semibold"
+                    >
+                      {repository.name}
+                    </span>
+                    <span
+                      class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${repositoryStatusTone(repository.status)}`}
+                    >
+                      {repositoryStatusLabel(repository.status)}
+                    </span>
+                  </span>
+                  <span class="mt-1 block truncate text-xs opacity-75">
+                    {repository.path}
+                  </span>
+                  {#if repositoryStatusMessage(repository)}
+                    <span class="mt-1 block text-xs text-amber-100/90">
+                      {repositoryStatusMessage(repository)}
+                    </span>
+                  {/if}
+                </span>
+              </button>
+
+              <div class="flex shrink-0 flex-col gap-1">
+                <button
+                  type="button"
+                  class="rounded-md border border-[#444c56] bg-[#2d333b] px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={managementDisabled}
+                  on:click={() => relocateRepository(repository.path)}
+                >
+                  Relocate
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-[11px] font-semibold text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={managementDisabled}
+                  on:click={() => removeRepository(repository.path)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
           {/each}
         {/if}
       </div>
