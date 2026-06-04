@@ -1,17 +1,26 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import {
-    buildSplitDiffRows,
     getDiffViewerState,
+    getSplitDiffRowsForMode,
     parseUnifiedDiff,
     type DiffLine,
     type ParsedTextDiff,
     type SplitDiffRow,
   } from "$lib/tickgit/diff";
+  import type { CommitFileDiffResult } from "$lib/types";
 
   export let title = "Diff";
   export let selectedFilePath: string | null = null;
-  export let diffText = "";
+  export let diffResult: CommitFileDiffResult = {
+    text: "",
+    isBinary: false,
+    isImage: false,
+    isTooLarge: false,
+    truncated: false,
+    byteCount: 0,
+    lineCount: 0,
+  };
   export let loadingDiff = false;
   export let mode: "unified" | "split" = "unified";
   export let hideWhitespaceInDiff = false;
@@ -26,12 +35,16 @@
   let splitRows: SplitDiffRow[] = [];
 
   // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
+  $: diffText = diffResult.text;
   $: parsedDiff = parseUnifiedDiff(diffText);
-  $: splitRows = buildSplitDiffRows(parsedDiff);
+  $: splitRows = getSplitDiffRowsForMode(parsedDiff, mode);
   $: viewerState = getDiffViewerState({
     selectedFilePath,
     loadingDiff,
     diffText,
+    isBinary: diffResult.isBinary,
+    isImage: diffResult.isImage,
+    isTooLarge: diffResult.isTooLarge,
     hideWhitespaceInDiff,
     parsedDiff,
   });
@@ -77,6 +90,18 @@
 
   function closeOptions() {
     optionsOpen = false;
+  }
+
+  function formatDiffSize(value: number) {
+    if (value >= 1024 * 1024) {
+      return `${(value / 1024 / 1024).toFixed(1)} MiB`;
+    }
+
+    if (value >= 1024) {
+      return `${(value / 1024).toFixed(1)} KiB`;
+    }
+
+    return `${value} B`;
   }
 </script>
 
@@ -199,6 +224,30 @@
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
         Select a changed file to inspect the diff
+      </div>
+    {:else if viewerState === "image"}
+      <div
+        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
+      >
+        图片文件暂不展示图片 Diff
+      </div>
+    {:else if viewerState === "binary"}
+      <div
+        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
+      >
+        二进制文件暂不展示文本 Diff
+      </div>
+    {:else if viewerState === "too-large"}
+      <div
+        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
+      >
+        <div>大型 Diff 已保护性跳过</div>
+        <div class="mt-2 text-xs text-slate-500">
+          {#if diffResult.byteCount > 0}
+            Patch size: {formatDiffSize(diffResult.byteCount)} ·
+          {/if}
+          Changed lines: {diffResult.lineCount}
+        </div>
       </div>
     {:else if viewerState === "only-whitespace"}
       <div

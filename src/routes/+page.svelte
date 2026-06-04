@@ -19,7 +19,10 @@
     listenStepPushFinished,
     listenStepPushProgress,
   } from "$lib/tauri/events";
-  import { fetchCommitDetails } from "$lib/tickgit/page-data";
+  import {
+    EMPTY_DIFF_RESULT,
+    fetchCommitDetails,
+  } from "$lib/tickgit/page-data";
   import {
     loadBootstrapRepositoryState,
     loadRepositoryIndex,
@@ -65,6 +68,7 @@
     BranchStatus,
     CommitMeta,
     CommitFileChange,
+    CommitFileDiffResult,
     CommitListItem,
     PushToCommitUiState,
     RepositorySummary,
@@ -88,7 +92,7 @@
   let selectedCommitMeta: CommitMeta | null = null;
   let commitFiles: CommitFileChange[] = [];
   let selectedFilePath: string | null = null;
-  let diffText = "";
+  let diffResult: CommitFileDiffResult = EMPTY_DIFF_RESULT;
   let diffViewMode: "unified" | "split" = "unified";
   let hideWhitespaceInDiff = false;
 
@@ -130,7 +134,7 @@
     selectedCommitMeta = snapshot.commitMeta;
     commitFiles = snapshot.commitFiles;
     selectedFilePath = snapshot.selectedFilePath;
-    diffText = snapshot.diffText;
+    diffResult = snapshot.diffResult;
   }
 
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
@@ -333,7 +337,7 @@
 
     loadingFiles = true;
     selectedFilePath = null;
-    diffText = "";
+    diffResult = EMPTY_DIFF_RESULT;
 
     try {
       const details = await fetchCommitDetails(
@@ -345,7 +349,7 @@
       selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
       selectedFilePath = details.selectedFilePath;
-      diffText = details.diffText;
+      diffResult = details.diffResult;
     } catch (error) {
       selectedCommitMeta = null;
       notify("读取 Commit 详情失败", getErrorMessage(error), "error");
@@ -371,7 +375,7 @@
 
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);
-      diffText = await api.getCommitFileDiff(
+      diffResult = await api.getCommitFileDiff(
         repository.path,
         commit.hash,
         filePath,
@@ -379,7 +383,7 @@
         selectedFile?.previousPath ?? null,
       );
     } catch (error) {
-      diffText = "";
+      diffResult = EMPTY_DIFF_RESULT;
       notify("读取 Diff 失败", getErrorMessage(error), "error");
     } finally {
       loadingDiff = false;
@@ -1010,7 +1014,7 @@
       {loadingFiles}
       {loadingDiff}
       {selectedFilePath}
-      {diffText}
+      {diffResult}
       {diffViewMode}
       {hideWhitespaceInDiff}
       on:selectFile={(event) => loadDiff(event.detail.path)}

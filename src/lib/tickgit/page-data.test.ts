@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   BranchStatus,
   CommitFileChange,
+  CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
   CommitMeta,
@@ -77,6 +78,19 @@ function commitMeta(overrides: Partial<CommitMeta> = {}): CommitMeta {
   };
 }
 
+
+function diffResult(text = ""): CommitFileDiffResult {
+  return {
+    text,
+    isBinary: false,
+    isImage: false,
+    isTooLarge: false,
+    truncated: false,
+    byteCount: text.length,
+    lineCount: text ? text.split("\n").length : 0,
+  };
+}
+
 function fileChange(
   path: string,
   overrides: Partial<CommitFileChange> = {},
@@ -114,7 +128,7 @@ function createApiMock(
     getCommitHistory: vi.fn().mockResolvedValue(historyPage([])),
     getCommitFiles: vi.fn().mockResolvedValue([]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
-    getCommitFileDiff: vi.fn().mockResolvedValue(""),
+    getCommitFileDiff: vi.fn().mockResolvedValue(diffResult()),
     ...overrides,
   };
 }
@@ -151,7 +165,7 @@ describe("page data", () => {
       .fn()
       .mockResolvedValue([fileChange("src/main.ts"), fileChange("src/app.ts")]);
     const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
-    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 
     const details = await fetchCommitDetails(
       createApiMock({
@@ -167,7 +181,7 @@ describe("page data", () => {
       commitFiles: [fileChange("src/main.ts"), fileChange("src/app.ts")],
       commitMeta: commitMeta(),
       selectedFilePath: "src/main.ts",
-      diffText: "@@ diff",
+      diffResult: diffResult("@@ diff"),
     });
     expect(getCommitFileDiff).toHaveBeenCalledWith(
       "/repo",
@@ -195,7 +209,7 @@ describe("page data", () => {
       commitFiles: [],
       commitMeta: commitMeta(),
       selectedFilePath: null,
-      diffText: "",
+      diffResult: diffResult(),
     });
     expect(getCommitFileDiff).not.toHaveBeenCalled();
   });
@@ -206,7 +220,7 @@ describe("page data", () => {
       .fn()
       .mockResolvedValue([fileChange("src/main.ts")]);
     const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
-    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
@@ -233,7 +247,7 @@ describe("page data", () => {
     expect(snapshot.commitFiles).toEqual([fileChange("src/main.ts")]);
     expect(snapshot.commitMeta).toEqual(commitMeta());
     expect(snapshot.selectedFilePath).toBe("src/main.ts");
-    expect(snapshot.diffText).toBe("@@ diff");
+    expect(snapshot.diffResult).toEqual(diffResult("@@ diff"));
     expect(getCommitFiles).toHaveBeenCalledWith("/repo", "c3");
     expect(getCommitMeta).toHaveBeenCalledWith("/repo", "c3");
     expect(getCommitFileDiff).toHaveBeenCalledWith(
@@ -246,7 +260,7 @@ describe("page data", () => {
   });
 
   it("passes ignoreWhitespace through commit detail loading", async () => {
-    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 
     await fetchCommitDetails(
       createApiMock({
@@ -269,7 +283,7 @@ describe("page data", () => {
   });
 
   it("passes previousPath through renamed file diff loading", async () => {
-    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 
     await fetchCommitDetails(
       createApiMock({
@@ -297,7 +311,7 @@ describe("page data", () => {
   });
 
   it("passes ignoreWhitespace through snapshot loading", async () => {
-    const getCommitFileDiff = vi.fn().mockResolvedValue("@@ diff");
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 
     await fetchRepositorySnapshot(
       createApiMock({
@@ -391,7 +405,7 @@ describe("page data", () => {
       commitMeta: null,
       commitFiles: [],
       selectedFilePath: null,
-      diffText: "",
+      diffResult: diffResult(),
     });
     expect(getCommitFiles).not.toHaveBeenCalled();
     expect(getCommitMeta).not.toHaveBeenCalled();

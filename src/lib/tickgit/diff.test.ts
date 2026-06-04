@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSplitDiffRows,
   getDiffViewerState,
+  getSplitDiffRowsForMode,
   parseUnifiedDiff,
 } from "$lib/tickgit/diff";
 
@@ -225,6 +226,29 @@ describe("diff parser", () => {
         right: expect.objectContaining({ type: "add", content: "extra" }),
       },
     ]);
+  });
+
+
+  it("computes diff viewer state for protected diffs", () => {
+    const parsedDiff = parseUnifiedDiff("");
+    const base = {
+      selectedFilePath: "file.bin",
+      loadingDiff: false,
+      diffText: "",
+      hideWhitespaceInDiff: false,
+      parsedDiff,
+    };
+
+    expect(getDiffViewerState({ ...base, isBinary: true })).toBe("binary");
+    expect(getDiffViewerState({ ...base, isImage: true })).toBe("image");
+    expect(getDiffViewerState({ ...base, isTooLarge: true })).toBe("too-large");
+  });
+
+  it("builds split rows only for split mode", () => {
+    const diff = parseUnifiedDiff(["@@ -1,1 +1,1 @@", "-before", "+after"].join("\n"));
+
+    expect(getSplitDiffRowsForMode(diff, "unified")).toEqual([]);
+    expect(getSplitDiffRowsForMode(diff, "split")).toEqual(buildSplitDiffRows(diff));
   });
 
   it("computes diff viewer state for whitespace-only diffs", () => {

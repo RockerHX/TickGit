@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   BranchStatus,
   CommitFileChange,
+  CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
   CommitMeta,
@@ -59,6 +60,19 @@ function commitMeta(): CommitMeta {
   };
 }
 
+
+function diffResult(text = ""): CommitFileDiffResult {
+  return {
+    text,
+    isBinary: false,
+    isImage: false,
+    isTooLarge: false,
+    truncated: false,
+    byteCount: text.length,
+    lineCount: text ? text.split("\n").length : 0,
+  };
+}
+
 function fileChange(path: string): CommitFileChange {
   return {
     status: "M",
@@ -92,7 +106,7 @@ function createApiMock(
     getCommitHistory: vi.fn().mockResolvedValue(historyPage(commits)),
     getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
-    getCommitFileDiff: vi.fn().mockResolvedValue("@@ diff"),
+    getCommitFileDiff: vi.fn().mockResolvedValue(diffResult("@@ diff")),
     ...overrides,
   };
 }

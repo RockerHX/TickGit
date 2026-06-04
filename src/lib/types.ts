@@ -50,6 +50,16 @@ export type CommitFileChange = {
   displayPath: string;
 };
 
+export type CommitFileDiffResult = {
+  text: string;
+  isBinary: boolean;
+  isImage: boolean;
+  isTooLarge: boolean;
+  truncated: boolean;
+  byteCount: number;
+  lineCount: number;
+};
+
 export type StepPushRequest = {
   repoPath: string;
   branch: string;

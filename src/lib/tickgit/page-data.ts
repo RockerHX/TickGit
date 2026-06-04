@@ -2,11 +2,22 @@ import type {
   BranchStatus,
   CommitMeta,
   CommitFileChange,
+  CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
   RepositorySummary,
 } from "$lib/types";
 import { pickSelectedCommit } from "$lib/tickgit/page-helpers";
+
+export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
+  text: "",
+  isBinary: false,
+  isImage: false,
+  isTooLarge: false,
+  truncated: false,
+  byteCount: 0,
+  lineCount: 0,
+};
 
 export type TickGitPageApi = {
   listRepositories: () => Promise<RepositorySummary[]>;
@@ -28,7 +39,7 @@ export type TickGitPageApi = {
     filePath: string,
     ignoreWhitespace?: boolean,
     previousPath?: string | null,
-  ) => Promise<string>;
+  ) => Promise<CommitFileDiffResult>;
 };
 
 export type RepositorySnapshot = {
@@ -40,7 +51,7 @@ export type RepositorySnapshot = {
   commitMeta: CommitMeta | null;
   commitFiles: CommitFileChange[];
   selectedFilePath: string | null;
-  diffText: string;
+  diffResult: CommitFileDiffResult;
 };
 
 export async function fetchRepositoryIndex(api: TickGitPageApi) {
@@ -65,7 +76,7 @@ export async function fetchCommitDetails(
   const selectedFile = commitFiles[0] ?? null;
   const selectedFilePath = selectedFile?.path ?? null;
   // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
-  const diffText = selectedFile
+  const diffResult = selectedFile
     ? await api.getCommitFileDiff(
         repoPath,
         hash,
@@ -73,13 +84,13 @@ export async function fetchCommitDetails(
         ignoreWhitespace,
         selectedFile.previousPath,
       )
-    : "";
+    : EMPTY_DIFF_RESULT;
 
   return {
     commitFiles,
     commitMeta,
     selectedFilePath,
-    diffText,
+    diffResult,
   };
 }
 
@@ -130,7 +141,7 @@ export async function fetchRepositorySnapshot(
       commitMeta: null,
       commitFiles: [],
       selectedFilePath: null,
-      diffText: "",
+      diffResult: EMPTY_DIFF_RESULT,
     };
   }
 
@@ -150,6 +161,6 @@ export async function fetchRepositorySnapshot(
     commitMeta: details.commitMeta,
     commitFiles: details.commitFiles,
     selectedFilePath: details.selectedFilePath,
-    diffText: details.diffText,
+    diffResult: details.diffResult,
   };
 }

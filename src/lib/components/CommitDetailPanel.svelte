@@ -12,6 +12,7 @@
   } from "$lib/tickgit/layout";
   import type {
     CommitFileChange,
+    CommitFileDiffResult,
     CommitListItem,
     CommitMeta,
   } from "$lib/types";
@@ -21,7 +22,7 @@
   export let commitMeta: CommitMeta | null = null;
   export let files: CommitFileChange[] = [];
   export let selectedFilePath: string | null = null;
-  export let diffText = "";
+  export let diffResult: CommitFileDiffResult;
   export let loadingFiles = false;
   export let loadingDiff = false;
   export let diffViewMode: "unified" | "split" = "unified";
@@ -334,7 +335,7 @@
     <DiffViewer
       title="Diff"
       {selectedFilePath}
-      {diffText}
+      {diffResult}
       {loadingDiff}
       mode={diffViewMode}
       {hideWhitespaceInDiff}

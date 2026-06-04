@@ -40,6 +40,9 @@ export type SplitDiffRow =
 export type DiffViewerState =
   | "loading"
   | "no-file"
+  | "binary"
+  | "image"
+  | "too-large"
   | "only-whitespace"
   | "no-content"
   | "parse-error"
@@ -236,10 +239,20 @@ export function buildSplitDiffRows(parsedDiff: ParsedTextDiff): SplitDiffRow[] {
   return rows;
 }
 
+export function getSplitDiffRowsForMode(
+  parsedDiff: ParsedTextDiff,
+  mode: "unified" | "split",
+): SplitDiffRow[] {
+  return mode === "split" ? buildSplitDiffRows(parsedDiff) : [];
+}
+
 export function getDiffViewerState(input: {
   selectedFilePath: string | null;
   loadingDiff: boolean;
   diffText: string;
+  isBinary?: boolean;
+  isImage?: boolean;
+  isTooLarge?: boolean;
   hideWhitespaceInDiff: boolean;
   parsedDiff: ParsedTextDiff;
 }): DiffViewerState {
@@ -249,6 +262,18 @@ export function getDiffViewerState(input: {
 
   if (!input.selectedFilePath) {
     return "no-file";
+  }
+
+  if (input.isImage) {
+    return "image";
+  }
+
+  if (input.isBinary) {
+    return "binary";
+  }
+
+  if (input.isTooLarge) {
+    return "too-large";
   }
 
   if (!input.diffText.trim()) {

@@ -3,6 +3,7 @@ import type {
   BranchStatus,
   CommitMeta,
   CommitFileChange,
+  CommitFileDiffResult,
   CommitHistoryPage,
   PushToCommitJobStarted,
   PushToCommitRequest,
@@ -40,7 +41,7 @@ export const api = {
     ignoreWhitespace = false,
     previousPath?: string | null,
   ) =>
-    invoke<string>("get_commit_file_diff", {
+    invoke<CommitFileDiffResult>("get_commit_file_diff", {
       repoPath,
       hash,
       filePath,
