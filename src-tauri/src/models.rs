@@ -66,6 +66,18 @@ pub struct CommitFileChange {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct CommitFileDiffResult {
+    pub text: String,
+    pub is_binary: bool,
+    pub is_image: bool,
+    pub is_too_large: bool,
+    pub truncated: bool,
+    pub byte_count: usize,
+    pub line_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct StepPushRequest {
     pub repo_path: String,
     pub branch: String,

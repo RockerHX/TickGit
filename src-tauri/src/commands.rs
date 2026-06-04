@@ -4,8 +4,9 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitFileChange, CommitHistoryPage, CommitMeta, PushToCommitJobStarted,
-        PushToCommitRequest, RepositorySummary, StepPushJobStarted, StepPushRequest,
+        BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryPage, CommitMeta,
+        PushToCommitJobStarted, PushToCommitRequest, RepositorySummary, StepPushJobStarted,
+        StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -90,7 +91,7 @@ pub fn get_commit_file_diff(
     file_path: String,
     previous_path: Option<String>,
     ignore_whitespace: bool,
-) -> AppResult<String> {
+) -> AppResult<CommitFileDiffResult> {
     git::get_commit_file_diff(
         &repo_path,
         &hash,

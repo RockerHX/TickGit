@@ -653,8 +653,8 @@ fn gets_diff_for_initial_commit() {
     )
     .unwrap();
 
-    assert!(diff.contains("diff --git"));
-    assert!(diff.contains("+hello"));
+    assert!(diff.text.contains("diff --git"));
+    assert!(diff.text.contains("+hello"));
 }
 
 #[test]
@@ -672,8 +672,8 @@ fn gets_diff_for_non_initial_commit() {
     )
     .unwrap();
 
-    assert!(diff.contains("@@"));
-    assert!(diff.contains("+world"));
+    assert!(diff.text.contains("@@"));
+    assert!(diff.text.contains("+world"));
 }
 
 #[test]
@@ -699,8 +699,10 @@ fn hides_whitespace_only_diff_for_non_initial_commit() {
     )
     .unwrap();
 
-    assert!(normal_diff.contains("@@"));
-    assert!(hidden_diff.trim().is_empty());
+    assert!(normal_diff.text.contains("@@"));
+    assert!(hidden_diff.text.trim().is_empty());
+    assert!(!hidden_diff.is_too_large);
+    assert!(!hidden_diff.is_binary);
 }
 
 #[test]
@@ -717,8 +719,8 @@ fn gets_diff_for_initial_commit_when_hiding_whitespace() {
     )
     .unwrap();
 
-    assert!(hidden_diff.contains("diff --git"));
-    assert!(hidden_diff.contains("file.txt"));
+    assert!(hidden_diff.text.contains("diff --git"));
+    assert!(hidden_diff.text.contains("file.txt"));
 }
 
 #[test]
@@ -738,8 +740,77 @@ fn gets_rename_diff_when_previous_path_is_available() {
     )
     .unwrap();
 
-    assert!(diff.contains("rename from old.txt"));
-    assert!(diff.contains("rename to new.txt"));
+    assert!(diff.text.contains("rename from old.txt"));
+    assert!(diff.text.contains("rename to new.txt"));
+}
+
+#[test]
+fn marks_binary_diff_without_text_patch() {
+    let repo = init_repo();
+    fs::write(repo.path.join("data.bin"), b"before\0after").expect("write binary file");
+    run_git(&repo.path, &["add", "data.bin"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "binary"]);
+    let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &hash,
+        "data.bin",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.is_binary);
+    assert!(!diff.is_image);
+    assert!(diff.text.is_empty());
+}
+
+#[test]
+fn marks_image_diff_by_extension() {
+    let repo = init_repo();
+    fs::write(repo.path.join("image.png"), b"\x89PNG\r\n\x1a\n\0data").expect("write image file");
+    run_git(&repo.path, &["add", "image.png"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "image"]);
+    let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &hash,
+        "image.png",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.is_image);
+    assert!(diff.text.is_empty());
+}
+
+#[test]
+fn skips_text_for_too_large_diff() {
+    let repo = init_repo();
+    let content = (0..5001)
+        .map(|index| format!("line-{index}\n"))
+        .collect::<String>();
+    write_file(&repo.path, "large.txt", &content);
+    run_git(&repo.path, &["add", "large.txt"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "large"]);
+    let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &hash,
+        "large.txt",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.is_too_large);
+    assert!(diff.truncated);
+    assert_eq!(diff.line_count, 5001);
+    assert!(diff.text.is_empty());
 }
 
 #[test]
