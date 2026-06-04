@@ -26,13 +26,8 @@
   } from "$lib/tickgit/page-data";
   import {
     buildStepPushHashes,
-    dismissFailedOverlay,
-    dismissOverlayIfJobMatches,
     createToastItem,
     getErrorMessage,
-    toFailedStepPushState,
-    toFinishedStepPushState,
-    toRunningStepPushState,
   } from "$lib/tickgit/page-helpers";
   import {
     canPushCurrentBranch,
@@ -40,6 +35,17 @@
     isBranchSwitcherDisabled,
     isContextMenuDisabled,
   } from "$lib/tickgit/page-state";
+  import {
+    dismissFailedOverlay,
+    dismissOverlayIfJobMatches,
+    formatPushTargetLabel,
+    toFailedPushToCommitState,
+    toFailedStepPushState,
+    toFinishedPushToCommitState,
+    toFinishedStepPushState,
+    toRunningPushToCommitState,
+    toRunningStepPushState,
+  } from "$lib/tickgit/push-events";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_BRANCH_PANE_WIDTH,
@@ -114,24 +120,6 @@
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
-  }
-
-  function formatPushTargetLabel(
-    target: string,
-    targetKind: PushToCommitUiState["targetKind"],
-  ) {
-    if (targetKind === "commit") {
-      const shortHash = target.length > 7 ? target.slice(0, 7) : target;
-      return {
-        inline: shortHash,
-        message: `Commit ${shortHash}`,
-      };
-    }
-
-    return {
-      inline: target,
-      message: target,
-    };
   }
 
   async function bootstrap() {
@@ -392,13 +380,7 @@
         currentRepository.path,
         branchStatus.branch,
       );
-      const target = formatPushTargetLabel(started.target, started.targetKind);
-      pushToCommitState = {
-        jobId: started.jobId,
-        target: target.inline,
-        targetKind: started.targetKind,
-        status: "running",
-      };
+      pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
       notify("推送失败", getErrorMessage(error), "error");
@@ -434,13 +416,7 @@
         branch: branchStatus.branch,
         hash: commit.hash,
       });
-      const target = formatPushTargetLabel(started.target, started.targetKind);
-      pushToCommitState = {
-        jobId: started.jobId,
-        target: target.inline,
-        targetKind: started.targetKind,
-        status: "running",
-      };
+      pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
       notify("推送失败", getErrorMessage(error), "error");
@@ -479,13 +455,10 @@
         delayMs: 1500,
       });
 
-      stepPushState = {
-        jobId: started.jobId,
-        current: 0,
-        total: started.total,
+      stepPushState = toRunningStepPushState({
+        ...started,
         hash: hashes[0],
-        status: "running",
-      };
+      });
     } catch (error) {
       notify("无法开始分步提交", getErrorMessage(error), "error");
     }
@@ -530,12 +503,7 @@
             payload.target,
             payload.targetKind,
           );
-          pushToCommitState = {
-            jobId: payload.jobId,
-            target: target.inline,
-            targetKind: payload.targetKind,
-            status: "finished",
-          };
+          pushToCommitState = toFinishedPushToCommitState(payload);
           isPushing = false;
 
           notify("推送成功", `已推送到 ${target.message}`, "success");
@@ -559,13 +527,7 @@
             payload.target,
             payload.targetKind,
           );
-          pushToCommitState = {
-            jobId: payload.jobId,
-            target: target.inline,
-            targetKind: payload.targetKind,
-            status: "failed",
-            message: payload.message,
-          };
+          pushToCommitState = toFailedPushToCommitState(payload);
           isPushing = false;
 
           notify("推送失败", payload.message, "error");

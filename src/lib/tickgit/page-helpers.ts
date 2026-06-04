@@ -1,11 +1,6 @@
 import type {
   AppError,
   CommitListItem,
-  PushToCommitUiState,
-  StepPushFailed,
-  StepPushFinished,
-  StepPushProgress,
-  StepPushUiState,
   ToastItem,
 } from "$lib/types";
 
@@ -69,62 +64,4 @@ export function createToastItem(
   tone: ToastItem["tone"] = "info",
 ): ToastItem {
   return { id, title, message, tone };
-}
-
-type PushOverlayUiState = PushToCommitUiState | StepPushUiState;
-
-export function canManuallyDismissOverlay(
-  state: Pick<PushOverlayUiState, "status"> | null,
-) {
-  return state?.status === "failed";
-}
-
-export function dismissFailedOverlay<
-  T extends Pick<PushOverlayUiState, "status">,
->(state: T | null) {
-  return canManuallyDismissOverlay(state) ? null : state;
-}
-
-export function dismissOverlayIfJobMatches<
-  T extends Pick<PushOverlayUiState, "jobId">,
->(state: T | null, jobId: number) {
-  return state?.jobId === jobId ? null : state;
-}
-
-export function toRunningStepPushState(
-  payload: Pick<StepPushProgress, "jobId" | "current" | "total" | "hash">,
-): StepPushUiState {
-  return {
-    jobId: payload.jobId,
-    current: payload.current,
-    total: payload.total,
-    hash: payload.hash,
-    status: "running",
-  };
-}
-
-export function toFinishedStepPushState(
-  payload: StepPushFinished,
-  currentState: StepPushUiState | null,
-): StepPushUiState {
-  return {
-    jobId: payload.jobId,
-    current: payload.total,
-    total: payload.total,
-    hash: currentState?.hash ?? "",
-    status: "finished",
-  };
-}
-
-export function toFailedStepPushState(
-  payload: StepPushFailed,
-): StepPushUiState {
-  return {
-    jobId: payload.jobId,
-    current: payload.current,
-    total: payload.total,
-    hash: payload.hash,
-    status: "failed",
-    message: payload.message,
-  };
 }
