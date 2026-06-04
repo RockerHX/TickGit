@@ -19,11 +19,13 @@
     listenStepPushFinished,
     listenStepPushProgress,
   } from "$lib/tauri/events";
+  import { fetchCommitDetails } from "$lib/tickgit/page-data";
   import {
-    fetchCommitDetails,
-    fetchRepositoryIndex,
-    fetchRepositorySnapshot,
-  } from "$lib/tickgit/page-data";
+    loadBootstrapRepositoryState,
+    loadRepositoryIndex,
+    loadRepositoryStateSnapshot,
+    type RepositoryStateResult,
+  } from "$lib/tickgit/repository-actions";
   import {
     buildStepPushHashes,
     createToastItem,
@@ -110,6 +112,31 @@
 
   let saveWindowSizeTimer: number | null = null;
 
+
+  function applyRepositoryState(state: RepositoryStateResult) {
+    const { snapshot, branches } = state;
+    branchStatus = snapshot.branchStatus;
+    localBranches = branches;
+    commits = snapshot.commits;
+    nextSkip = snapshot.nextSkip;
+    hasMore = snapshot.hasMore;
+    selectedCommit = snapshot.selectedCommit;
+    selectedCommitMeta = snapshot.commitMeta;
+    commitFiles = snapshot.commitFiles;
+    selectedFilePath = snapshot.selectedFilePath;
+    diffText = snapshot.diffText;
+  }
+
+  function notifyRemoteRefreshError(state: RepositoryStateResult) {
+    if (state.remoteRefreshError) {
+      notify(
+        "同步远端状态失败",
+        getErrorMessage(state.remoteRefreshError),
+        "error",
+      );
+    }
+  }
+
   function notify(
     title: string,
     message: string,
@@ -126,12 +153,18 @@
     loadingRepository = true;
 
     try {
-      const repositoryIndex = await fetchRepositoryIndex(api);
-      repositories = repositoryIndex.repositories;
-      currentRepository = repositoryIndex.currentRepository;
+      const bootstrapState = await loadBootstrapRepositoryState(api, {
+        pageSize: PAGE_SIZE,
+        keepSelection: false,
+        previousSelectedHash: null,
+        ignoreWhitespace: hideWhitespaceInDiff,
+      });
+      repositories = bootstrapState.repositories;
+      currentRepository = bootstrapState.currentRepository;
 
-      if (currentRepository) {
-        await loadRepositoryState(currentRepository.path);
+      if (bootstrapState.repositoryState) {
+        notifyRemoteRefreshError(bootstrapState.repositoryState);
+        applyRepositoryState(bootstrapState.repositoryState);
       }
     } catch (error) {
       notify("初始化失败", getErrorMessage(error), "error");
@@ -141,7 +174,7 @@
   }
 
   async function refreshRepositories() {
-    const repositoryIndex = await fetchRepositoryIndex(api);
+    const repositoryIndex = await loadRepositoryIndex(api);
     repositories = repositoryIndex.repositories;
     currentRepository = repositoryIndex.currentRepository;
   }
@@ -163,36 +196,17 @@
     loadingRepository = true;
 
     try {
-      try {
-        await api.refreshRemoteTracking(path);
-      } catch (error) {
-        notify("同步远端状态失败", getErrorMessage(error), "error");
-      }
-
-      // 这里依赖 fetchRepositorySnapshot 预先补齐全部未推送 commits；
+      // 这里依赖 loadRepositoryStateSnapshot 预先补齐全部未推送 commits；
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
-      const [snapshot, branches] = await Promise.all([
-        fetchRepositorySnapshot(
-          api,
-          path,
-          PAGE_SIZE,
-          keepSelection,
-          selectedCommit?.hash ?? null,
-          hideWhitespaceInDiff,
-        ),
-        api.listLocalBranches(path),
-      ]);
+      const repositoryState = await loadRepositoryStateSnapshot(api, path, {
+        pageSize: PAGE_SIZE,
+        keepSelection,
+        previousSelectedHash: selectedCommit?.hash ?? null,
+        ignoreWhitespace: hideWhitespaceInDiff,
+      });
 
-      branchStatus = snapshot.branchStatus;
-      localBranches = branches;
-      commits = snapshot.commits;
-      nextSkip = snapshot.nextSkip;
-      hasMore = snapshot.hasMore;
-      selectedCommit = snapshot.selectedCommit;
-      selectedCommitMeta = snapshot.commitMeta;
-      commitFiles = snapshot.commitFiles;
-      selectedFilePath = snapshot.selectedFilePath;
-      diffText = snapshot.diffText;
+      notifyRemoteRefreshError(repositoryState);
+      applyRepositoryState(repositoryState);
     } catch (error) {
       notify("读取仓库失败", getErrorMessage(error), "error");
     } finally {
