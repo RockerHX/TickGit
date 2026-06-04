@@ -77,7 +77,7 @@ fn repository_name(path: &Path) -> String {
 }
 
 fn sort_repositories(repositories: &mut [RepositorySummary]) {
-    repositories.sort_by(|left, right| right.last_opened_at.cmp(&left.last_opened_at));
+    repositories.sort_by_key(|repository| std::cmp::Reverse(repository.last_opened_at));
 }
 
 fn find_current_repository(store: &RepositoryConfig) -> Option<RepositorySummary> {
