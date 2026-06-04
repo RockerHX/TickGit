@@ -82,7 +82,8 @@ pnpm format:check
   - 本地未推送 commit 应继续在历史中可见
   - 不标记为 safe push target
   - 禁用 step push / push to commit
-  - 文案优先提示“当前分支落后远端，请先同步远端”
+  - 不在 TickGit 内实现 pull / merge / rebase
+  - 文案优先提示“远端已有更新，TickGit 暂不能安全推送”，并引导用户使用 GitHub Desktop 或 SourceTree 同步后回到 TickGit 刷新
 
 实施项：
 
@@ -91,6 +92,7 @@ pnpm format:check
   - behind + local commit：unpushed 可见、safe 为 false、safe count 为 0
   - behind + refresh 后 push action 不可用
   - push blocked reason 使用 behind/diverged 更明确文案
+  - UI 展示 GitHub Desktop / SourceTree 的基础同步引导和刷新状态按钮
 - 如产品决策相反，则应先更新架构文档，再调整实现。
 
 验收：

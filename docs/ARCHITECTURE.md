@@ -105,6 +105,7 @@ Git 领域核心模块，统一负责：
 - Commit 历史、文件列表、Diff
 - 常规推送
 - 推送到指定 Commit
+- 刷新 origin 远端跟踪信息，用于判断 ahead / behind 状态
 - 统一封装 Git 命令执行环境，避免受本地语言、颜色、分页器和交互提示影响
 
 所有 Git 操作都从这里进入。
@@ -151,6 +152,8 @@ Git 命令执行规则：
 - 只支持当前检出分支
 - 远端固定为 `origin`
 - 未推送判断依赖 upstream
+- 仅通过 `fetch --prune origin` 刷新远端跟踪信息；不内置 `git pull` / `merge` / `rebase`
+- 本地分支落后远端或与远端分叉时禁用推送，并引导用户使用 GitHub Desktop / SourceTree 等外部工具同步
 - `origin` 缺失、upstream 缺失或 detached HEAD 时禁用推送
 - 前端不能直接执行 Git
 - 不引入 `libgit2`
@@ -164,7 +167,7 @@ Git 命令执行规则：
 ### 启动
 
 1. 读取仓库列表与当前仓库
-2. 读取分支状态（包含全量 ahead 数与 safe step-push 数）
+2. 刷新 origin 远端跟踪信息并读取分支状态（包含全量 ahead 数、behind 数与 safe step-push 数）
 3. 拉取完整 Commit 历史，并标记哪些未推送 Commit 位于 first-parent 安全路径上
 4. 自动加载当前选中 Commit 的文件与 Diff
 

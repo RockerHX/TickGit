@@ -44,7 +44,14 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 顶部 Push 计数显示的是相对 upstream 的 **全量未推送 Commit 数**
 - “分步推送 / Push to Commit” 的可操作目标只来自 **first-parent 安全路径**
 - 分步提交任务为 **单任务、不可取消**
+- 当前不内置 `git pull` / `merge` / `rebase`，远端已有更新时只禁用推送并提示用户使用 GitHub Desktop 或 SourceTree 同步
 - Diff 当前为 **结构化文本展示**，支持 **Unified / Split** 与 **Hide Whitespace Changes**，暂不做语法高亮、图片 / 二进制专用 Diff 与超大文件优化
+
+## 关于拉取和同步
+
+TickGit 的核心目标是让“当前分支的安全推送”和“按 Commit 分步推送”更简单可控，不替代完整 Git 客户端。
+
+当远端分支已经有新提交，或本地与远端出现分叉时，TickGit 会禁用推送，避免产生不安全的 non-fast-forward 操作。此时请先使用 GitHub Desktop、SourceTree 或命令行完成拉取、合并、变基和冲突处理，再回到 TickGit 刷新状态后继续推送。
 
 ## 分步推送如何理解
 
