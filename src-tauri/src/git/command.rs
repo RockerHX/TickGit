@@ -42,7 +42,12 @@ pub(super) fn git_output_bytes(repo_path: &Path, args: &[&str]) -> AppResult<Vec
     ))
 }
 
-fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<String> {
+fn git_command_with_allowed_exit_codes(
+    repo_path: &Path,
+    mode: OutputMode,
+    args: &[&str],
+    allowed_exit_codes: &[i32],
+) -> AppResult<String> {
     let mut command = Command::new("git");
 
     if matches!(mode, OutputMode::Text | OutputMode::TrimmedText) {
@@ -60,7 +65,12 @@ fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<S
         .output()
         .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
 
-    if output.status.success() {
+    if output.status.success()
+        || output
+            .status
+            .code()
+            .is_some_and(|code| allowed_exit_codes.contains(&code))
+    {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         return Ok(match mode {
             OutputMode::TrimmedText => stdout.trim().to_string(),
@@ -82,6 +92,10 @@ fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<S
     ))
 }
 
+fn git_command(repo_path: &Path, mode: OutputMode, args: &[&str]) -> AppResult<String> {
+    git_command_with_allowed_exit_codes(repo_path, mode, args, &[])
+}
+
 pub(super) fn git_text(repo_path: &Path, args: &[&str]) -> AppResult<String> {
     git_command(repo_path, OutputMode::Text, args)
 }
@@ -93,4 +107,25 @@ pub(super) fn git_trimmed(repo_path: &Path, args: &[&str]) -> AppResult<String> 
 pub(super) fn git_run(repo_path: &Path, args: &[&str]) -> AppResult<()> {
     let _ = git_command(repo_path, OutputMode::Command, args)?;
     Ok(())
+}
+
+pub(super) fn git_text_allow_exit_code(
+    repo_path: &Path,
+    args: &[&str],
+    allowed_exit_code: i32,
+) -> AppResult<String> {
+    git_command_with_allowed_exit_codes(repo_path, OutputMode::Text, args, &[allowed_exit_code])
+}
+
+pub(super) fn git_trimmed_allow_exit_code(
+    repo_path: &Path,
+    args: &[&str],
+    allowed_exit_code: i32,
+) -> AppResult<String> {
+    git_command_with_allowed_exit_codes(
+        repo_path,
+        OutputMode::TrimmedText,
+        args,
+        &[allowed_exit_code],
+    )
 }

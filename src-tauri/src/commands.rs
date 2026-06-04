@@ -6,7 +6,7 @@ use crate::{
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryPage, CommitMeta,
         PushToCommitJobStarted, PushToCommitRequest, RepositorySummary, StepPushJobStarted,
-        StepPushPlan, StepPushRequest,
+        StepPushPlan, StepPushRequest, WorkspaceChangeSection, WorkspaceStatus,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -95,6 +95,28 @@ pub fn get_commit_file_diff(
     git::get_commit_file_diff(
         &repo_path,
         &hash,
+        &file_path,
+        previous_path.as_deref(),
+        ignore_whitespace,
+    )
+}
+
+#[tauri::command]
+pub fn get_workspace_status(repo_path: String) -> AppResult<WorkspaceStatus> {
+    git::get_workspace_status(&repo_path)
+}
+
+#[tauri::command]
+pub fn get_workspace_file_diff(
+    repo_path: String,
+    section: WorkspaceChangeSection,
+    file_path: String,
+    previous_path: Option<String>,
+    ignore_whitespace: bool,
+) -> AppResult<CommitFileDiffResult> {
+    git::get_workspace_file_diff(
+        &repo_path,
+        section,
         &file_path,
         previous_path.as_deref(),
         ignore_whitespace,

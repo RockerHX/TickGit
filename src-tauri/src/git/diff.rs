@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::{error::AppResult, models::CommitFileDiffResult};
 
 use super::{
-    command::{git_text, git_trimmed},
+    command::{git_text, git_text_allow_exit_code, git_trimmed, git_trimmed_allow_exit_code},
     repository::resolve_repository_path,
 };
 
@@ -101,18 +101,19 @@ fn build_diff_args<'a>(
     args
 }
 
-pub fn get_commit_file_diff(
-    repo_path: &str,
-    hash: &str,
+pub(super) fn diff_result_from_git_args(
+    repo_path: &Path,
     file_path: &str,
-    previous_path: Option<&str>,
-    ignore_whitespace: bool,
+    numstat_args: &[&str],
+    diff_args: &[&str],
+    allowed_diff_exit_code: Option<i32>,
 ) -> AppResult<CommitFileDiffResult> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let (base, pathspecs) = diff_base_and_pathspecs(&repo_path, hash, file_path, previous_path)?;
     let is_image = is_image_path(file_path);
-    let numstat_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, true);
-    let stats = parse_numstat(&git_trimmed(&repo_path, &numstat_args)?);
+    let numstat = match allowed_diff_exit_code {
+        Some(code) => git_trimmed_allow_exit_code(repo_path, numstat_args, code)?,
+        None => git_trimmed(repo_path, numstat_args)?,
+    };
+    let stats = parse_numstat(&numstat);
 
     if stats.is_binary || is_image {
         return Ok(CommitFileDiffResult {
@@ -138,8 +139,10 @@ pub fn get_commit_file_diff(
         });
     }
 
-    let diff_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, false);
-    let text = git_text(&repo_path, &diff_args)?;
+    let text = match allowed_diff_exit_code {
+        Some(code) => git_text_allow_exit_code(repo_path, diff_args, code)?,
+        None => git_text(repo_path, diff_args)?,
+    };
     let byte_count = text.len();
 
     if byte_count > MAX_DIFF_BYTES {
@@ -163,4 +166,18 @@ pub fn get_commit_file_diff(
         byte_count,
         line_count: stats.line_count,
     })
+}
+
+pub fn get_commit_file_diff(
+    repo_path: &str,
+    hash: &str,
+    file_path: &str,
+    previous_path: Option<&str>,
+    ignore_whitespace: bool,
+) -> AppResult<CommitFileDiffResult> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let (base, pathspecs) = diff_base_and_pathspecs(&repo_path, hash, file_path, previous_path)?;
+    let numstat_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, true);
+    let diff_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, false);
+    diff_result_from_git_args(&repo_path, file_path, &numstat_args, &diff_args, None)
 }

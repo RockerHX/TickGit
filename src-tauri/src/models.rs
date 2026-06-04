@@ -76,6 +76,51 @@ pub struct CommitFileDiffResult {
     pub line_count: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum WorkspaceChangeSection {
+    Staged,
+    Unstaged,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum WorkspaceChangeKind {
+    Modified,
+    Added,
+    Deleted,
+    Renamed,
+    Copied,
+    Untracked,
+    Unknown,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceFileChange {
+    pub section: WorkspaceChangeSection,
+    pub kind: WorkspaceChangeKind,
+    pub status: String,
+    pub path: String,
+    pub previous_path: Option<String>,
+    pub display_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceStatus {
+    pub staged: Vec<WorkspaceFileChange>,
+    pub unstaged: Vec<WorkspaceFileChange>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitCreated {
+    pub hash: String,
+    pub short_hash: String,
+    pub summary: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StepPushPlan {

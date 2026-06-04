@@ -1,11 +1,15 @@
 use super::repository::branch_status_for_path;
 use super::{
     checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
-    list_local_branches, push_current_branch, push_to_commit, refresh_remote_tracking,
-    resolve_repository_path, validate_current_branch, validate_step_push_hashes,
-    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
+    get_workspace_file_diff, get_workspace_status, list_local_branches, push_current_branch,
+    push_to_commit, refresh_remote_tracking, resolve_repository_path, validate_current_branch,
+    validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
+    UNSAFE_PUSH_TARGET_MESSAGE,
 };
-use crate::error::AppError;
+use crate::{
+    error::AppError,
+    models::{WorkspaceChangeKind, WorkspaceChangeSection},
+};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -115,6 +119,16 @@ fn clone_repo(source: &Path, prefix: &str) -> TestDir {
 fn assert_app_error(error: AppError, code: &str, message: &str) {
     assert_eq!(error.code, code);
     assert_eq!(error.message, message);
+}
+
+fn has_workspace_change(
+    changes: &[crate::models::WorkspaceFileChange],
+    path: &str,
+    kind: WorkspaceChangeKind,
+) -> bool {
+    changes
+        .iter()
+        .any(|change| change.path == path && change.kind == kind)
 }
 
 #[test]
@@ -823,6 +837,135 @@ fn gets_diff_for_non_initial_commit() {
 
     assert!(diff.text.contains("@@"));
     assert!(diff.text.contains("+world"));
+}
+
+#[test]
+fn lists_workspace_status_by_section() {
+    let repo = init_repo();
+    commit_file(&repo.path, "modified.txt", "before\n", "initial modified");
+    commit_file(&repo.path, "deleted.txt", "before\n", "initial deleted");
+
+    write_file(&repo.path, "modified.txt", "after\n");
+    fs::remove_file(repo.path.join("deleted.txt")).expect("delete tracked file");
+    write_file(&repo.path, "added.txt", "added\n");
+    run_git(&repo.path, &["add", "added.txt"]);
+    write_file(&repo.path, "untracked.txt", "untracked\n");
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    assert!(has_workspace_change(
+        &status.staged,
+        "added.txt",
+        WorkspaceChangeKind::Added
+    ));
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "modified.txt",
+        WorkspaceChangeKind::Modified
+    ));
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "deleted.txt",
+        WorkspaceChangeKind::Deleted
+    ));
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "untracked.txt",
+        WorkspaceChangeKind::Untracked
+    ));
+}
+
+#[test]
+fn lists_workspace_file_in_staged_and_unstaged_sections() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "initial");
+
+    write_file(&repo.path, "file.txt", "staged\n");
+    run_git(&repo.path, &["add", "file.txt"]);
+    write_file(&repo.path, "file.txt", "unstaged\n");
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    assert!(has_workspace_change(
+        &status.staged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+}
+
+#[test]
+fn gets_workspace_diff_for_untracked_file() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    write_file(&repo.path, "untracked.txt", "hello\n");
+
+    let diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "untracked.txt",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(diff.text.contains("diff --git"));
+    assert!(diff.text.contains("+hello"));
+}
+
+#[test]
+fn protects_workspace_diff_for_binary_image_and_large_files() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    fs::write(repo.path.join("data.bin"), b"before\0after").expect("write binary file");
+    fs::write(repo.path.join("image.png"), b"\x89PNG\r\n\x1a\n\0data").expect("write image file");
+    let large_content = (0..5001)
+        .map(|index| format!("line-{index}\n"))
+        .collect::<String>();
+    write_file(&repo.path, "large.txt", &large_content);
+
+    let binary_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "data.bin",
+        None,
+        false,
+    )
+    .unwrap();
+    let image_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "image.png",
+        None,
+        false,
+    )
+    .unwrap();
+    let large_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "large.txt",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(binary_diff.is_binary);
+    assert!(binary_diff.text.is_empty());
+    assert!(image_diff.is_image);
+    assert!(image_diff.text.is_empty());
+    assert!(large_diff.is_too_large);
+    assert!(large_diff.truncated);
+    assert!(large_diff.text.is_empty());
 }
 
 #[test]
