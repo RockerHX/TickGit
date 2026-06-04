@@ -29,9 +29,13 @@
   export let loadingDiff = false;
   export let diffViewMode: "unified" | "split" = "unified";
   export let hideWhitespaceInDiff = false;
+  export let workspaceActionsDisabled = false;
+  export let workspaceActionFileKey: string | null = null;
 
   const dispatch = createEventDispatcher<{
     selectFile: { section: WorkspaceChangeSection; path: string };
+    stageFile: { section: WorkspaceChangeSection; path: string };
+    unstageFile: { section: WorkspaceChangeSection; path: string };
     diffModeChange: { mode: "unified" | "split" };
     hideWhitespaceChange: { value: boolean };
   }>();
@@ -81,6 +85,25 @@
 
   function selectFile(file: WorkspaceFileChange) {
     dispatch("selectFile", { section: file.section, path: file.path });
+  }
+
+  function actionLabel(file: WorkspaceFileChange) {
+    return file.section === "staged" ? "Unstage" : "Stage";
+  }
+
+  function isActionRunning(file: WorkspaceFileChange) {
+    return workspaceActionFileKey === workspaceFileKey(file);
+  }
+
+  function runFileAction(file: WorkspaceFileChange) {
+    const detail = { section: file.section, path: file.path };
+
+    if (file.section === "staged") {
+      dispatch("unstageFile", detail);
+      return;
+    }
+
+    dispatch("stageFile", detail);
   }
 </script>
 
@@ -138,28 +161,41 @@
               <div class="px-4 py-3 text-xs text-slate-500">No files</div>
             {:else}
               {#each group.files as file (workspaceFileKey(file))}
-                <button
-                  class={`w-full border-t border-[#373e47] px-4 py-2.5 text-left transition ${
+                <div
+                  class={`flex items-center gap-2 border-t border-[#373e47] px-4 py-2.5 transition ${
                     isSelected(file)
                       ? "bg-[#347dff]/12"
                       : "bg-transparent hover:bg-[#373e47]/45"
                   }`}
-                  title={file.displayPath}
-                  on:click={() => selectFile(file)}
                 >
-                  <div class="flex items-center gap-3">
-                    <span
-                      class={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold uppercase ${statusTone(file.status)}`}
-                    >
-                      {file.status}
-                    </span>
-                    <span
-                      class="min-w-0 flex-1 truncate text-[13px] leading-5 text-slate-200"
-                    >
-                      {file.displayPath}
-                    </span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    class="min-w-0 flex-1 text-left"
+                    title={file.displayPath}
+                    on:click={() => selectFile(file)}
+                  >
+                    <div class="flex items-center gap-3">
+                      <span
+                        class={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold uppercase ${statusTone(file.status)}`}
+                      >
+                        {file.status}
+                      </span>
+                      <span
+                        class="min-w-0 flex-1 truncate text-[13px] leading-5 text-slate-200"
+                      >
+                        {file.displayPath}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    class="h-7 shrink-0 rounded-md border border-[#444c56] bg-[#373e47] px-2.5 text-[11px] font-semibold text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={workspaceActionsDisabled || isActionRunning(file)}
+                    on:click={() => runFileAction(file)}
+                  >
+                    {isActionRunning(file) ? "..." : actionLabel(file)}
+                  </button>
+                </div>
               {/each}
             {/if}
           </div>

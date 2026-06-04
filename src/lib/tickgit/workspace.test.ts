@@ -117,6 +117,25 @@ describe("workspace data", () => {
     expect(snapshot.selectedFilePath).toBe("staged.txt");
   });
 
+  it("falls back to the staged version after a file action changes section", async () => {
+    const staged = workspaceFile("staged", "same.txt");
+
+    const snapshot = await fetchWorkspaceSnapshot(
+      createApiMock({
+        getWorkspaceStatus: vi
+          .fn()
+          .mockResolvedValue(workspaceStatus([staged])),
+      }),
+      "/repo",
+      true,
+      { section: "unstaged", path: "same.txt" },
+    );
+
+    expect(snapshot.selectedFile).toEqual(staged);
+    expect(snapshot.selectedSection).toBe("staged");
+    expect(snapshot.selectedFilePath).toBe("same.txt");
+  });
+
   it("skips diff loading when there are no workspace files", async () => {
     const getWorkspaceFileDiff = vi.fn();
 

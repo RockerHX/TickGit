@@ -67,6 +67,10 @@ export const api = {
       previousPath: previousPath ?? null,
       ignoreWhitespace,
     }),
+  stageWorkspaceFile: (repoPath: string, filePath: string) =>
+    invoke<void>("stage_workspace_file", { repoPath, filePath }),
+  unstageWorkspaceFile: (repoPath: string, filePath: string) =>
+    invoke<void>("unstage_workspace_file", { repoPath, filePath }),
   pushCurrentBranch: (repoPath: string) =>
     invoke<void>("push_current_branch", { repoPath }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>

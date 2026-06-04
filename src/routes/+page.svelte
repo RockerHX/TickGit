@@ -42,6 +42,7 @@
     canStartStepPush,
     canStartTargetCommitPush,
     canSwitchBranch,
+    canWriteWorkspace,
     isBranchSwitcherDisabled,
     isContextMenuDisabled,
   } from "$lib/tickgit/page-state";
@@ -60,6 +61,7 @@
   import {
     EMPTY_WORKSPACE_STATUS,
     fetchWorkspaceSnapshot,
+    workspaceFileKey,
     type WorkspaceSelection,
   } from "$lib/tickgit/workspace";
   import {
@@ -117,6 +119,7 @@
   let loadingDiff = false;
   let loadingWorkspace = false;
   let loadingWorkspaceDiff = false;
+  let workspaceActionFileKey: string | null = null;
 
   let dragActive = false;
   let isPushing = false;
@@ -175,6 +178,7 @@
     selectedWorkspaceSection = null;
     selectedWorkspaceFilePath = null;
     workspaceDiffResult = EMPTY_DIFF_RESULT;
+    workspaceActionFileKey = null;
   }
 
   function applyWorkspaceSnapshot(
@@ -184,6 +188,18 @@
     selectedWorkspaceSection = snapshot.selectedSection;
     selectedWorkspaceFilePath = snapshot.selectedFilePath;
     workspaceDiffResult = snapshot.diffResult;
+  }
+
+  function canRunWorkspaceAction() {
+    return canWriteWorkspace({
+      currentRepository,
+      loadingRepository,
+      loadingWorkspace,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+      workspaceActionFileKey,
+    });
   }
 
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
@@ -508,6 +524,52 @@
       notify("读取工作区 Diff 失败", getErrorMessage(error), "error");
     } finally {
       loadingWorkspaceDiff = false;
+    }
+  }
+
+  async function stageWorkspaceFile(
+    section: WorkspaceChangeSection,
+    filePath: string,
+  ) {
+    const repository = currentRepository;
+
+    if (!repository || !canRunWorkspaceAction()) {
+      return;
+    }
+
+    workspaceActionFileKey = workspaceFileKey({ section, path: filePath });
+
+    try {
+      await api.stageWorkspaceFile(repository.path, filePath);
+      await loadWorkspaceState(repository.path, true);
+      notify("文件已暂存", filePath, "success");
+    } catch (error) {
+      notify("暂存文件失败", getErrorMessage(error), "error");
+    } finally {
+      workspaceActionFileKey = null;
+    }
+  }
+
+  async function unstageWorkspaceFile(
+    section: WorkspaceChangeSection,
+    filePath: string,
+  ) {
+    const repository = currentRepository;
+
+    if (!repository || !canRunWorkspaceAction()) {
+      return;
+    }
+
+    workspaceActionFileKey = workspaceFileKey({ section, path: filePath });
+
+    try {
+      await api.unstageWorkspaceFile(repository.path, filePath);
+      await loadWorkspaceState(repository.path, true);
+      notify("文件已取消暂存", filePath, "success");
+    } catch (error) {
+      notify("取消暂存失败", getErrorMessage(error), "error");
+    } finally {
+      workspaceActionFileKey = null;
     }
   }
 
@@ -1245,8 +1307,14 @@
         loadingDiff={loadingWorkspaceDiff}
         {diffViewMode}
         {hideWhitespaceInDiff}
+        workspaceActionsDisabled={!canRunWorkspaceAction()}
+        {workspaceActionFileKey}
         on:selectFile={(event) =>
           loadWorkspaceDiff(event.detail.section, event.detail.path)}
+        on:stageFile={(event) =>
+          stageWorkspaceFile(event.detail.section, event.detail.path)}
+        on:unstageFile={(event) =>
+          unstageWorkspaceFile(event.detail.section, event.detail.path)}
         on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
         on:hideWhitespaceChange={(event) =>
           setHideWhitespaceInDiff(event.detail.value)}
