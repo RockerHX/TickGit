@@ -31,11 +31,16 @@
   export let hideWhitespaceInDiff = false;
   export let workspaceActionsDisabled = false;
   export let workspaceActionFileKey: string | null = null;
+  export let commitMessage = "";
+  export let commitDisabled = false;
+  export let committingWorkspace = false;
 
   const dispatch = createEventDispatcher<{
     selectFile: { section: WorkspaceChangeSection; path: string };
     stageFile: { section: WorkspaceChangeSection; path: string };
     unstageFile: { section: WorkspaceChangeSection; path: string };
+    commitMessageChange: { value: string };
+    commit: void;
     diffModeChange: { mode: "unified" | "split" };
     hideWhitespaceChange: { value: boolean };
   }>();
@@ -104,6 +109,10 @@
     }
 
     dispatch("stageFile", detail);
+  }
+
+  function setCommitMessage(value: string) {
+    dispatch("commitMessageChange", { value });
   }
 </script>
 
@@ -201,6 +210,39 @@
           </div>
         {/each}
       {/if}
+    </div>
+
+    <div class="border-t border-[#1f2328] bg-[#24292f] p-4">
+      <label
+        class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+        for="workspace-commit-message"
+      >
+        Commit message
+      </label>
+      <textarea
+        id="workspace-commit-message"
+        class="mt-2 min-h-20 w-full resize-none rounded-md border border-[#444c56] bg-[#2d333b] px-3 py-2 text-sm leading-5 text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70 disabled:cursor-not-allowed disabled:opacity-60"
+        placeholder="Summary of staged changes"
+        value={commitMessage}
+        disabled={committingWorkspace}
+        on:input={(event) => setCommitMessage(event.currentTarget.value)}
+      ></textarea>
+      <button
+        type="button"
+        class="mt-3 h-9 w-full rounded-md bg-[#238636] px-3 text-sm font-semibold text-white transition hover:bg-[#2ea043] disabled:cursor-not-allowed disabled:bg-[#2d333b] disabled:text-slate-500"
+        disabled={commitDisabled}
+        on:click={() => dispatch("commit")}
+      >
+        {committingWorkspace
+          ? "Committing…"
+          : `Commit ${status.staged.length} staged file${
+              status.staged.length === 1 ? "" : "s"
+            }`}
+      </button>
+      <div class="mt-2 text-xs leading-5 text-slate-500">
+        Only staged files will be committed. Unstaged files remain in the
+        workspace.
+      </div>
     </div>
   </div>
 

@@ -5,6 +5,7 @@ import type {
   CommitFileChange,
   CommitFileDiffResult,
   CommitHistoryPage,
+  CommitCreated,
   PushToCommitJobStarted,
   PushToCommitRequest,
   RepositorySummary,
@@ -71,6 +72,8 @@ export const api = {
     invoke<void>("stage_workspace_file", { repoPath, filePath }),
   unstageWorkspaceFile: (repoPath: string, filePath: string) =>
     invoke<void>("unstage_workspace_file", { repoPath, filePath }),
+  createCommit: (repoPath: string, message: string) =>
+    invoke<CommitCreated>("create_commit", { repoPath, message }),
   pushCurrentBranch: (repoPath: string) =>
     invoke<void>("push_current_branch", { repoPath }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>

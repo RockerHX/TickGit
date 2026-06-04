@@ -9,6 +9,7 @@ import {
   canLoadDiff,
   canLoadHistory,
   canPushCurrentBranch,
+  canCreateWorkspaceCommit,
   canRefreshBlockedBranchStatus,
   canRefreshCurrentRepositoryOnFocus,
   canStartStepPush,
@@ -218,6 +219,7 @@ describe("page state", () => {
       isPushing: false,
       stepPushState: null,
       workspaceActionFileKey: null,
+      committingWorkspace: false,
     };
 
     expect(canWriteWorkspace(base)).toBe(true);
@@ -232,11 +234,39 @@ describe("page state", () => {
         workspaceActionFileKey: "unstaged:file.txt",
       }),
     ).toBe(false);
+    expect(canWriteWorkspace({ ...base, committingWorkspace: true })).toBe(
+      false,
+    );
     expect(
       canWriteWorkspace({
         ...base,
         stepPushState: stepPushState("running"),
       }),
     ).toBe(false);
+  });
+
+  it("allows workspace commit only with staged files and a non-empty message", () => {
+    const base = {
+      currentRepository: repository(),
+      loadingRepository: false,
+      loadingWorkspace: false,
+      switchingBranch: false,
+      isPushing: false,
+      stepPushState: null,
+      workspaceActionFileKey: null,
+      committingWorkspace: false,
+      commitMessage: "Add feature",
+      stagedCount: 1,
+    };
+
+    expect(canCreateWorkspaceCommit(base)).toBe(true);
+    expect(canCreateWorkspaceCommit({ ...base, commitMessage: "   " })).toBe(
+      false,
+    );
+    expect(canCreateWorkspaceCommit({ ...base, stagedCount: 0 })).toBe(false);
+    expect(
+      canCreateWorkspaceCommit({ ...base, committingWorkspace: true }),
+    ).toBe(false);
+    expect(canCreateWorkspaceCommit({ ...base, isPushing: true })).toBe(false);
   });
 });

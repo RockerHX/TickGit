@@ -8,6 +8,8 @@ import type {
 import {
   EMPTY_WORKSPACE_STATUS,
   fetchWorkspaceSnapshot,
+  getWorkspaceCommitFailureEffect,
+  getWorkspaceCommitSuccessEffect,
   pickWorkspaceFile,
   type WorkspaceApi,
 } from "$lib/tickgit/workspace";
@@ -189,5 +191,21 @@ describe("workspace data", () => {
       true,
       "old.txt",
     );
+  });
+
+  it("describes workspace commit success effects", () => {
+    expect(getWorkspaceCommitSuccessEffect()).toEqual({
+      nextCommitMessage: "",
+      refreshWorkspace: true,
+      refreshRepository: true,
+    });
+  });
+
+  it("keeps the commit message after workspace commit failure", () => {
+    expect(getWorkspaceCommitFailureEffect("WIP")).toEqual({
+      nextCommitMessage: "WIP",
+      refreshWorkspace: false,
+      refreshRepository: false,
+    });
   });
 });

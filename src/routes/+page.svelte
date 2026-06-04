@@ -37,6 +37,7 @@
     canLoadDiff,
     canLoadHistory,
     canPushCurrentBranch,
+    canCreateWorkspaceCommit,
     canRefreshBlockedBranchStatus,
     canRefreshCurrentRepositoryOnFocus,
     canStartStepPush,
@@ -61,6 +62,8 @@
   import {
     EMPTY_WORKSPACE_STATUS,
     fetchWorkspaceSnapshot,
+    getWorkspaceCommitFailureEffect,
+    getWorkspaceCommitSuccessEffect,
     workspaceFileKey,
     type WorkspaceSelection,
   } from "$lib/tickgit/workspace";
@@ -120,6 +123,8 @@
   let loadingWorkspace = false;
   let loadingWorkspaceDiff = false;
   let workspaceActionFileKey: string | null = null;
+  let workspaceCommitMessage = "";
+  let committingWorkspace = false;
 
   let dragActive = false;
   let isPushing = false;
@@ -179,6 +184,8 @@
     selectedWorkspaceFilePath = null;
     workspaceDiffResult = EMPTY_DIFF_RESULT;
     workspaceActionFileKey = null;
+    workspaceCommitMessage = "";
+    committingWorkspace = false;
   }
 
   function applyWorkspaceSnapshot(
@@ -199,6 +206,22 @@
       isPushing,
       stepPushState,
       workspaceActionFileKey,
+      committingWorkspace,
+    });
+  }
+
+  function canCommitWorkspaceChanges() {
+    return canCreateWorkspaceCommit({
+      currentRepository,
+      loadingRepository,
+      loadingWorkspace,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+      workspaceActionFileKey,
+      committingWorkspace,
+      commitMessage: workspaceCommitMessage,
+      stagedCount: workspaceStatus.staged.length,
     });
   }
 
@@ -570,6 +593,41 @@
       notify("取消暂存失败", getErrorMessage(error), "error");
     } finally {
       workspaceActionFileKey = null;
+    }
+  }
+
+  async function commitWorkspaceChanges() {
+    const repository = currentRepository;
+
+    if (!repository || !canCommitWorkspaceChanges()) {
+      return;
+    }
+
+    committingWorkspace = true;
+
+    try {
+      const created = await api.createCommit(
+        repository.path,
+        workspaceCommitMessage,
+      );
+      const effect = getWorkspaceCommitSuccessEffect();
+      workspaceCommitMessage = effect.nextCommitMessage;
+
+      if (effect.refreshWorkspace) {
+        await loadWorkspaceState(repository.path);
+      }
+
+      if (effect.refreshRepository) {
+        await loadRepositoryState(repository.path);
+      }
+
+      notify("提交成功", `${created.shortHash} ${created.summary}`, "success");
+    } catch (error) {
+      const effect = getWorkspaceCommitFailureEffect(workspaceCommitMessage);
+      workspaceCommitMessage = effect.nextCommitMessage;
+      notify("提交失败", getErrorMessage(error), "error");
+    } finally {
+      committingWorkspace = false;
     }
   }
 
@@ -1309,12 +1367,18 @@
         {hideWhitespaceInDiff}
         workspaceActionsDisabled={!canRunWorkspaceAction()}
         {workspaceActionFileKey}
+        commitMessage={workspaceCommitMessage}
+        commitDisabled={!canCommitWorkspaceChanges()}
+        {committingWorkspace}
         on:selectFile={(event) =>
           loadWorkspaceDiff(event.detail.section, event.detail.path)}
         on:stageFile={(event) =>
           stageWorkspaceFile(event.detail.section, event.detail.path)}
         on:unstageFile={(event) =>
           unstageWorkspaceFile(event.detail.section, event.detail.path)}
+        on:commitMessageChange={(event) =>
+          (workspaceCommitMessage = event.detail.value)}
+        on:commit={commitWorkspaceChanges}
         on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
         on:hideWhitespaceChange={(event) =>
           setHideWhitespaceInDiff(event.detail.value)}

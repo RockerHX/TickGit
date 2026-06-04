@@ -35,6 +35,12 @@ export type WorkspaceSnapshot = {
   diffResult: CommitFileDiffResult;
 };
 
+export type WorkspaceCommitEffect = {
+  nextCommitMessage: string;
+  refreshWorkspace: boolean;
+  refreshRepository: boolean;
+};
+
 export function workspaceFileKey(
   selection: WorkspaceSelection | WorkspaceFileChange,
 ) {
@@ -111,5 +117,23 @@ export async function fetchWorkspaceSnapshot(
     selectedSection: selectedFile.section,
     selectedFilePath: selectedFile.path,
     diffResult,
+  };
+}
+
+export function getWorkspaceCommitSuccessEffect(): WorkspaceCommitEffect {
+  return {
+    nextCommitMessage: "",
+    refreshWorkspace: true,
+    refreshRepository: true,
+  };
+}
+
+export function getWorkspaceCommitFailureEffect(
+  commitMessage: string,
+): WorkspaceCommitEffect {
+  return {
+    nextCommitMessage: commitMessage,
+    refreshWorkspace: false,
+    refreshRepository: false,
   };
 }

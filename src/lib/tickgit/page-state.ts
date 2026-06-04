@@ -31,7 +31,13 @@ export type WorkspaceWriteState = RepositoryLoadState &
   PageBusyState & {
     loadingWorkspace: boolean;
     workspaceActionFileKey: string | null;
+    committingWorkspace: boolean;
   };
+
+export type WorkspaceCommitState = WorkspaceWriteState & {
+  commitMessage: string;
+  stagedCount: number;
+};
 
 export function isStepPushRunning(stepPushState: StepPushStatus) {
   return stepPushState?.status === "running";
@@ -130,7 +136,16 @@ export function canWriteWorkspace(state: WorkspaceWriteState) {
     !state.switchingBranch &&
     !state.isPushing &&
     !state.workspaceActionFileKey &&
+    !state.committingWorkspace &&
     !isStepPushRunning(state.stepPushState)
+  );
+}
+
+export function canCreateWorkspaceCommit(state: WorkspaceCommitState) {
+  return (
+    canWriteWorkspace(state) &&
+    state.stagedCount > 0 &&
+    state.commitMessage.trim().length > 0
   );
 }
 
