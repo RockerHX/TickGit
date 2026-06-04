@@ -8,8 +8,8 @@ use crate::{
 use super::{
     command::{git_output_bytes, git_text, git_trimmed},
     parse::{parse_commit_files, parse_commit_history, parse_shortstat, parse_unpushed_hashes},
+    push::safe_unpushed_hashes,
     repository::{branch_status_for_path, resolve_repository_path},
-    safe_unpushed_hashes,
 };
 
 pub(super) fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {

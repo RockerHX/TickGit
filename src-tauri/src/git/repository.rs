@@ -8,7 +8,8 @@ use crate::{
 use super::{
     command::{git_run, git_trimmed},
     parse::{parse_ahead_behind, parse_count},
-    safe_unpushed_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, REMOTE_NAME,
+    push::safe_unpushed_hashes,
+    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, REMOTE_NAME,
 };
 
 pub(super) fn current_branch_name(repo_path: &Path) -> AppResult<(String, bool)> {
