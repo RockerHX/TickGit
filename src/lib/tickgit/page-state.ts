@@ -31,7 +31,10 @@ export function isStepPushRunning(stepPushState: StepPushStatus) {
   return stepPushState?.status === "running";
 }
 
-export function canSwitchBranch(state: BranchActionState, targetBranch: string) {
+export function canSwitchBranch(
+  state: BranchActionState,
+  targetBranch: string,
+) {
   return (
     Boolean(state.currentRepository) &&
     !state.loadingRepository &&
@@ -53,7 +56,6 @@ export function canRefreshBlockedBranchStatus(
     !isStepPushRunning(state.stepPushState)
   );
 }
-
 
 export function canRefreshCurrentRepositoryOnFocus(
   state: RepositoryLoadState & { loadingHistory: boolean },
@@ -114,12 +116,16 @@ export function canStartStepPush(state: CommitActionState) {
   );
 }
 
-export function isBranchSwitcherDisabled(state: RepositoryLoadState & PageBusyState) {
+export function isBranchSwitcherDisabled(
+  state: RepositoryLoadState & PageBusyState,
+) {
   return !canRefreshBlockedBranchStatus(state);
 }
 
 export function isContextMenuDisabled(state: PageBusyState) {
   return (
-    state.switchingBranch || state.isPushing || isStepPushRunning(state.stepPushState)
+    state.switchingBranch ||
+    state.isPushing ||
+    isStepPushRunning(state.stepPushState)
   );
 }

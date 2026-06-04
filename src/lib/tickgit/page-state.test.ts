@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { BranchStatus, RepositorySummary, StepPushUiState } from "$lib/types";
+import type {
+  BranchStatus,
+  RepositorySummary,
+  StepPushUiState,
+} from "$lib/types";
 import {
   canLoadCommitFiles,
   canLoadDiff,
@@ -59,8 +63,15 @@ describe("page state", () => {
 
     expect(canSwitchBranch(base, "feature")).toBe(true);
     expect(canSwitchBranch(base, "main")).toBe(false);
-    expect(canSwitchBranch({ ...base, currentRepository: null }, "feature")).toBe(false);
-    expect(canSwitchBranch({ ...base, stepPushState: stepPushState("running") }, "feature")).toBe(false);
+    expect(
+      canSwitchBranch({ ...base, currentRepository: null }, "feature"),
+    ).toBe(false);
+    expect(
+      canSwitchBranch(
+        { ...base, stepPushState: stepPushState("running") },
+        "feature",
+      ),
+    ).toBe(false);
   });
 
   it("allows blocked branch refresh only when repository controls are idle", () => {
@@ -73,9 +84,18 @@ describe("page state", () => {
     };
 
     expect(canRefreshBlockedBranchStatus(base)).toBe(true);
-    expect(canRefreshBlockedBranchStatus({ ...base, loadingRepository: true })).toBe(false);
-    expect(canRefreshBlockedBranchStatus({ ...base, isPushing: true })).toBe(false);
-    expect(canRefreshBlockedBranchStatus({ ...base, stepPushState: stepPushState("running") })).toBe(false);
+    expect(
+      canRefreshBlockedBranchStatus({ ...base, loadingRepository: true }),
+    ).toBe(false);
+    expect(canRefreshBlockedBranchStatus({ ...base, isPushing: true })).toBe(
+      false,
+    );
+    expect(
+      canRefreshBlockedBranchStatus({
+        ...base,
+        stepPushState: stepPushState("running"),
+      }),
+    ).toBe(false);
   });
 
   it("allows current branch push only for available ahead branches", () => {
@@ -87,11 +107,22 @@ describe("page state", () => {
     };
 
     expect(canPushCurrentBranch(base)).toBe(true);
-    expect(canPushCurrentBranch({ ...base, branchStatus: branchStatus({ aheadCount: 0 }) })).toBe(false);
-    expect(canPushCurrentBranch({ ...base, branchStatus: branchStatus({ pushAvailable: false }) })).toBe(false);
-    expect(canPushCurrentBranch({ ...base, switchingBranch: true })).toBe(false);
+    expect(
+      canPushCurrentBranch({
+        ...base,
+        branchStatus: branchStatus({ aheadCount: 0 }),
+      }),
+    ).toBe(false);
+    expect(
+      canPushCurrentBranch({
+        ...base,
+        branchStatus: branchStatus({ pushAvailable: false }),
+      }),
+    ).toBe(false);
+    expect(canPushCurrentBranch({ ...base, switchingBranch: true })).toBe(
+      false,
+    );
   });
-
 
   it("guards repository refresh and commit loading", () => {
     const repo = repository();
@@ -110,11 +141,17 @@ describe("page state", () => {
         loadingHistory: false,
       }),
     ).toBe(false);
-    expect(canLoadHistory({ currentRepository: repo, loadingHistory: false })).toBe(true);
-    expect(canLoadHistory({ currentRepository: repo, loadingHistory: true })).toBe(false);
+    expect(
+      canLoadHistory({ currentRepository: repo, loadingHistory: false }),
+    ).toBe(true);
+    expect(
+      canLoadHistory({ currentRepository: repo, loadingHistory: true }),
+    ).toBe(false);
     expect(canLoadCommitFiles({ currentRepository: repo })).toBe(true);
     expect(canLoadCommitFiles({ currentRepository: null })).toBe(false);
-    expect(canLoadDiff({ currentRepository: repo, selectedCommit: null })).toBe(false);
+    expect(canLoadDiff({ currentRepository: repo, selectedCommit: null })).toBe(
+      false,
+    );
   });
 
   it("guards commit push and step push actions", () => {
@@ -143,7 +180,9 @@ describe("page state", () => {
     expect(canStartTargetCommitPush(base)).toBe(true);
     expect(canStartTargetCommitPush({ ...base, isPushing: true })).toBe(false);
     expect(canStartStepPush(base)).toBe(true);
-    expect(canStartStepPush({ ...base, stepPushState: stepPushState("running") })).toBe(false);
+    expect(
+      canStartStepPush({ ...base, stepPushState: stepPushState("running") }),
+    ).toBe(false);
   });
 
   it("derives branch switcher and context menu disabled states", () => {
@@ -156,9 +195,16 @@ describe("page state", () => {
     };
 
     expect(isBranchSwitcherDisabled(base)).toBe(false);
-    expect(isBranchSwitcherDisabled({ ...base, currentRepository: null })).toBe(true);
+    expect(isBranchSwitcherDisabled({ ...base, currentRepository: null })).toBe(
+      true,
+    );
     expect(isContextMenuDisabled(base)).toBe(false);
     expect(isContextMenuDisabled({ ...base, isPushing: true })).toBe(true);
-    expect(isContextMenuDisabled({ ...base, stepPushState: stepPushState("running") })).toBe(true);
+    expect(
+      isContextMenuDisabled({
+        ...base,
+        stepPushState: stepPushState("running"),
+      }),
+    ).toBe(true);
   });
 });

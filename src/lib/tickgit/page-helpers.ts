@@ -1,8 +1,4 @@
-import type {
-  AppError,
-  CommitListItem,
-  ToastItem,
-} from "$lib/types";
+import type { AppError, CommitListItem, ToastItem } from "$lib/types";
 
 export function getErrorMessage(error: unknown) {
   if (typeof error === "string") {

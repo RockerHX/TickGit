@@ -119,7 +119,6 @@
 
   let saveWindowSizeTimer: number | null = null;
 
-
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
     branchStatus = snapshot.branchStatus;
@@ -295,7 +294,10 @@
   async function loadHistory(append: boolean) {
     const repository = currentRepository;
 
-    if (!repository || !canLoadHistory({ currentRepository: repository, loadingHistory })) {
+    if (
+      !repository ||
+      !canLoadHistory({ currentRepository: repository, loadingHistory })
+    ) {
       return;
     }
 
@@ -757,7 +759,11 @@
   x={contextMenu.x}
   y={contextMenu.y}
   commit={contextMenu.commit}
-  disabled={isContextMenuDisabled({ switchingBranch, isPushing, stepPushState })}
+  disabled={isContextMenuDisabled({
+    switchingBranch,
+    isPushing,
+    stepPushState,
+  })}
   pushToCommitDisabled={!contextMenu.commit?.isSafePushTarget}
   stepPushDisabled={!contextMenu.commit?.isSafePushTarget}
   pushToCommitReason={contextMenu.commit?.isSafePushTarget

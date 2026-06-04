@@ -96,7 +96,7 @@ export function toFailedPushToCommitState(
 
 export function toRunningStepPushState(
   payload:
-    | Pick<StepPushJobStarted, "jobId" | "total"> & { hash: string }
+    | (Pick<StepPushJobStarted, "jobId" | "total"> & { hash: string })
     | Pick<StepPushProgress, "jobId" | "current" | "total" | "hash">,
 ): StepPushUiState {
   return {

@@ -22,7 +22,6 @@ function commit(hash: string, isPushed = false): CommitListItem {
   };
 }
 
-
 describe("page helpers", () => {
   it("extracts error messages from strings, app errors, and objects", () => {
     expect(getErrorMessage("plain error")).toBe("plain error");
@@ -95,6 +94,4 @@ describe("page helpers", () => {
     expect(pickSelectedCommit(commits, "c2", true)?.hash).toBe("c2");
     expect(pickSelectedCommit(commits, "missing", true)?.hash).toBe("c3");
   });
-
-
 });
