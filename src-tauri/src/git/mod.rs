@@ -1,21 +1,22 @@
-use std::{
-    collections::HashSet,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{collections::HashSet, path::Path, process::Command};
 
 mod command;
 mod parse;
+mod repository;
 
 use command::{git_output_bytes, git_run, git_text, git_trimmed};
-use parse::{
-    parse_ahead_behind, parse_commit_files, parse_commit_history, parse_count, parse_shortstat,
-    parse_unpushed_hashes,
+use parse::{parse_commit_files, parse_commit_history, parse_shortstat, parse_unpushed_hashes};
+use repository::{
+    branch_status_for_path, current_branch_matching, current_branch_name, sync_origin_tracking,
+};
+pub use repository::{
+    checkout_branch, get_branch_status, list_local_branches, refresh_remote_tracking,
+    resolve_repository_path, validate_current_branch,
 };
 
 use crate::{
     error::{AppError, AppResult},
-    models::{BranchStatus, CommitFileChange, CommitHistoryPage, CommitMeta},
+    models::{CommitFileChange, CommitHistoryPage, CommitMeta},
 };
 
 const REMOTE_NAME: &str = "origin";
@@ -27,78 +28,6 @@ const UNSAFE_PUSH_TARGET_MESSAGE: &str =
 const BRANCH_BEHIND_REMOTE_MESSAGE: &str =
     "远端已有更新，TickGit 暂不能安全推送。请先使用 GitHub Desktop 或 SourceTree 同步远端后，再回到 TickGit 刷新重试。";
 const BRANCH_MISMATCH_MESSAGE: &str = "目标分支与当前检出分支不一致，已拒绝推送";
-
-fn current_branch_name(repo_path: &Path) -> AppResult<(String, bool)> {
-    let branch = git_trimmed(repo_path, &["branch", "--show-current"])?;
-
-    if branch.is_empty() {
-        Ok(("HEAD".to_string(), true))
-    } else {
-        Ok((branch, false))
-    }
-}
-
-fn current_branch_matching(repo_path: &Path, branch: &str) -> AppResult<String> {
-    let requested_branch = branch.trim();
-
-    if requested_branch.is_empty() {
-        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
-    }
-
-    let (current_branch, detached) = current_branch_name(repo_path)?;
-
-    if detached {
-        return Err(AppError::new(
-            "detached_head",
-            "当前仓库处于 detached HEAD 状态，无法推送当前分支",
-        ));
-    }
-
-    if requested_branch != current_branch {
-        return Err(AppError::new("branch_mismatch", BRANCH_MISMATCH_MESSAGE));
-    }
-
-    Ok(current_branch)
-}
-
-fn remote_origin_exists(repo_path: &Path) -> bool {
-    git_trimmed(repo_path, &["remote", "get-url", REMOTE_NAME]).is_ok()
-}
-
-fn upstream_name(repo_path: &Path) -> Option<String> {
-    git_trimmed(
-        repo_path,
-        &[
-            "rev-parse",
-            "--abbrev-ref",
-            "--symbolic-full-name",
-            "@{upstream}",
-        ],
-    )
-    .ok()
-    .filter(|value| !value.is_empty())
-}
-
-fn upstream_is_origin(upstream: &str) -> bool {
-    upstream.starts_with("origin/")
-}
-
-fn sync_origin_tracking(repo_path: &Path) -> AppResult<()> {
-    let (_, detached) = current_branch_name(repo_path)?;
-    if detached || !remote_origin_exists(repo_path) {
-        return Ok(());
-    }
-
-    let Some(upstream) = upstream_name(repo_path) else {
-        return Ok(());
-    };
-
-    if !upstream_is_origin(&upstream) {
-        return Ok(());
-    }
-
-    git_run(repo_path, &["fetch", "--prune", REMOTE_NAME])
-}
 
 fn is_ancestor(repo_path: &Path, ancestor: &str, descendant: &str) -> AppResult<bool> {
     let output = Command::new("git")
@@ -161,20 +90,8 @@ fn is_remote_outdated_push_error(message: &str) -> bool {
         || normalized.contains("remote contains work that you do not")
 }
 
-fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
-    let range = format!("{upstream}...HEAD");
-    let counts = git_trimmed(repo_path, &["rev-list", "--left-right", "--count", &range])?;
-    Ok(parse_ahead_behind(&counts))
-}
-
 // UI 的 ahead / 历史列表采用完整 upstream..HEAD 口径，尽量贴近 GitHub Desktop；
 // 分步推送和 push to commit 仍只允许 first-parent 安全路径，避免 merge 侧支被当成线性推送目标。
-fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
-    let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", "--count", &range])?;
-    Ok(parse_count(&output))
-}
-
 fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", &range])?;
@@ -296,138 +213,14 @@ fn ensure_safe_step_push_hashes(repo_path: &Path, hashes: &[String]) -> AppResul
     }
 }
 
-fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
-    let (branch, detached) = current_branch_name(repo_path)?;
-    let has_origin = remote_origin_exists(repo_path);
-    let upstream = if detached || !has_origin {
-        None
-    } else {
-        upstream_name(repo_path)
-    };
-
-    let (ahead_count, behind_count) = match upstream.as_deref() {
-        Some(upstream) => {
-            let (_, behind_count) = ahead_behind(repo_path, upstream)?;
-            let ahead_count = total_ahead_count(repo_path, upstream)?;
-            (ahead_count, behind_count)
-        }
-        None => (0, 0),
-    };
-    let safe_ahead_count = match upstream.as_deref() {
-        Some(upstream) => safe_unpushed_hashes(repo_path, upstream)?.len(),
-        None => 0,
-    };
-
-    let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
-    let push_available = !detached && has_origin && upstream_uses_origin && behind_count == 0;
-    let safe_ahead_count = if behind_count > 0 {
-        0
-    } else {
-        safe_ahead_count
-    };
-    let disabled_reason = if detached {
-        Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
-    } else if !has_origin {
-        Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string())
-    } else if upstream.is_none() {
-        Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string())
-    } else if !upstream_uses_origin {
-        Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string())
-    } else if behind_count > 0 {
-        Some(BRANCH_BEHIND_REMOTE_MESSAGE.to_string())
-    } else {
-        None
-    };
-
-    Ok(BranchStatus {
-        branch,
-        upstream,
-        ahead_count,
-        safe_ahead_count,
-        behind_count,
-        detached,
-        push_available,
-        disabled_reason,
-    })
-}
-
-fn map_repository_check_error(error: AppError) -> AppError {
-    if error.code == "git_command_failed" {
-        AppError::new("invalid_repository", "当前目录不是 Git 仓库")
-    } else {
-        error
-    }
-}
-
-pub fn resolve_repository_path(repo_path: &str) -> AppResult<PathBuf> {
-    let path = Path::new(repo_path);
-
-    if !path.exists() {
-        return Err(AppError::new("invalid_repository", "仓库路径不存在"));
-    }
-
-    if !path.is_dir() {
-        return Err(AppError::new("invalid_repository", "当前路径不是文件夹"));
-    }
-
-    let canonical_path = path
-        .canonicalize()
-        .map_err(|error| AppError::new("invalid_repository", error.to_string()))?;
-
-    // 不依赖 `.git` 目录是否直接存在，统一交给 git 自己判断当前路径是否落在有效 work tree 内。
-    let inside_work_tree = git_trimmed(&canonical_path, &["rev-parse", "--is-inside-work-tree"])
-        .map_err(map_repository_check_error)?;
-
-    if inside_work_tree != "true" {
-        return Err(AppError::new("invalid_repository", "当前目录不是 Git 仓库"));
-    }
-
-    Ok(canonical_path)
-}
-
-pub fn validate_current_branch(repo_path: &str, branch: &str) -> AppResult<String> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    current_branch_matching(&repo_path, branch)
-}
-
 pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     ensure_safe_push_target(&repo_path, hash)
 }
 
-pub fn refresh_remote_tracking(repo_path: &str) -> AppResult<()> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    sync_origin_tracking(&repo_path)
-}
-
 pub fn validate_step_push_hashes(repo_path: &str, hashes: &[String]) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     ensure_safe_step_push_hashes(&repo_path, hashes)
-}
-
-pub fn get_branch_status(repo_path: &str) -> AppResult<BranchStatus> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    branch_status_for_path(&repo_path)
-}
-
-pub fn list_local_branches(repo_path: &str) -> AppResult<Vec<String>> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let output = git_trimmed(
-        &repo_path,
-        &[
-            "for-each-ref",
-            "--sort=refname",
-            "--format=%(refname:short)",
-            "refs/heads",
-        ],
-    )?;
-
-    Ok(output
-        .lines()
-        .map(str::trim)
-        .filter(|branch| !branch.is_empty())
-        .map(ToOwned::to_owned)
-        .collect())
 }
 
 pub fn get_commit_history(
@@ -593,17 +386,6 @@ pub fn push_current_branch_checked(repo_path: &str, branch: &str) -> AppResult<(
 
     let refspec = format!("HEAD:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
-}
-
-pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let branch = branch.trim();
-
-    if branch.is_empty() {
-        return Err(AppError::new("invalid_branch", "目标分支不能为空"));
-    }
-
-    git_run(&repo_path, &["checkout", branch])
 }
 
 pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
