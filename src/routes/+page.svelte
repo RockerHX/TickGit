@@ -243,6 +243,14 @@
     await loadRepositoryState(currentRepository.path, true);
   }
 
+  async function refreshBlockedBranchStatus() {
+    if (!currentRepository || loadingRepository) {
+      return;
+    }
+
+    await loadRepositoryState(currentRepository.path, true);
+  }
+
   async function loadHistory(append: boolean) {
     if (!currentRepository || loadingHistory) {
       return;
@@ -829,11 +837,79 @@
     </div>
 
     {#if branchStatus && !branchStatus.pushAvailable}
-      <div
-        class="border-t border-[#1f2328] bg-[#48322a] px-4 py-2 text-sm text-amber-100"
-      >
-        {branchStatus.disabledReason}
-      </div>
+      {#if branchStatus.behindCount > 0}
+        <div
+          class="border-t border-[#1f2328] bg-[#3b2a1f] px-4 py-3 text-sm text-amber-50"
+        >
+          <div
+            class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"
+          >
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 font-semibold">
+                <span
+                  class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/15 text-amber-200"
+                  aria-hidden="true"
+                >
+                  !
+                </span>
+                <span>远端已有更新，暂不能推送</span>
+              </div>
+              <p class="mt-1 max-w-3xl text-xs leading-5 text-amber-100/85">
+                {branchStatus.disabledReason}
+                TickGit 只会刷新远端跟踪状态，不会自动拉取、合并或变基代码。
+              </p>
+            </div>
+            <button
+              class="h-8 shrink-0 rounded-sm border border-amber-300/35 bg-amber-300/10 px-3 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/18 disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={!currentRepository ||
+                loadingRepository ||
+                switchingBranch ||
+                isPushing ||
+                stepPushState?.status === "running"}
+              on:click={refreshBlockedBranchStatus}
+            >
+              {loadingRepository ? "刷新中…" : "刷新状态"}
+            </button>
+          </div>
+
+          <div class="mt-3 grid gap-2 md:grid-cols-2">
+            <div
+              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+            >
+              <div class="text-xs font-semibold text-amber-100">
+                GitHub Desktop
+              </div>
+              <ol
+                class="mt-2 list-decimal space-y-1 pl-4 text-xs text-amber-50/80"
+              >
+                <li>打开这个仓库</li>
+                <li>点击顶部 Fetch origin</li>
+                <li>如果出现 Pull origin，继续点击 Pull origin</li>
+                <li>如有冲突，按工具提示处理后回 TickGit 刷新</li>
+              </ol>
+            </div>
+            <div
+              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+            >
+              <div class="text-xs font-semibold text-amber-100">SourceTree</div>
+              <ol
+                class="mt-2 list-decimal space-y-1 pl-4 text-xs text-amber-50/80"
+              >
+                <li>打开这个仓库</li>
+                <li>点击工具栏 Fetch</li>
+                <li>点击 Pull 拉取远端更新</li>
+                <li>如有冲突，按工具提示处理后回 TickGit 刷新</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      {:else}
+        <div
+          class="border-t border-[#1f2328] bg-[#48322a] px-4 py-2 text-sm text-amber-100"
+        >
+          {branchStatus.disabledReason}
+        </div>
+      {/if}
     {/if}
   </header>
 

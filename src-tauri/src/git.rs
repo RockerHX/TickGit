@@ -16,7 +16,7 @@ const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const UNSAFE_PUSH_TARGET_MESSAGE: &str =
     "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标";
 const BRANCH_BEHIND_REMOTE_MESSAGE: &str =
-    "当前分支落后于远端最新状态，无法直接推送，请先同步远端后再重试";
+    "远端已有更新，TickGit 暂不能安全推送。请先使用 GitHub Desktop 或 SourceTree 同步远端后，再回到 TickGit 刷新重试。";
 
 #[derive(Clone, Copy)]
 enum OutputMode {
@@ -150,6 +150,7 @@ fn parse_commit_history(
     output: &str,
     unpushed: &HashSet<String>,
     safe_push_targets: &HashSet<String>,
+    unsafe_push_reason: Option<&str>,
 ) -> Vec<CommitListItem> {
     output
         // git log 使用 record separator / unit separator，避免正文里的普通换行或空格干扰解析。
@@ -178,8 +179,11 @@ fn parse_commit_history(
                     .collect(),
                 is_pushed,
                 is_safe_push_target,
-                push_blocked_reason: (!is_pushed && !is_safe_push_target)
-                    .then_some(UNSAFE_PUSH_TARGET_MESSAGE.to_string()),
+                push_blocked_reason: (!is_pushed && !is_safe_push_target).then(|| {
+                    unsafe_push_reason
+                        .unwrap_or(UNSAFE_PUSH_TARGET_MESSAGE)
+                        .to_string()
+                }),
                 hash,
             })
         })
@@ -524,6 +528,11 @@ fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus> {
 
     let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
     let push_available = !detached && has_origin && upstream_uses_origin && behind_count == 0;
+    let safe_ahead_count = if behind_count > 0 {
+        0
+    } else {
+        safe_ahead_count
+    };
     let disabled_reason = if detached {
         Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
     } else if !has_origin {
@@ -636,12 +645,23 @@ pub fn get_commit_history(
 ) -> AppResult<CommitHistoryPage> {
     let repo_path = resolve_repository_path(repo_path)?;
     let branch_status = branch_status_for_path(&repo_path)?;
-    let (unpushed, safe_push_targets) = match branch_status.upstream.as_deref() {
-        Some(upstream) => (
-            unpushed_hashes(&repo_path, upstream)?,
-            safe_unpushed_hashes(&repo_path, upstream)?,
-        ),
-        _ => (HashSet::new(), HashSet::new()),
+    let (unpushed, safe_push_targets, unsafe_push_reason) = match branch_status.upstream.as_deref()
+    {
+        Some(upstream) => {
+            let unpushed = unpushed_hashes(&repo_path, upstream)?;
+            let safe_push_targets = if branch_status.behind_count > 0 {
+                HashSet::new()
+            } else {
+                safe_unpushed_hashes(&repo_path, upstream)?
+            };
+            let unsafe_push_reason = if branch_status.behind_count > 0 {
+                branch_status.disabled_reason.as_deref()
+            } else {
+                None
+            };
+            (unpushed, safe_push_targets, unsafe_push_reason)
+        }
+        _ => (HashSet::new(), HashSet::new(), None),
     };
 
     let output = git_trimmed(
@@ -660,7 +680,7 @@ pub fn get_commit_history(
         ],
     )?;
 
-    let items = parse_commit_history(&output, &unpushed, &safe_push_targets);
+    let items = parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
     let item_count = items.len();
 
     Ok(CommitHistoryPage {
@@ -946,7 +966,7 @@ mod tests {
             "hash-2\x1fshort-2\x1fAdd file\x1fBob\x1fbob@example.com\x1f2026-04-25T11:00:00Z\x1fHEAD -> main, tag: v1.1.0, origin/main, tag: latest\x1fhash-1\x1e",
         );
 
-        let items = parse_commit_history(output, &unpushed, &safe_push_targets);
+        let items = parse_commit_history(output, &unpushed, &safe_push_targets, None);
 
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].hash, "hash-1");
@@ -1366,16 +1386,24 @@ mod tests {
         refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
 
         let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+        let status = branch_status_for_path(&repo.path).unwrap();
         let local_item = history
             .items
             .iter()
             .find(|item| item.hash == local_hash)
             .expect("local commit in history");
 
+        assert_eq!(status.behind_count, 1);
+        assert!(!status.push_available);
+        assert_eq!(status.safe_ahead_count, 0);
         assert!(!local_item.is_pushed);
-        assert!(local_item.is_safe_push_target);
+        assert!(!local_item.is_safe_push_target);
+        assert_eq!(
+            local_item.push_blocked_reason.as_deref(),
+            Some(BRANCH_BEHIND_REMOTE_MESSAGE)
+        );
         assert_eq!(history.unpushed_count, 1);
-        assert_eq!(history.safe_unpushed_count, 1);
+        assert_eq!(history.safe_unpushed_count, 0);
     }
 
     #[test]
