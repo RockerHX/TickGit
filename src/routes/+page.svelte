@@ -32,8 +32,15 @@
     getErrorMessage,
   } from "$lib/tickgit/page-helpers";
   import {
+    canLoadCommitFiles,
+    canLoadDiff,
+    canLoadHistory,
     canPushCurrentBranch,
     canRefreshBlockedBranchStatus,
+    canRefreshCurrentRepositoryOnFocus,
+    canStartStepPush,
+    canStartTargetCommitPush,
+    canSwitchBranch,
     isBranchSwitcherDisabled,
     isContextMenuDisabled,
   } from "$lib/tickgit/page-state";
@@ -215,16 +222,22 @@
   }
 
   async function switchBranch(branch: string) {
-    if (
-      !currentRepository ||
-      switchingBranch ||
-      isPushing ||
-      stepPushState?.status === "running"
-    ) {
-      return;
-    }
+    const repository = currentRepository;
 
-    if (branch === branchStatus?.branch) {
+    if (
+      !repository ||
+      !canSwitchBranch(
+        {
+          currentRepository: repository,
+          loadingRepository,
+          switchingBranch,
+          isPushing,
+          stepPushState,
+          branchStatus,
+        },
+        branch,
+      )
+    ) {
       return;
     }
 
@@ -232,8 +245,8 @@
     loadingRepository = true;
 
     try {
-      await api.checkoutBranch(currentRepository.path, branch);
-      await loadRepositoryState(currentRepository.path);
+      await api.checkoutBranch(repository.path, branch);
+      await loadRepositoryState(repository.path);
       notify("分支已切换", `当前已切换到 ${branch}`, "success");
     } catch (error) {
       notify("切换分支失败", getErrorMessage(error), "error");
@@ -244,23 +257,45 @@
   }
 
   async function refreshCurrentRepositoryOnFocus() {
-    if (!currentRepository || loadingRepository || loadingHistory) {
+    const repository = currentRepository;
+
+    if (
+      !repository ||
+      !canRefreshCurrentRepositoryOnFocus({
+        currentRepository: repository,
+        loadingRepository,
+        loadingHistory,
+      })
+    ) {
       return;
     }
 
-    await loadRepositoryState(currentRepository.path, true);
+    await loadRepositoryState(repository.path, true);
   }
 
   async function refreshBlockedBranchStatus() {
-    if (!currentRepository || loadingRepository) {
+    const repository = currentRepository;
+
+    if (
+      !repository ||
+      !canRefreshBlockedBranchStatus({
+        currentRepository: repository,
+        loadingRepository,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
+    ) {
       return;
     }
 
-    await loadRepositoryState(currentRepository.path, true);
+    await loadRepositoryState(repository.path, true);
   }
 
   async function loadHistory(append: boolean) {
-    if (!currentRepository || loadingHistory) {
+    const repository = currentRepository;
+
+    if (!repository || !canLoadHistory({ currentRepository: repository, loadingHistory })) {
       return;
     }
 
@@ -268,7 +303,7 @@
 
     try {
       const page = await api.getCommitHistory(
-        currentRepository.path,
+        repository.path,
         append ? nextSkip : 0,
         PAGE_SIZE,
       );
@@ -288,7 +323,9 @@
   }
 
   async function loadCommitFiles(hash: string) {
-    if (!currentRepository) {
+    const repository = currentRepository;
+
+    if (!repository || !canLoadCommitFiles({ currentRepository: repository })) {
       return;
     }
 
@@ -299,7 +336,7 @@
     try {
       const details = await fetchCommitDetails(
         api,
-        currentRepository.path,
+        repository.path,
         hash,
         hideWhitespaceInDiff,
       );
@@ -316,7 +353,14 @@
   }
 
   async function loadDiff(filePath: string) {
-    if (!currentRepository || !selectedCommit) {
+    const repository = currentRepository;
+    const commit = selectedCommit;
+
+    if (
+      !repository ||
+      !commit ||
+      !canLoadDiff({ currentRepository: repository, selectedCommit: commit })
+    ) {
       return;
     }
 
@@ -326,8 +370,8 @@
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);
       diffText = await api.getCommitFileDiff(
-        currentRepository.path,
-        selectedCommit.hash,
+        repository.path,
+        commit.hash,
         filePath,
         hideWhitespaceInDiff,
         selectedFile?.previousPath ?? null,
@@ -383,7 +427,19 @@
   }
 
   async function pushCurrentBranch() {
-    if (!currentRepository || !branchStatus?.pushAvailable || isPushing) {
+    const repository = currentRepository;
+    const status = branchStatus;
+
+    if (
+      !repository ||
+      !status ||
+      !canPushCurrentBranch({
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
+    ) {
       return;
     }
 
@@ -391,8 +447,8 @@
 
     try {
       const started = await api.startPushCurrentBranch(
-        currentRepository.path,
-        branchStatus.branch,
+        repository.path,
+        status.branch,
       );
       pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
@@ -411,13 +467,22 @@
 
   async function pushToTargetCommit() {
     const commit = contextMenu.commit;
+    const repository = currentRepository;
+    const status = branchStatus;
     closeContextMenu();
 
     if (
       !commit ||
-      !currentRepository ||
-      !branchStatus?.pushAvailable ||
-      isPushing
+      !repository ||
+      !status ||
+      !canStartTargetCommitPush({
+        commit,
+        currentRepository: repository,
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
     ) {
       return;
     }
@@ -426,8 +491,8 @@
 
     try {
       const started = await api.startPushToCommit({
-        repoPath: currentRepository.path,
-        branch: branchStatus.branch,
+        repoPath: repository.path,
+        branch: status.branch,
         hash: commit.hash,
       });
       pushToCommitState = toRunningPushToCommitState(started);
@@ -439,13 +504,22 @@
 
   async function startStepPush() {
     const commit = contextMenu.commit;
+    const repository = currentRepository;
+    const status = branchStatus;
     closeContextMenu();
 
     if (
       !commit ||
-      !currentRepository ||
-      !branchStatus?.pushAvailable ||
-      stepPushState?.status === "running"
+      !repository ||
+      !status ||
+      !canStartStepPush({
+        commit,
+        currentRepository: repository,
+        branchStatus: status,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })
     ) {
       return;
     }
@@ -463,8 +537,8 @@
 
     try {
       const started = await api.startStepPush({
-        repoPath: currentRepository.path,
-        branch: branchStatus.branch,
+        repoPath: repository.path,
+        branch: status.branch,
         hashes,
         delayMs: 1500,
       });

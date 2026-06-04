@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { BranchStatus, RepositorySummary, StepPushUiState } from "$lib/types";
 import {
+  canLoadCommitFiles,
+  canLoadDiff,
+  canLoadHistory,
   canPushCurrentBranch,
   canRefreshBlockedBranchStatus,
+  canRefreshCurrentRepositoryOnFocus,
+  canStartStepPush,
+  canStartTargetCommitPush,
   canSwitchBranch,
   isBranchSwitcherDisabled,
   isContextMenuDisabled,
@@ -84,6 +90,60 @@ describe("page state", () => {
     expect(canPushCurrentBranch({ ...base, branchStatus: branchStatus({ aheadCount: 0 }) })).toBe(false);
     expect(canPushCurrentBranch({ ...base, branchStatus: branchStatus({ pushAvailable: false }) })).toBe(false);
     expect(canPushCurrentBranch({ ...base, switchingBranch: true })).toBe(false);
+  });
+
+
+  it("guards repository refresh and commit loading", () => {
+    const repo = repository();
+
+    expect(
+      canRefreshCurrentRepositoryOnFocus({
+        currentRepository: repo,
+        loadingRepository: false,
+        loadingHistory: false,
+      }),
+    ).toBe(true);
+    expect(
+      canRefreshCurrentRepositoryOnFocus({
+        currentRepository: repo,
+        loadingRepository: true,
+        loadingHistory: false,
+      }),
+    ).toBe(false);
+    expect(canLoadHistory({ currentRepository: repo, loadingHistory: false })).toBe(true);
+    expect(canLoadHistory({ currentRepository: repo, loadingHistory: true })).toBe(false);
+    expect(canLoadCommitFiles({ currentRepository: repo })).toBe(true);
+    expect(canLoadCommitFiles({ currentRepository: null })).toBe(false);
+    expect(canLoadDiff({ currentRepository: repo, selectedCommit: null })).toBe(false);
+  });
+
+  it("guards commit push and step push actions", () => {
+    const commit = {
+      hash: "c1",
+      shortHash: "c1",
+      summary: "c1",
+      authorName: "TickGit",
+      authorEmail: "tickgit@example.com",
+      committedAt: "2026-04-25T12:00:00Z",
+      tags: [],
+      parents: [],
+      isPushed: false,
+      isSafePushTarget: true,
+      pushBlockedReason: null,
+    };
+    const base = {
+      commit,
+      currentRepository: repository(),
+      branchStatus: branchStatus(),
+      switchingBranch: false,
+      isPushing: false,
+      stepPushState: null,
+    };
+
+    expect(canStartTargetCommitPush(base)).toBe(true);
+    expect(canStartTargetCommitPush({ ...base, isPushing: true })).toBe(false);
+    expect(canStartStepPush(base)).toBe(true);
+    expect(canStartStepPush({ ...base, stepPushState: stepPushState("running") })).toBe(false);
   });
 
   it("derives branch switcher and context menu disabled states", () => {
