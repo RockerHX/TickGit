@@ -16,7 +16,9 @@ pub use repository::{
     checkout_branch, get_branch_status, list_local_branches, refresh_remote_tracking,
     resolve_repository_path, validate_current_branch,
 };
-pub use workspace::{get_workspace_file_diff, get_workspace_status};
+pub use workspace::{
+    get_workspace_file_diff, get_workspace_status, stage_workspace_file, unstage_workspace_file,
+};
 
 const REMOTE_NAME: &str = "origin";
 const UNSAFE_PUSH_TARGET_MESSAGE: &str =

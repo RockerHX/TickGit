@@ -124,6 +124,16 @@ pub fn get_workspace_file_diff(
 }
 
 #[tauri::command]
+pub fn stage_workspace_file(repo_path: String, file_path: String) -> AppResult<()> {
+    git::stage_workspace_file(&repo_path, &file_path)
+}
+
+#[tauri::command]
+pub fn unstage_workspace_file(repo_path: String, file_path: String) -> AppResult<()> {
+    git::unstage_workspace_file(&repo_path, &file_path)
+}
+
+#[tauri::command]
 pub fn push_current_branch(repo_path: String) -> AppResult<()> {
     git::push_current_branch(&repo_path)
 }

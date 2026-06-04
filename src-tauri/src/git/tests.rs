@@ -2,9 +2,9 @@ use super::repository::branch_status_for_path;
 use super::{
     checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
     get_workspace_file_diff, get_workspace_status, list_local_branches, push_current_branch,
-    push_to_commit, refresh_remote_tracking, resolve_repository_path, validate_current_branch,
-    validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
-    UNSAFE_PUSH_TARGET_MESSAGE,
+    push_to_commit, refresh_remote_tracking, resolve_repository_path, stage_workspace_file,
+    unstage_workspace_file, validate_current_branch, validate_step_push_hashes,
+    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
 };
 use crate::{
     error::AppError,
@@ -896,6 +896,100 @@ fn lists_workspace_file_in_staged_and_unstaged_sections() {
         "file.txt",
         WorkspaceChangeKind::Modified
     ));
+}
+
+#[test]
+fn stages_modified_workspace_file() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "initial");
+    write_file(&repo.path, "file.txt", "modified\n");
+
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+    assert!(has_workspace_change(
+        &status.staged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+    assert!(!has_workspace_change(
+        &status.unstaged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+}
+
+#[test]
+fn stages_untracked_workspace_file_as_added() {
+    let repo = init_repo();
+    run_git(
+        &repo.path,
+        &["commit", "--allow-empty", "--no-gpg-sign", "-m", "initial"],
+    );
+    write_file(&repo.path, "new.txt", "new\n");
+
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "new.txt").unwrap();
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+    assert!(has_workspace_change(
+        &status.staged,
+        "new.txt",
+        WorkspaceChangeKind::Added
+    ));
+    assert!(!has_workspace_change(
+        &status.unstaged,
+        "new.txt",
+        WorkspaceChangeKind::Untracked
+    ));
+}
+
+#[test]
+fn stages_deleted_workspace_file() {
+    let repo = init_repo();
+    commit_file(&repo.path, "deleted.txt", "base\n", "initial");
+    fs::remove_file(repo.path.join("deleted.txt")).expect("delete tracked file");
+
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "deleted.txt").unwrap();
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+    assert!(has_workspace_change(
+        &status.staged,
+        "deleted.txt",
+        WorkspaceChangeKind::Deleted
+    ));
+}
+
+#[test]
+fn unstages_workspace_file_back_to_unstaged() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "initial");
+    write_file(&repo.path, "file.txt", "modified\n");
+    stage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+
+    unstage_workspace_file(repo.path.to_string_lossy().as_ref(), "file.txt").unwrap();
+
+    let status = get_workspace_status(repo.path.to_string_lossy().as_ref()).unwrap();
+    assert!(!has_workspace_change(
+        &status.staged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+    assert!(has_workspace_change(
+        &status.unstaged,
+        "file.txt",
+        WorkspaceChangeKind::Modified
+    ));
+}
+
+#[test]
+fn rejects_empty_workspace_file_path_for_stage_operations() {
+    let repo = init_repo();
+    let stage_error = stage_workspace_file(repo.path.to_string_lossy().as_ref(), "").unwrap_err();
+    let unstage_error =
+        unstage_workspace_file(repo.path.to_string_lossy().as_ref(), "").unwrap_err();
+
+    assert_app_error(stage_error, "invalid_file_path", "文件路径不能为空");
+    assert_app_error(unstage_error, "invalid_file_path", "文件路径不能为空");
 }
 
 #[test]

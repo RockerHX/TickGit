@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    command::{git_output_bytes, git_trimmed},
+    command::{git_output_bytes, git_run, git_trimmed},
     diff::diff_result_from_git_args,
     repository::resolve_repository_path,
 };
@@ -239,4 +239,16 @@ pub fn get_workspace_file_diff(
         build_workspace_diff_args(&section, file_path, previous_path, ignore_whitespace, false);
 
     diff_result_from_git_args(&repo_path, file_path, &numstat_args, &diff_args, None)
+}
+
+pub fn stage_workspace_file(repo_path: &str, file_path: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let file_path = workspace_file_path(file_path)?;
+    git_run(&repo_path, &["add", "--", file_path])
+}
+
+pub fn unstage_workspace_file(repo_path: &str, file_path: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let file_path = workspace_file_path(file_path)?;
+    git_run(&repo_path, &["restore", "--staged", "--", file_path])
 }
