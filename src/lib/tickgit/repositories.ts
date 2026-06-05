@@ -1,3 +1,4 @@
+import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
 import type { RepositoryStatus, RepositorySummary } from "$lib/types";
 import { isStepPushRunning } from "$lib/tickgit/page-state";
 import type { StepPushUiState } from "$lib/types";
@@ -27,14 +28,14 @@ export function filterRepositories(
   });
 }
 
-export function repositoryStatusLabel(status: RepositoryStatus) {
+export function repositoryStatusLabel(status: RepositoryStatus, locale: Locale = FALLBACK_LOCALE) {
   switch (status) {
     case "available":
-      return "Available";
+      return translate(locale, "repository.status.available");
     case "missing":
-      return "Missing";
+      return translate(locale, "repository.status.missing");
     case "invalid":
-      return "Invalid";
+      return translate(locale, "repository.status.invalid");
   }
 }
 
@@ -49,16 +50,24 @@ export function repositoryStatusTone(status: RepositoryStatus) {
   }
 }
 
-export function repositoryStatusMessage(repository: RepositorySummary) {
+export function repositoryStatusMessage(repository: RepositorySummary, locale: Locale = FALLBACK_LOCALE) {
   if (repository.status === "available") {
     return null;
+  }
+
+  if (repository.disabledReasonCode) {
+    return translateErrorCode(
+      locale,
+      repository.disabledReasonCode,
+      repository.disabledReason,
+    );
   }
 
   return (
     repository.disabledReason ??
     (repository.status === "missing"
-      ? "仓库路径不存在"
-      : "当前路径不是有效 Git 仓库")
+      ? translate(locale, "repository.status.missingMessage")
+      : translate(locale, "repository.status.invalidMessage"))
   );
 }
 

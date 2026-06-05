@@ -15,6 +15,7 @@ function commit(hash: string, isPushed = false): CommitListItem {
     isPushed,
     isSafePushTarget: !isPushed,
     pushBlockedReason: null,
+    pushBlockedReasonCode: null,
   };
 }
 
@@ -23,11 +24,20 @@ describe("page helpers", () => {
     expect(getErrorMessage("plain error")).toBe("plain error");
     expect(getErrorMessage(new Error("native error"))).toBe("native error");
     expect(getErrorMessage({ message: "app error" })).toBe("app error");
+    expect(getErrorMessage({ code: "repository_exists", message: "fallback" })).toBe(
+      "This repository is already in the list",
+    );
+    expect(
+      getErrorMessage({ code: "repository_exists", message: "fallback" }, "zh-CN"),
+    ).toBe("该仓库已存在于列表中");
+    expect(getErrorMessage({ code: "unknown_code", message: "fallback" })).toBe(
+      "fallback",
+    );
     expect(getErrorMessage({ toString: () => "object error" })).toBe(
       "object error",
     );
-    expect(getErrorMessage(null)).toBe("未知错误");
-    expect(getErrorMessage(undefined)).toBe("未知错误");
+    expect(getErrorMessage(null)).toBe("Unknown error");
+    expect(getErrorMessage(undefined, "zh-CN")).toBe("未知错误");
   });
 
   it("picks selected commit with optional keep-selection behavior", () => {

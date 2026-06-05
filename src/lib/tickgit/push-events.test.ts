@@ -42,6 +42,10 @@ describe("push events", () => {
       inline: "1234567",
       message: "Commit 1234567",
     });
+    expect(formatPushTargetLabel("1234567890", "commit", "zh-CN")).toEqual({
+      inline: "1234567",
+      message: "Commit 1234567",
+    });
     expect(formatPushTargetLabel("origin/main", "branch")).toEqual({
       inline: "origin/main",
       message: "origin/main",
@@ -81,13 +85,16 @@ describe("push events", () => {
         target: "1234567890",
         targetKind: "commit",
         message: "push failed",
+        code: "behind_remote",
       }),
     ).toEqual({
       jobId: 1,
       target: "1234567",
       targetKind: "commit",
       status: "failed",
-      message: "push failed",
+      message:
+        "Remote has updates. TickGit cannot push safely yet. Sync the remote with GitHub Desktop or SourceTree, then return to TickGit and refresh.",
+      code: "behind_remote",
     });
   });
 
@@ -144,20 +151,26 @@ describe("push events", () => {
     });
 
     expect(
-      toFailedStepPushState({
-        jobId: 3,
-        current: 2,
-        total: 4,
-        hash: "def",
-        message: "push failed",
-      }),
+      toFailedStepPushState(
+        {
+          jobId: 3,
+          current: 2,
+          total: 4,
+          hash: "def",
+          message: "push failed",
+          code: "unsafe_push_target",
+        },
+        "zh-CN",
+      ),
     ).toEqual({
       jobId: 3,
       current: 2,
       total: 4,
       hash: "def",
       status: "failed",
-      message: "push failed",
+      message:
+        "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标。",
+      code: "unsafe_push_target",
     });
   });
 

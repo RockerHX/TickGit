@@ -61,9 +61,12 @@ describe("step push plan", () => {
     };
 
     await expect(startStepPushFromPlan(api, plan, "/repo")).rejects.toThrow(
-      "远端已有更新",
+      "Remote has updates",
     );
     expect(api.startStepPush).not.toHaveBeenCalled();
-    expect(getStepPushPlanBlockedMessage(plan)).toBe("远端已有更新");
+    expect(getStepPushPlanBlockedMessage(plan)).toContain("Remote has updates");
+    expect(getStepPushPlanBlockedMessage(plan, "zh-CN")).toContain(
+      "远端已有更新",
+    );
   });
 });

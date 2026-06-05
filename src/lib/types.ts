@@ -6,6 +6,7 @@ export type RepositorySummary = {
   lastOpenedAt: number;
   status: RepositoryStatus;
   disabledReason: string | null;
+  disabledReasonCode?: string | null;
 };
 
 export type BranchStatus = {
@@ -17,6 +18,7 @@ export type BranchStatus = {
   detached: boolean;
   pushAvailable: boolean;
   disabledReason: string | null;
+  disabledReasonCode?: string | null;
 };
 
 export type CommitListItem = {
@@ -31,6 +33,7 @@ export type CommitListItem = {
   isPushed: boolean;
   isSafePushTarget: boolean;
   pushBlockedReason: string | null;
+  pushBlockedReasonCode?: string | null;
 };
 
 export type CommitMeta = {
@@ -154,6 +157,7 @@ export type PushToCommitFailed = {
   target: string;
   targetKind: PushTargetKind;
   message: string;
+  code?: string | null;
 };
 
 export type StepPushJobStarted = {
@@ -180,6 +184,7 @@ export type StepPushFailed = {
   total: number;
   hash: string;
   message: string;
+  code?: string | null;
 };
 
 export type AppError = {
@@ -201,6 +206,7 @@ export type StepPushUiState = {
   hash: string;
   status: "running" | "finished" | "failed";
   message?: string;
+  code?: string | null;
 };
 
 export type PushToCommitUiState = {
@@ -209,4 +215,5 @@ export type PushToCommitUiState = {
   targetKind: PushTargetKind;
   status: "running" | "finished" | "failed";
   message?: string;
+  code?: string | null;
 };

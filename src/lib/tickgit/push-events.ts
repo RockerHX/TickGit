@@ -1,3 +1,4 @@
+import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
 import type {
   PushTargetKind,
   PushToCommitFailed,
@@ -21,12 +22,13 @@ type PushOverlayUiState = PushToCommitUiState | StepPushUiState;
 export function formatPushTargetLabel(
   target: string,
   targetKind: PushTargetKind,
+  locale: Locale = FALLBACK_LOCALE,
 ): PushTargetLabel {
   if (targetKind === "commit") {
     const shortHash = target.length > 7 ? target.slice(0, 7) : target;
     return {
       inline: shortHash,
-      message: `Commit ${shortHash}`,
+      message: translate(locale, "push.targetCommit", { hash: shortHash }),
     };
   }
 
@@ -82,15 +84,17 @@ export function toFinishedPushToCommitState(
 
 export function toFailedPushToCommitState(
   payload: PushToCommitFailed,
+  locale: Locale = FALLBACK_LOCALE,
 ): PushToCommitUiState {
-  const target = formatPushTargetLabel(payload.target, payload.targetKind);
+  const target = formatPushTargetLabel(payload.target, payload.targetKind, locale);
 
   return {
     jobId: payload.jobId,
     target: target.inline,
     targetKind: payload.targetKind,
     status: "failed",
-    message: payload.message,
+    message: translateErrorCode(locale, payload.code, payload.message),
+    ...(payload.code ? { code: payload.code } : {}),
   };
 }
 
@@ -123,6 +127,7 @@ export function toFinishedStepPushState(
 
 export function toFailedStepPushState(
   payload: StepPushFailed,
+  locale: Locale = FALLBACK_LOCALE,
 ): StepPushUiState {
   return {
     jobId: payload.jobId,
@@ -130,6 +135,7 @@ export function toFailedStepPushState(
     total: payload.total,
     hash: payload.hash,
     status: "failed",
-    message: payload.message,
+    message: translateErrorCode(locale, payload.code, payload.message),
+    ...(payload.code ? { code: payload.code } : {}),
   };
 }

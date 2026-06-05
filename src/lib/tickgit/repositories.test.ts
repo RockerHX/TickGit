@@ -18,6 +18,7 @@ function repository(
     lastOpenedAt: 1,
     status: "available",
     disabledReason: null,
+    disabledReasonCode: null,
     ...overrides,
   };
 }
@@ -40,7 +41,7 @@ describe("repository helpers", () => {
   it("maps repository status labels and tones", () => {
     const statuses: RepositoryStatus[] = ["available", "missing", "invalid"];
 
-    expect(statuses.map(repositoryStatusLabel)).toEqual([
+    expect(statuses.map((status) => repositoryStatusLabel(status))).toEqual([
       "Available",
       "Missing",
       "Invalid",
@@ -57,7 +58,21 @@ describe("repository helpers", () => {
         repository("/missing", {
           status: "missing",
           disabledReason: "仓库路径不存在",
+          disabledReasonCode: "repository_missing",
         }),
+      ),
+    ).toBe("Repository path does not exist");
+    expect(
+      repositoryStatusMessage(
+        repository(
+          "/missing",
+          {
+            status: "missing",
+            disabledReason: "仓库路径不存在",
+            disabledReasonCode: "repository_missing",
+          },
+        ),
+        "zh-CN",
       ),
     ).toBe("仓库路径不存在");
     expect(
@@ -65,9 +80,10 @@ describe("repository helpers", () => {
         repository("/invalid", {
           status: "invalid",
           disabledReason: null,
+    disabledReasonCode: null,
         }),
       ),
-    ).toBe("当前路径不是有效 Git 仓库");
+    ).toBe("The current path is not a valid Git repository");
   });
 
   it("disables repository management while repository controls are busy", () => {

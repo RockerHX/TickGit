@@ -1,12 +1,17 @@
+import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
 import type { AppError, CommitListItem, ToastItem } from "$lib/types";
 
-export function getErrorMessage(error: unknown) {
+export function getErrorMessage(error: unknown, locale: Locale = FALLBACK_LOCALE) {
   if (typeof error === "string") {
     return error;
   }
 
   if (error && typeof error === "object") {
     const appError = error as Partial<AppError>;
+    if (typeof appError.code === "string") {
+      return translateErrorCode(locale, appError.code, appError.message);
+    }
+
     if (typeof appError.message === "string") {
       return appError.message;
     }
@@ -16,7 +21,7 @@ export function getErrorMessage(error: unknown) {
     }
   }
 
-  return "未知错误";
+  return translate(locale, "common.unknownError");
 }
 
 export function pickSelectedCommit(
