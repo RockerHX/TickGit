@@ -90,7 +90,6 @@
   } from "$lib/tickgit/workspace";
   import {
     MAX_LEFT_PANE_WIDTH,
-    MIN_BRANCH_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
     RESIZE_DIVIDER_LINE_WIDTH,
   } from "$lib/tickgit/layout";
@@ -163,7 +162,7 @@
   let isPushing = false;
   let switchingBranch = false;
   let managingRepositoryPath: string | null = null;
-  let activeResizeTarget: "header" | "history" | null = null;
+  let activeResizeTarget: "history" | null = null;
   let leftPaneWidth = 360;
 
   let toasts: ToastItem[] = [];
@@ -1236,7 +1235,7 @@
     return Math.min(Math.max(value, MIN_LEFT_PANE_WIDTH), MAX_LEFT_PANE_WIDTH);
   }
 
-  function startLayoutResize(target: "header" | "history", event: MouseEvent) {
+  function startLayoutResize(target: "history", event: MouseEvent) {
     activeResizeTarget = target;
     applyLayoutResize(event.clientX);
   }
@@ -1476,146 +1475,129 @@
 <main
   class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200"
 >
-  <header class="shrink-0 border-b border-[#1f2328] bg-[#24292f]">
-    <div
-      class="grid items-stretch"
-      style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,max-content) auto;`}
-    >
-      <div class="min-w-0 px-4 py-3">
-        <div class="flex items-center gap-3">
-          <div class="min-w-0 flex-1">
-            <div
-              class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
-            >
-              {translate($locale, "repository.current")}
-            </div>
-            <RepositorySwitcher
-              {repositories}
-              currentPath={currentRepository?.path ?? null}
-              managementDisabled={!canRunRepositoryManagement()}
-              on:change={(event) => switchRepository(event.detail.path)}
-              on:remove={(event) => removeRepositoryFromList(event.detail.path)}
-              on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
-            />
-          </div>
-        </div>
+  <header class="shrink-0 border-b border-[#15191f] bg-[#1b2027] shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
+    <div class="relative flex h-11 items-center justify-center border-b border-white/[0.06] bg-[#161b22] px-4">
+      <div class="pointer-events-none absolute left-4 hidden items-center gap-2 sm:flex" aria-hidden="true">
+        <span class="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[0_0_10px_rgba(255,95,87,0.35)]"></span>
+        <span class="h-3 w-3 rounded-full bg-[#ffbd2e] shadow-[0_0_10px_rgba(255,189,46,0.28)]"></span>
+        <span class="h-3 w-3 rounded-full bg-[#28c840] shadow-[0_0_10px_rgba(40,200,64,0.28)]"></span>
       </div>
 
-      <ResizeHandle
-        active={activeResizeTarget === "header" ||
-          activeResizeTarget === "history"}
-        ariaLabel={translate($locale, "resize.repositoryAndHistory")}
-        on:mousedown={(event) => startLayoutResize("header", event.detail)}
-      />
-
-      <div class="min-w-0 border-r border-[#1f2328] px-4 py-3">
-        <div class="flex items-center gap-3">
-          <div class="flex h-9 w-9 items-center justify-center text-slate-300">
-            <svg
-              viewBox="0 0 16 16"
-              class="h-4.5 w-4.5 fill-current"
-              aria-hidden="true"
-            >
-              <path
-                d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
-              ></path>
-            </svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <div
-              class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
-            >
-              {translate($locale, "branch.current")}
-            </div>
-            <div class="mt-1">
-              <BranchSwitcher
-                branches={localBranches}
-                currentBranch={branchStatus?.branch ?? null}
-                disabled={isBranchSwitcherDisabled({
-                  currentRepository,
-                  loadingRepository: loadingRepository || syncingRemoteStatus,
-                  switchingBranch,
-                  isPushing,
-                  stepPushState,
-                })}
-                on:change={(event) => switchBranch(event.detail.branch)}
-              />
-            </div>
-            <div class="mt-0.5 truncate text-xs text-slate-400">
-              {branchStatus?.upstream ??
-                translate($locale, "branch.noUpstream")}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-3 px-4 py-3">
-        <LanguageSwitcher />
-        <button
-          class="flex h-[54px] items-center justify-center rounded-sm border border-[#1f2328] bg-[#24292f] px-3 text-xs font-semibold text-slate-300 transition hover:bg-[#2d333b] hover:text-[#f0f6fc] disabled:cursor-not-allowed disabled:text-slate-600"
-          disabled={!canRefreshBlockedBranchStatus({
-            currentRepository,
-            loadingRepository,
-            switchingBranch,
-            isPushing,
-            stepPushState,
-          }) || syncingRemoteStatus}
-          on:click={fetchRemoteStatusManually}
-        >
-          {syncingRemoteStatus
-            ? translate($locale, "common.refreshing")
-            : translate($locale, "remoteBlock.refreshStatus")}
-        </button>
-        <button
-          class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
-          disabled={!canPushCurrentBranch({
-            branchStatus,
-            switchingBranch,
-            isPushing: isPushing || syncingRemoteStatus,
-            stepPushState,
-          })}
-          on:click={pushCurrentBranch}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
-            ></path>
+      <div class="flex items-center gap-2 text-sm font-semibold tracking-[0.16em] text-[#f0f6fc]">
+        <span class="flex h-7 w-7 items-center justify-center rounded-full border border-[#539bf5]/35 bg-[#347dff]/15 text-[#cae8ff] shadow-[0_0_22px_rgba(52,125,255,0.18)]">
+          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current" aria-hidden="true">
+            <path d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"></path>
           </svg>
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-[0.95rem] font-semibold">
-              {switchingBranch
-                ? translate($locale, "push.switching")
-                : isPushing
-                  ? translate($locale, "push.pushing")
-                  : translate($locale, "push.button")}
-            </span>
-            <span class="mt-0.5 block truncate text-xs text-slate-400">
-              {branchStatus?.aheadCount
-                ? translate($locale, "push.aheadCommits", {
-                    count: branchStatus.aheadCount,
-                  })
-                : translate($locale, "push.upToDate")}
-            </span>
-          </span>
-          <span
-            class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]"
+        </span>
+        <span>{translate($locale, "app.title")}</span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto px-4 py-3">
+      <div class="flex min-w-[840px] items-stretch gap-3">
+        <div class="min-w-[280px] flex-[1.2]">
+          <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            {translate($locale, "repository.current")}
+          </div>
+          <RepositorySwitcher
+            {repositories}
+            currentPath={currentRepository?.path ?? null}
+            managementDisabled={!canRunRepositoryManagement()}
+            on:change={(event) => switchRepository(event.detail.path)}
+            on:remove={(event) => removeRepositoryFromList(event.detail.path)}
+            on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
+          />
+        </div>
+
+        <div class="min-w-[240px] flex-1">
+          <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            {translate($locale, "branch.current")}
+          </div>
+          <BranchSwitcher
+            branches={localBranches}
+            currentBranch={branchStatus?.branch ?? null}
+            disabled={isBranchSwitcherDisabled({
+              currentRepository,
+              loadingRepository: loadingRepository || syncingRemoteStatus,
+              switchingBranch,
+              isPushing,
+              stepPushState,
+            })}
+            on:change={(event) => switchBranch(event.detail.branch)}
+          />
+          <div class="mt-0.5 truncate text-xs text-slate-400">
+            {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
+          </div>
+        </div>
+
+        <div class="flex min-w-[420px] items-end gap-3">
+          <LanguageSwitcher />
+          <button
+            class="flex h-[54px] items-center justify-center rounded-sm border border-[#1f2328] bg-[#24292f] px-3 text-xs font-semibold text-slate-300 transition hover:bg-[#2d333b] hover:text-[#f0f6fc] disabled:cursor-not-allowed disabled:text-slate-600"
+            disabled={!canRefreshBlockedBranchStatus({
+              currentRepository,
+              loadingRepository,
+              switchingBranch,
+              isPushing,
+              stepPushState,
+            }) || syncingRemoteStatus}
+            on:click={fetchRemoteStatusManually}
           >
-            <span>{branchStatus?.aheadCount ?? 0}</span>
+            {syncingRemoteStatus
+              ? translate($locale, "common.refreshing")
+              : translate($locale, "remoteBlock.refreshStatus")}
+          </button>
+          <button
+            class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
+            disabled={!canPushCurrentBranch({
+              branchStatus,
+              switchingBranch,
+              isPushing: isPushing || syncingRemoteStatus,
+              stepPushState,
+            })}
+            on:click={pushCurrentBranch}
+          >
             <svg
               viewBox="0 0 16 16"
-              class="h-3 w-3 fill-current"
+              class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
               aria-hidden="true"
             >
               <path
-                d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
+                d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
               ></path>
             </svg>
-          </span>
-        </button>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[0.95rem] font-semibold">
+                {switchingBranch
+                  ? translate($locale, "push.switching")
+                  : isPushing
+                    ? translate($locale, "push.pushing")
+                    : translate($locale, "push.button")}
+              </span>
+              <span class="mt-0.5 block truncate text-xs text-slate-400">
+                {branchStatus?.aheadCount
+                  ? translate($locale, "push.aheadCommits", {
+                      count: branchStatus.aheadCount,
+                    })
+                  : translate($locale, "push.upToDate")}
+              </span>
+            </span>
+            <span
+              class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]"
+            >
+              <span>{branchStatus?.aheadCount ?? 0}</span>
+              <svg
+                viewBox="0 0 16 16"
+                class="h-3 w-3 fill-current"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
+                ></path>
+              </svg>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1794,8 +1776,7 @@
       />
 
       <ResizeHandle
-        active={activeResizeTarget === "header" ||
-          activeResizeTarget === "history"}
+        active={activeResizeTarget === "history"}
         ariaLabel={translate($locale, "resize.historyAndDetails")}
         on:mousedown={(event) => startLayoutResize("history", event.detail)}
       />
