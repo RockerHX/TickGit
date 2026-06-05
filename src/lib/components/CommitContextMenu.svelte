@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import type { CommitListItem } from "$lib/types";
 
   export let open = false;
@@ -22,7 +23,7 @@
 {#if open && commit}
   <button
     class="fixed inset-0 z-20 cursor-default bg-transparent"
-    aria-label="Close context menu"
+    aria-label={translate($locale, "context.close")}
     on:click={() => dispatch("close")}
   ></button>
   <div
@@ -48,9 +49,12 @@
         </svg>
       </div>
       <div>
-        <div class="text-sm font-medium text-white">Push to this commit</div>
+        <div class="text-sm font-medium text-white">{translate($locale, "context.pushToCommit")}</div>
         <div class="text-xs text-slate-400">
-          {pushToCommitReason ?? `Push branch state to ${commit.shortHash}`}
+          {pushToCommitReason ??
+            translate($locale, "context.pushBranchStateTo", {
+              target: commit.shortHash,
+            })}
         </div>
       </div>
     </button>
@@ -75,11 +79,10 @@
       </div>
       <div>
         <div class="text-sm font-medium text-white">
-          Step push to this commit
+          {translate($locale, "context.stepPushToCommit")}
         </div>
         <div class="text-xs text-slate-400">
-          {stepPushReason ??
-            "Push each unpushed commit in order until this target"}
+          {stepPushReason ?? translate($locale, "context.stepPushDescription")}
         </div>
       </div>
     </button>

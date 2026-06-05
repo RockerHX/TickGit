@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import type { StepPushUiState } from "$lib/types";
 
   export let state: StepPushUiState | null = null;
@@ -24,11 +25,11 @@
         <div class="min-w-0 flex-1">
           <div class="text-sm font-semibold text-white">
             {#if state.status === "finished"}
-              Step push finished
+              {translate($locale, "stepPush.finished")}
             {:else if state.status === "failed"}
-              Step push failed
+              {translate($locale, "stepPush.failed")}
             {:else}
-              Step pushing commits
+              {translate($locale, "stepPush.running")}
             {/if}
           </div>
           <div class="mt-1 text-xs text-slate-400">
@@ -55,7 +56,7 @@
             <button
               type="button"
               class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
-              aria-label="Close step push error"
+              aria-label={translate($locale, "stepPush.closeError")}
               on:click={() => dispatch("close")}
             >
               <svg

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
+  import { getStepPushPlanBlockedMessage } from "$lib/tickgit/step-push-plan";
   import type { StepPushPlan } from "$lib/types";
 
   export let open = false;
@@ -12,7 +14,9 @@
     cancel: void;
   }>();
 
-  $: blockedMessage = plan?.blockedReason?.message ?? errorMessage;
+  $: blockedMessage = plan?.blockedReason
+    ? getStepPushPlanBlockedMessage(plan, $locale)
+    : errorMessage;
   $: canConfirm = Boolean(plan?.available && plan.items.length > 0);
 </script>
 
@@ -34,16 +38,16 @@
             id="step-push-plan-title"
             class="text-base font-semibold text-white"
           >
-            Step push preview
+            {translate($locale, "stepPush.previewTitle")}
           </h2>
           <p class="mt-1 text-xs text-slate-400">
-            TickGit 将按后端校验后的顺序逐个推送 Commit。
+            {translate($locale, "stepPush.previewDescription")}
           </p>
         </div>
         <button
           type="button"
           class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
-          aria-label="Close step push preview"
+          aria-label={translate($locale, "stepPush.closePreview")}
           on:click={() => dispatch("cancel")}
         >
           <svg
@@ -63,13 +67,13 @@
           <div
             class="rounded-sm border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-sm text-sky-100"
           >
-            正在生成分步推送计划…
+            {translate($locale, "stepPush.loadingPlan")}
           </div>
         {:else if blockedMessage}
           <div
             class="rounded-sm border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
           >
-            <div class="font-semibold">当前不可分步推送</div>
+            <div class="font-semibold">{translate($locale, "stepPush.unavailable")}</div>
             <div class="mt-1 text-xs leading-5 text-rose-100/85">
               {blockedMessage}
             </div>
@@ -79,9 +83,9 @@
             class="mb-3 flex items-center justify-between gap-3 text-xs text-slate-400"
           >
             <span
-              >Branch: <span class="text-slate-200">{plan.branch}</span></span
+              >{translate($locale, "stepPush.branch")}: <span class="text-slate-200">{plan.branch}</span></span
             >
-            <span>{plan.items.length} commits</span>
+            <span>{translate($locale, "stepPush.commits", { count: plan.items.length })}</span>
           </div>
           <ol
             class="max-h-80 overflow-y-auto rounded-sm border border-[#444c56] bg-[#24292f]"
@@ -97,7 +101,7 @@
                 </span>
                 <div class="min-w-0 flex-1">
                   <div class="truncate text-sm font-medium text-white">
-                    {item.summary || "(no commit message)"}
+                    {item.summary || translate($locale, "stepPush.noCommitMessage")}
                   </div>
                   <div class="mt-1 font-mono text-xs text-slate-400">
                     {item.shortHash || item.hash}
@@ -110,7 +114,7 @@
           <div
             class="rounded-sm border border-[#444c56] bg-[#24292f] px-4 py-3 text-sm text-slate-300"
           >
-            没有可推送的 Commit。
+            {translate($locale, "stepPush.noPushableCommits")}
           </div>
         {/if}
       </div>
@@ -121,7 +125,7 @@
           class="rounded-sm border border-[#444c56] bg-[#24292f] px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-[#6e7681] hover:text-white"
           on:click={() => dispatch("cancel")}
         >
-          Cancel
+          {translate($locale, "common.cancel")}
         </button>
         <button
           type="button"
@@ -129,7 +133,7 @@
           disabled={loading || !canConfirm}
           on:click={() => dispatch("confirm")}
         >
-          Start step push
+          {translate($locale, "stepPush.start")}
         </button>
       </div>
     </div>

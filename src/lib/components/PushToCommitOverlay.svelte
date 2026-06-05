@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import type { PushToCommitUiState } from "$lib/types";
 
   export let state: PushToCommitUiState | null = null;
@@ -20,13 +21,13 @@
         <div class="min-w-0 flex-1">
           <div class="text-sm font-semibold text-white">
             {#if state.status === "finished"}
-              Push finished
+              {translate($locale, "push.finished")}
             {:else if state.status === "failed"}
-              Push failed
+              {translate($locale, "push.failedTitle")}
             {:else}
               {state.targetKind === "commit"
-                ? "Uploading commit"
-                : "Pushing branch"}
+                ? translate($locale, "push.uploadingCommit")
+                : translate($locale, "push.pushingBranch")}
             {/if}
           </div>
           <div class="mt-1 text-xs text-slate-400">{state.target}</div>
@@ -44,14 +45,14 @@
                   : "border-sky-500/40 bg-sky-500/10 text-sky-200"
             }`}
           >
-            {#if state.status === "running"}Uploading{:else if state.status === "finished"}Done{:else}Failed{/if}
+            {#if state.status === "running"}{translate($locale, "push.uploading")}{:else if state.status === "finished"}{translate($locale, "common.done")}{:else}{translate($locale, "common.failed")}{/if}
           </div>
 
           {#if state.status === "failed"}
             <button
               type="button"
               class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
-              aria-label="Close push error"
+              aria-label={translate($locale, "push.closeError")}
               on:click={() => dispatch("close")}
             >
               <svg

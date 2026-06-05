@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { locale, translate } from "$lib/i18n";
   export let active = false;
 </script>
 
@@ -11,13 +12,13 @@
         <div
           class="text-sm font-semibold uppercase tracking-[0.3em] text-sky-300"
         >
-          Drop Repository
+          {translate($locale, "drop.title")}
         </div>
         <div class="mt-3 text-2xl font-semibold text-white">
-          Drop a local Git repository here
+          {translate($locale, "drop.heading")}
         </div>
         <div class="mt-2 text-sm text-slate-400">
-          TickGit will verify the folder and add it to your repository list
+          {translate($locale, "drop.description")}
         </div>
       </div>
     </div>
