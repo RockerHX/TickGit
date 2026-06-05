@@ -4004,6 +4004,7 @@ dependencies = [
 name = "tickgit"
 version = "1.3.2"
 dependencies = [
+ "base64 0.22.1",
  "serde",
  "serde_json",
  "tauri",

@@ -1,9 +1,14 @@
-use std::path::Path;
+use std::{fs, path::Path};
+
+use base64::{engine::general_purpose, Engine as _};
 
 use crate::{error::AppResult, models::CommitFileDiffResult};
 
 use super::{
-    command::{git_text, git_text_allow_exit_code, git_trimmed, git_trimmed_allow_exit_code},
+    command::{
+        git_output_bytes, git_text, git_text_allow_exit_code, git_trimmed,
+        git_trimmed_allow_exit_code,
+    },
     repository::resolve_repository_path,
 };
 
@@ -12,6 +17,7 @@ use super::{
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const MAX_DIFF_BYTES: usize = 1024 * 1024;
 const MAX_DIFF_LINES: usize = 5000;
+const MAX_IMAGE_PREVIEW_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Default)]
 struct DiffStats {
@@ -19,7 +25,7 @@ struct DiffStats {
     line_count: usize,
 }
 
-fn is_image_path(file_path: &str) -> bool {
+pub(super) fn is_image_path(file_path: &str) -> bool {
     Path::new(file_path)
         .extension()
         .and_then(|extension| extension.to_str())
@@ -30,6 +36,75 @@ fn is_image_path(file_path: &str) -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+fn image_mime_type(file_path: &str) -> &'static str {
+    match Path::new(file_path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("bmp") => "image/bmp",
+        Some("ico") => "image/x-icon",
+        Some("avif") => "image/avif",
+        _ => "application/octet-stream",
+    }
+}
+
+fn bytes_to_image_data_url(file_path: &str, bytes: Vec<u8>) -> Option<String> {
+    if bytes.is_empty() || bytes.len() > MAX_IMAGE_PREVIEW_BYTES {
+        return None;
+    }
+
+    Some(format!(
+        "data:{};base64,{}",
+        image_mime_type(file_path),
+        general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+pub(super) fn git_image_data_url(
+    repo_path: &Path,
+    rev: &str,
+    file_path: &str,
+) -> AppResult<Option<String>> {
+    let object = if rev == ":" {
+        format!(":{file_path}")
+    } else {
+        format!("{rev}:{file_path}")
+    };
+    match git_output_bytes(repo_path, &["show", &object]) {
+        Ok(bytes) => Ok(bytes_to_image_data_url(file_path, bytes)),
+        Err(error) if error.code == "git_command_failed" => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+pub(super) fn working_tree_image_data_url(
+    repo_path: &Path,
+    file_path: &str,
+) -> AppResult<Option<String>> {
+    let bytes = match fs::read(repo_path.join(file_path)) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(crate::error::AppError::new(
+                "read_image_failed",
+                error.to_string(),
+            ))
+        }
+    };
+    Ok(bytes_to_image_data_url(file_path, bytes))
+}
+
+pub(super) fn index_image_data_url(repo_path: &Path, file_path: &str) -> AppResult<Option<String>> {
+    git_image_data_url(repo_path, ":", file_path)
 }
 
 fn parse_numstat(output: &str) -> DiffStats {
@@ -107,6 +182,7 @@ pub(super) fn diff_result_from_git_args(
     numstat_args: &[&str],
     diff_args: &[&str],
     allowed_diff_exit_code: Option<i32>,
+    image_data_urls: Option<(Option<String>, Option<String>)>,
 ) -> AppResult<CommitFileDiffResult> {
     let is_image = is_image_path(file_path);
     let numstat = match allowed_diff_exit_code {
@@ -116,6 +192,8 @@ pub(super) fn diff_result_from_git_args(
     let stats = parse_numstat(&numstat);
 
     if stats.is_binary || is_image {
+        let (old_image_data_url, new_image_data_url) = image_data_urls.unwrap_or((None, None));
+
         return Ok(CommitFileDiffResult {
             text: String::new(),
             is_binary: stats.is_binary,
@@ -124,8 +202,8 @@ pub(super) fn diff_result_from_git_args(
             truncated: false,
             byte_count: 0,
             line_count: stats.line_count,
-            old_image_data_url: None,
-            new_image_data_url: None,
+            old_image_data_url,
+            new_image_data_url,
         });
     }
 
@@ -187,5 +265,22 @@ pub fn get_commit_file_diff(
     let (base, pathspecs) = diff_base_and_pathspecs(&repo_path, hash, file_path, previous_path)?;
     let numstat_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, true);
     let diff_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, false);
-    diff_result_from_git_args(&repo_path, file_path, &numstat_args, &diff_args, None)
+    let image_data_urls = is_image_path(file_path)
+        .then(|| {
+            let old_path = previous_path.unwrap_or(file_path);
+            Ok::<_, crate::error::AppError>((
+                git_image_data_url(&repo_path, &base, old_path)?,
+                git_image_data_url(&repo_path, hash, file_path)?,
+            ))
+        })
+        .transpose()?;
+
+    diff_result_from_git_args(
+        &repo_path,
+        file_path,
+        &numstat_args,
+        &diff_args,
+        None,
+        image_data_urls,
+    )
 }

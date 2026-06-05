@@ -111,6 +111,16 @@ fn commit_file_with_body(
     run_git(path, &["rev-parse", "HEAD"])
 }
 
+fn svg_content(label: &str) -> String {
+    format!(r#"<svg xmlns="http://www.w3.org/2000/svg"><text>{label}</text></svg>"#)
+}
+
+fn assert_svg_data_url(value: Option<&String>) {
+    assert!(value
+        .expect("svg data url")
+        .starts_with("data:image/svg+xml;base64,"));
+}
+
 fn current_test_branch(path: &Path) -> String {
     run_git(path, &["branch", "--show-current"])
 }
@@ -1532,6 +1542,117 @@ fn marks_image_diff_by_extension() {
 
     assert!(diff.is_image);
     assert!(diff.text.is_empty());
+}
+
+#[test]
+fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
+    let repo = init_repo();
+    write_file(&repo.path, "image.svg", &svg_content("one"));
+    run_git(&repo.path, &["add", "image.svg"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "add image"]);
+    let added_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    write_file(&repo.path, "image.svg", &svg_content("two"));
+    run_git(&repo.path, &["add", "image.svg"]);
+    run_git(
+        &repo.path,
+        &["commit", "--no-gpg-sign", "-m", "modify image"],
+    );
+    let modified_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    fs::remove_file(repo.path.join("image.svg")).expect("delete image");
+    run_git(&repo.path, &["add", "image.svg"]);
+    run_git(
+        &repo.path,
+        &["commit", "--no-gpg-sign", "-m", "delete image"],
+    );
+    let deleted_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let added_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &added_hash,
+        "image.svg",
+        None,
+        false,
+    )
+    .unwrap();
+    let modified_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &modified_hash,
+        "image.svg",
+        None,
+        false,
+    )
+    .unwrap();
+    let deleted_diff = get_commit_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        &deleted_hash,
+        "image.svg",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(added_diff.is_image);
+    assert!(added_diff.old_image_data_url.is_none());
+    assert_svg_data_url(added_diff.new_image_data_url.as_ref());
+    assert!(modified_diff.is_image);
+    assert_svg_data_url(modified_diff.old_image_data_url.as_ref());
+    assert_svg_data_url(modified_diff.new_image_data_url.as_ref());
+    assert!(deleted_diff.is_image);
+    assert_svg_data_url(deleted_diff.old_image_data_url.as_ref());
+    assert!(deleted_diff.new_image_data_url.is_none());
+}
+
+#[test]
+fn returns_workspace_image_data_urls_for_untracked_staged_and_unstaged_images() {
+    let repo = init_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    write_file(&repo.path, "untracked.svg", &svg_content("untracked"));
+
+    let untracked_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "untracked.svg",
+        None,
+        false,
+    )
+    .unwrap();
+
+    write_file(&repo.path, "image.svg", &svg_content("one"));
+    run_git(&repo.path, &["add", "image.svg"]);
+    run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "add image"]);
+
+    write_file(&repo.path, "image.svg", &svg_content("two"));
+    run_git(&repo.path, &["add", "image.svg"]);
+    let staged_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Staged,
+        "image.svg",
+        None,
+        false,
+    )
+    .unwrap();
+
+    write_file(&repo.path, "image.svg", &svg_content("three"));
+    let unstaged_diff = get_workspace_file_diff(
+        repo.path.to_string_lossy().as_ref(),
+        WorkspaceChangeSection::Unstaged,
+        "image.svg",
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(untracked_diff.is_image);
+    assert!(untracked_diff.old_image_data_url.is_none());
+    assert_svg_data_url(untracked_diff.new_image_data_url.as_ref());
+    assert!(staged_diff.is_image);
+    assert_svg_data_url(staged_diff.old_image_data_url.as_ref());
+    assert_svg_data_url(staged_diff.new_image_data_url.as_ref());
+    assert!(unstaged_diff.is_image);
+    assert_svg_data_url(unstaged_diff.old_image_data_url.as_ref());
+    assert_svg_data_url(unstaged_diff.new_image_data_url.as_ref());
 }
 
 #[test]

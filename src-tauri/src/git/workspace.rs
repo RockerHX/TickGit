@@ -10,7 +10,10 @@ use crate::{
 
 use super::{
     command::{git_output_bytes, git_run, git_trimmed},
-    diff::diff_result_from_git_args,
+    diff::{
+        diff_result_from_git_args, git_image_data_url, index_image_data_url, is_image_path,
+        working_tree_image_data_url,
+    },
     repository::resolve_repository_path,
 };
 
@@ -224,12 +227,16 @@ pub fn get_workspace_file_diff(
     if is_untracked {
         let numstat_args = build_untracked_diff_args(file_path, ignore_whitespace, true);
         let diff_args = build_untracked_diff_args(file_path, ignore_whitespace, false);
+        let image_data_urls = is_image_path(file_path)
+            .then(|| Ok::<_, AppError>((None, working_tree_image_data_url(&repo_path, file_path)?)))
+            .transpose()?;
         return diff_result_from_git_args(
             &repo_path,
             file_path,
             &numstat_args,
             &diff_args,
             Some(1),
+            image_data_urls,
         );
     }
 
@@ -237,8 +244,30 @@ pub fn get_workspace_file_diff(
         build_workspace_diff_args(&section, file_path, previous_path, ignore_whitespace, true);
     let diff_args =
         build_workspace_diff_args(&section, file_path, previous_path, ignore_whitespace, false);
+    let image_data_urls = is_image_path(file_path)
+        .then(|| {
+            let old_path = previous_path.unwrap_or(file_path);
+            match section {
+                WorkspaceChangeSection::Staged => Ok::<_, AppError>((
+                    git_image_data_url(&repo_path, "HEAD", old_path)?,
+                    index_image_data_url(&repo_path, file_path)?,
+                )),
+                WorkspaceChangeSection::Unstaged => Ok::<_, AppError>((
+                    index_image_data_url(&repo_path, old_path)?,
+                    working_tree_image_data_url(&repo_path, file_path)?,
+                )),
+            }
+        })
+        .transpose()?;
 
-    diff_result_from_git_args(&repo_path, file_path, &numstat_args, &diff_args, None)
+    diff_result_from_git_args(
+        &repo_path,
+        file_path,
+        &numstat_args,
+        &diff_args,
+        None,
+        image_data_urls,
+    )
 }
 
 pub fn stage_workspace_file(repo_path: &str, file_path: &str) -> AppResult<()> {
