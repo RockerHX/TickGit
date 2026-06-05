@@ -438,15 +438,22 @@ rtk cargo test --manifest-path src-tauri/Cargo.toml
 
 ### 7.4 国际化与文案统一
 
-现状：
+已完成：
 
-- UI 中英文混用。
-- 错误消息多为中文，按钮和部分状态为英文。
+- 新增轻量 i18n 资源层，支持 `zh-CN` / `en-US` 双语文案、插值、语言检测与本地持久化。
+- 首次启动跟随系统语言；用户可在顶部语言切换入口选择“简体中文 / English”，选择后写入 `localStorage: tickgit.locale` 并同步 `<html lang>`。
+- 前端页面、仓库/分支/历史、Diff/工作区、推送流程、Toast、空状态、按钮与 aria-label 文案已统一从资源表读取。
+- Rust 后端补充仓库不可用、分支不可推送、Commit 不可安全推送、推送失败事件等稳定原因码；前端优先按 code 显示当前语言，未知 Git 原始错误保留原文。
+- 日期格式支持按当前语言输出；仓库名、路径、分支名、Commit 信息、Git 原始 stderr 不翻译。
 
-建议：
+已验证：
 
-- 先统一产品默认语言。
-- 若目标用户包含中英文用户，再引入轻量 i18n。
+- `rtk npm run format:check`
+- `rtk npm run check`
+- `rtk npm run test:run`
+- `rtk npm run build`
+- `rtk cargo test --manifest-path src-tauri/Cargo.toml`
+- 硬编码文案审计未发现剩余匹配项；剩余字符串为资源 key、技术常量、样式、日志或 Git/用户数据。
 
 ---
 
