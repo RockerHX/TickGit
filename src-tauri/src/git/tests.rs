@@ -452,6 +452,147 @@ fn paginates_filtered_commit_history_after_metadata_filters() {
 }
 
 #[test]
+fn filters_commit_history_by_file_path_fragments() {
+    let repo = init_repo();
+    let docs_hash = commit_file(&repo.path, "docs/plan.md", "plan\n", "docs plan");
+    commit_file(&repo.path, "src/main.rs", "main\n", "main code");
+    commit_file(&repo.path, "README.md", "readme\n", "readme");
+
+    let history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            file_path: Some("DOCS/plan".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.items[0].hash, docs_hash);
+    assert_eq!(history.next_skip, 1);
+    assert!(!history.has_more);
+}
+
+#[test]
+fn filters_commit_history_by_renamed_previous_and_new_paths() {
+    let repo = init_repo();
+    commit_file(&repo.path, "src/old-name.txt", "before\n", "create old");
+    run_git(&repo.path, &["mv", "src/old-name.txt", "src/new-name.txt"]);
+    run_git(
+        &repo.path,
+        &["commit", "--no-gpg-sign", "-m", "rename file"],
+    );
+    let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
+
+    let old_path_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            file_path: Some("old-name".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+    let new_path_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            file_path: Some("new-name".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert!(old_path_history
+        .items
+        .iter()
+        .any(|item| item.hash == rename_hash));
+    assert_eq!(new_path_history.items[0].hash, rename_hash);
+}
+
+#[test]
+fn paginates_commit_history_after_file_path_filters() {
+    let repo = init_repo();
+    let first_hash = commit_file(&repo.path, "tickets/one.txt", "one\n", "ticket one");
+    let second_hash = commit_file(&repo.path, "tickets/two.txt", "two\n", "ticket two");
+    let third_hash = commit_file(&repo.path, "tickets/three.txt", "three\n", "ticket three");
+    commit_file(&repo.path, "notes/other.txt", "other\n", "other");
+
+    let first_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        2,
+        Some(CommitHistoryFilters {
+            file_path: Some("tickets/".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+    let second_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        first_page.next_skip,
+        2,
+        Some(CommitHistoryFilters {
+            file_path: Some("tickets/".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(
+        first_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![third_hash.as_str(), second_hash.as_str()]
+    );
+    assert!(first_page.has_more);
+    assert_eq!(second_page.items.len(), 1);
+    assert_eq!(second_page.items[0].hash, first_hash);
+    assert!(!second_page.has_more);
+}
+
+#[test]
+fn keeps_unpushed_commit_flags_when_file_path_filters_are_active() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let local_hash = commit_file(&repo.path, "local/path.txt", "local\n", "local path");
+
+    let history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            file_path: Some("local/path".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.items[0].hash, local_hash);
+    assert!(!history.items[0].is_pushed);
+    assert!(history.items[0].is_safe_push_target);
+    assert_eq!(history.unpushed_count, 1);
+    assert_eq!(history.safe_unpushed_count, 1);
+}
+
+#[test]
 fn rejects_push_to_commit_for_unsafe_merge_side_branch_commit() {
     let repo = init_repo();
     let origin = init_bare_repo();

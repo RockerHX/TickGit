@@ -38,6 +38,10 @@ fn normalize_history_filters(
 }
 
 impl NormalizedCommitHistoryFilters {
+    fn has_filters(&self) -> bool {
+        self.has_commit_metadata_filters() || self.file_path.is_some()
+    }
+
     fn has_commit_metadata_filters(&self) -> bool {
         self.query.is_some() || self.author.is_some()
     }
@@ -78,6 +82,50 @@ fn commit_record_matches_metadata(record: &str, filters: &NormalizedCommitHistor
     true
 }
 
+fn commit_record_hash(record: &str) -> Option<&str> {
+    record
+        .split('\u{1f}')
+        .next()
+        .map(str::trim)
+        .filter(|hash| !hash.is_empty())
+}
+
+fn commit_matches_file_path(
+    repo_path: &Path,
+    hash: &str,
+    file_path_filter: &str,
+) -> AppResult<bool> {
+    let files = commit_files_for_resolved_path(repo_path, hash)?;
+
+    Ok(files.iter().any(|file| {
+        contains_normalized(&file.path, file_path_filter)
+            || file
+                .previous_path
+                .as_deref()
+                .is_some_and(|previous_path| contains_normalized(previous_path, file_path_filter))
+            || contains_normalized(&file.display_path, file_path_filter)
+    }))
+}
+
+fn commit_record_matches_filters(
+    repo_path: &Path,
+    record: &str,
+    filters: &NormalizedCommitHistoryFilters,
+) -> AppResult<bool> {
+    if !commit_record_matches_metadata(record, filters) {
+        return Ok(false);
+    }
+
+    let Some(file_path_filter) = filters.file_path.as_deref() else {
+        return Ok(true);
+    };
+    let Some(hash) = commit_record_hash(record) else {
+        return Ok(false);
+    };
+
+    commit_matches_file_path(repo_path, hash, file_path_filter)
+}
+
 pub(super) fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", &range])?;
@@ -112,7 +160,7 @@ pub fn get_commit_history(
         _ => (HashSet::new(), HashSet::new(), None),
     };
 
-    let (items, item_count, has_more) = if filters.has_commit_metadata_filters() {
+    let (items, item_count, has_more) = if filters.has_filters() {
         let output = git_trimmed(
             &repo_path,
             &[
@@ -124,11 +172,15 @@ pub fn get_commit_history(
                 "HEAD",
             ],
         )?;
-        let matched_records: Vec<&str> = output
+        let mut matched_records: Vec<&str> = Vec::new();
+        for record in output
             .split('\u{1e}')
             .filter(|record| !record.trim().is_empty())
-            .filter(|record| commit_record_matches_metadata(record, &filters))
-            .collect();
+        {
+            if commit_record_matches_filters(&repo_path, record, &filters)? {
+                matched_records.push(record);
+            }
+        }
         let page_records: Vec<&str> = matched_records
             .iter()
             .skip(skip)
@@ -188,8 +240,15 @@ pub fn get_commit_history(
 
 pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
     let repo_path = resolve_repository_path(repo_path)?;
+    commit_files_for_resolved_path(&repo_path, hash)
+}
+
+fn commit_files_for_resolved_path(
+    repo_path: &Path,
+    hash: &str,
+) -> AppResult<Vec<CommitFileChange>> {
     let output = git_output_bytes(
-        &repo_path,
+        repo_path,
         &[
             "show",
             "--find-renames",
