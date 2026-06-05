@@ -58,7 +58,7 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`flex min-h-[68px] w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left backdrop-blur transition ${
+    class={`flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left backdrop-blur transition ${
       disabled
         ? "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-75"
         : open
@@ -73,14 +73,14 @@
     on:click|stopPropagation={toggleOpen}
   >
     <span
-      class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
+      class={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-lg border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
         disabled
           ? "border-white/[0.06] bg-[#30363d] text-slate-500"
           : "border-[#539bf5]/30 bg-gradient-to-br from-[#1f6feb] to-[#39c5cf] text-[#f0f6fc]"
       }`}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current">
+      <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
         <path
           d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
         ></path>
@@ -88,13 +88,13 @@
     </span>
 
     <span class="min-w-0 flex-1">
-      <span class="block truncate text-[0.95rem] font-semibold text-[#f0f6fc]">
+      <span class="block truncate text-[0.9rem] font-semibold text-[#f0f6fc]">
         {currentBranch ?? translate($locale, "branch.noneSelected")}
       </span>
     </span>
 
     <span
-      class={`flex h-10 w-8 shrink-0 items-center justify-center border-l transition ${
+      class={`flex h-8 w-7 shrink-0 items-center justify-center border-l transition ${
         disabled
           ? "border-white/[0.05] text-slate-600"
           : open
@@ -104,7 +104,7 @@
     >
       <svg
         viewBox="0 0 16 16"
-        class={`h-4 w-4 fill-current transition ${open ? "rotate-180" : ""}`}
+        class={`h-3.5 w-3.5 fill-current transition ${open ? "rotate-180" : ""}`}
         aria-hidden="true"
       >
         <path
@@ -119,7 +119,7 @@
       class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-[#4b5563] bg-[#2b3036] shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
     >
       <div class="border-b border-[#373e47] px-5 pb-4 pt-5">
-        <div class="text-[0.95rem] font-semibold text-slate-400">
+        <div class="text-[0.9rem] font-semibold text-slate-400">
           {translate($locale, "branch.switch")}
         </div>
       </div>
@@ -165,7 +165,7 @@
                 {#if branch === currentBranch}
                   <svg
                     viewBox="0 0 16 16"
-                    class="h-4.5 w-4.5 fill-current"
+                    class="h-4 w-4 fill-current"
                     aria-hidden="true"
                   >
                     <path

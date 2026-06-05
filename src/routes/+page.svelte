@@ -1495,15 +1495,15 @@
 >
   <header class="shrink-0 border-b border-[#15191f] bg-[#10151c]">
     <div
-      class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(47,129,247,0.08),transparent_42%)] px-6 pb-4 pt-3"
+      class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(47,129,247,0.08),transparent_42%)] px-6 pb-3 pt-2"
     >
       <div
         class="grid items-start gap-3"
-        style="grid-template-columns: minmax(300px, 1.25fr) 12px minmax(230px, 0.95fr) 12px minmax(260px, 1fr) 68px 68px;"
+        style="grid-template-columns: minmax(300px, 1fr) 10px 200px 10px 270px 56px 56px;"
       >
         <div class="min-w-0">
           <div
-            class="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"
           >
             {translate($locale, "repository.current")}
           </div>
@@ -1518,15 +1518,15 @@
         </div>
 
         <div
-          class="flex h-[90px] items-center justify-center text-slate-600/70"
+          class="flex h-[74px] items-center justify-center text-slate-600/70"
           aria-hidden="true"
         >
-          <span class="text-sm">›</span>
+          <span class="text-xs">›</span>
         </div>
 
         <div class="min-w-0">
           <div
-            class="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"
           >
             {translate($locale, "branch.current")}
           </div>
@@ -1542,20 +1542,20 @@
             })}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
-          <div class="mt-1 truncate text-xs text-slate-400">
+          <div class="mt-0.5 truncate text-xs text-slate-400">
             {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
           </div>
         </div>
 
         <div
-          class="flex h-[90px] items-center justify-center text-slate-600/70"
+          class="flex h-[74px] items-center justify-center text-slate-600/70"
           aria-hidden="true"
         >
-          <span class="text-sm">›</span>
+          <span class="text-xs">›</span>
         </div>
 
         <button
-          class={`mt-[21px] flex min-h-[68px] min-w-0 items-center gap-3 rounded-lg border px-4 py-2.5 text-left backdrop-blur transition ${
+          class={`mt-[18px] flex min-h-[56px] min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left backdrop-blur transition ${
             canPushBranch
               ? "border-[#4d7cff]/38 bg-white/[0.04] text-[#f0f6fc] hover:border-[#539bf5]/45 hover:bg-[#1f6feb]/10"
               : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-70"
@@ -1564,7 +1564,7 @@
           on:click={pushCurrentBranch}
         >
           <span
-            class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
+            class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
               canPushBranch
                 ? "border-[#539bf5]/35 bg-[#347dff]/18 text-[#cae8ff]"
                 : "border-white/[0.06] bg-[#30363d] text-slate-500"
@@ -1574,14 +1574,14 @@
             {#if isPushing}
               <svg
                 viewBox="0 0 16 16"
-                class="h-4.5 w-4.5 animate-spin fill-current"
+                class="h-4 w-4 animate-spin fill-current"
               >
                 <path
                   d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5.75.75 0 0 0-1.5 0 5 5 0 1 1-1.46-3.54.75.75 0 1 0 1.06-1.06A6.48 6.48 0 0 0 8 1.5Z"
                 ></path>
               </svg>
             {:else}
-              <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current">
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
                 <path
                   d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
                 ></path>
@@ -1590,14 +1590,16 @@
           </span>
 
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-semibold text-[#f0f6fc]">
+            <span
+              class="block truncate text-[0.9rem] font-semibold text-[#f0f6fc]"
+            >
               {switchingBranch
                 ? translate($locale, "push.switching")
                 : isPushing
                   ? translate($locale, "push.pushing")
                   : translate($locale, "push.button")}
             </span>
-            <span class="mt-0.5 block truncate text-xs text-slate-400">
+            <span class="mt-0.5 block truncate text-[11px] text-slate-400">
               {isPushing
                 ? translate($locale, "push.uploading")
                 : branchStatus?.aheadCount
@@ -1609,7 +1611,7 @@
           </span>
 
           <span
-            class={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold tracking-[0.06em] ${
+            class={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] ${
               canPushBranch
                 ? "bg-[#347dff] text-white shadow-[0_8px_22px_rgba(52,125,255,0.3)]"
                 : "bg-[#6e7681]/35 text-slate-400"
@@ -1622,7 +1624,7 @@
 
         <button
           type="button"
-          class={`mt-[21px] flex min-h-[68px] w-full items-center justify-center rounded-lg border backdrop-blur transition ${
+          class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border backdrop-blur transition ${
             canRefreshRemoteStatus
               ? "border-white/[0.08] bg-white/[0.045] text-slate-300 hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
               : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-600 opacity-75"
@@ -1638,7 +1640,7 @@
         >
           <svg
             viewBox="0 0 16 16"
-            class={`h-5 w-5 fill-current ${syncingRemoteStatus ? "animate-spin" : ""}`}
+            class={`h-4.5 w-4.5 fill-current ${syncingRemoteStatus ? "animate-spin" : ""}`}
             aria-hidden="true"
           >
             <path
@@ -1649,14 +1651,14 @@
 
         <button
           type="button"
-          class="mt-[21px] flex min-h-[68px] w-full items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-300 backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
+          class="mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-300 backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
           aria-label={translate($locale, "settings.title")}
           title={translate($locale, "settings.title")}
           on:click={() => (settingsOpen = true)}
         >
           <svg
             viewBox="0 0 16 16"
-            class="h-5 w-5 fill-current"
+            class="h-4.5 w-4.5 fill-current"
             aria-hidden="true"
           >
             <path
