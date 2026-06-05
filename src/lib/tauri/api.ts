@@ -89,8 +89,6 @@ export const api = {
     invoke<void>("unstage_workspace_file", { repoPath, filePath }),
   createCommit: (repoPath: string, message: string) =>
     invoke<CommitCreated>("create_commit", { repoPath, message }),
-  pushCurrentBranch: (repoPath: string) =>
-    invoke<void>("push_current_branch", { repoPath }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>
     invoke<PushToCommitJobStarted>("start_push_current_branch", {
       repoPath,
@@ -98,8 +96,6 @@ export const api = {
     }),
   saveWindowSize: (width: number, height: number) =>
     invoke<void>("save_window_size", { width, height }),
-  pushToCommit: (repoPath: string, branch: string, hash: string) =>
-    invoke<void>("push_to_commit", { repoPath, branch, hash }),
   getStepPushPlan: (repoPath: string, targetHash: string) =>
     invoke<StepPushPlan>("get_step_push_plan", { repoPath, targetHash }),
   startPushToCommit: (request: PushToCommitRequest) =>

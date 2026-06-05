@@ -2,7 +2,7 @@ use super::repository::branch_status_for_path;
 use super::{
     checkout_branch, create_commit, get_commit_file_diff, get_commit_history, get_commit_meta,
     get_step_push_plan, get_workspace_file_diff, get_workspace_status, list_local_branches,
-    push_current_branch, push_to_commit, refresh_remote_tracking, resolve_repository_path,
+    push_current_branch_checked, push_to_commit, refresh_remote_tracking, resolve_repository_path,
     stage_workspace_file, unstage_workspace_file, validate_current_branch,
     validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
     UNSAFE_PUSH_TARGET_MESSAGE,
@@ -233,7 +233,7 @@ fn pushes_current_branch_to_origin_even_when_upstream_points_elsewhere() {
 
     let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
 
-    push_current_branch(repo.path.to_string_lossy().as_ref()).unwrap();
+    push_current_branch_checked(repo.path.to_string_lossy().as_ref(), &branch).unwrap();
 
     let origin_head = run_git(
         &origin.path,
@@ -1741,4 +1741,17 @@ fn checks_out_selected_local_branch() {
 
     let status = branch_status_for_path(&repo.path).unwrap();
     assert_eq!(status.branch, "feature");
+}
+
+#[test]
+fn rejects_empty_checkout_branch() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let before = branch_status_for_path(&repo.path).unwrap().branch;
+
+    let error = checkout_branch(repo.path.to_string_lossy().as_ref(), "   ").unwrap_err();
+
+    assert_app_error(error, "invalid_branch", "目标分支不能为空");
+    let after = branch_status_for_path(&repo.path).unwrap().branch;
+    assert_eq!(after, before);
 }

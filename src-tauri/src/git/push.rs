@@ -8,8 +8,8 @@ use crate::{
 use super::{
     command::{git_run, git_trimmed},
     repository::{
-        branch_status_for_path, current_branch_matching, current_branch_name,
-        resolve_repository_path, sync_origin_tracking,
+        branch_status_for_path, current_branch_matching, resolve_repository_path,
+        sync_origin_tracking,
     },
     BRANCH_BEHIND_REMOTE_MESSAGE, REMOTE_NAME, UNSAFE_PUSH_TARGET_MESSAGE,
 };
@@ -341,26 +341,6 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
         items,
         blocked_reason: None,
     })
-}
-
-pub fn push_current_branch(repo_path: &str) -> AppResult<()> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let (branch, detached) = current_branch_name(&repo_path)?;
-
-    if detached {
-        return Err(AppError::new(
-            "detached_head",
-            "当前仓库处于 detached HEAD 状态，无法推送当前分支",
-        ));
-    }
-
-    sync_origin_tracking(&repo_path)?;
-
-    let head = git_trimmed(&repo_path, &["rev-parse", "HEAD"])?;
-    ensure_remote_fast_forward_target(&repo_path, &branch, &head)?;
-
-    let refspec = format!("HEAD:refs/heads/{branch}");
-    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
 
 pub fn push_current_branch_checked(repo_path: &str, branch: &str) -> AppResult<()> {

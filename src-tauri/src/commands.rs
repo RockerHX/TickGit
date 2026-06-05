@@ -160,11 +160,6 @@ pub fn create_commit(repo_path: String, message: String) -> AppResult<CommitCrea
 }
 
 #[tauri::command]
-pub fn push_current_branch(repo_path: String) -> AppResult<()> {
-    git::push_current_branch(&repo_path)
-}
-
-#[tauri::command]
 pub fn start_push_current_branch(
     app: AppHandle,
     jobs: State<'_, jobs::PushToCommitManager>,
@@ -183,11 +178,6 @@ pub fn save_window_size(
     height: f64,
 ) -> AppResult<()> {
     repo_store::save_window_size(&app, state, width, height)
-}
-
-#[tauri::command]
-pub fn push_to_commit(repo_path: String, branch: String, hash: String) -> AppResult<()> {
-    git::push_to_commit(&repo_path, &branch, &hash)
 }
 
 #[tauri::command]
