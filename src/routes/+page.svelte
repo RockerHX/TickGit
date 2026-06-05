@@ -1546,7 +1546,16 @@
               : translate($locale, "remoteBlock.refreshStatus")}
           </button>
           <button
-            class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
+            class={`flex min-h-[74px] min-w-[236px] items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition ${
+              canPushCurrentBranch({
+                branchStatus,
+                switchingBranch,
+                isPushing: isPushing || syncingRemoteStatus,
+                stepPushState,
+              })
+                ? "border-[#539bf5]/28 bg-white/[0.045] text-[#f0f6fc] hover:border-[#539bf5]/45 hover:bg-[#1f6feb]/12"
+                : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-75"
+            }`}
             disabled={!canPushCurrentBranch({
               branchStatus,
               switchingBranch,
@@ -1555,44 +1564,67 @@
             })}
             on:click={pushCurrentBranch}
           >
-            <svg
-              viewBox="0 0 16 16"
-              class="h-5 w-5 shrink-0 fill-current text-[#f0f6fc] disabled:text-slate-500"
+            <span
+              class={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-[0_12px_24px_rgba(47,129,247,0.18)] ${
+                canPushCurrentBranch({
+                  branchStatus,
+                  switchingBranch,
+                  isPushing: isPushing || syncingRemoteStatus,
+                  stepPushState,
+                })
+                  ? "border-[#539bf5]/35 bg-[#347dff]/18 text-[#cae8ff]"
+                  : "border-white/[0.06] bg-[#30363d] text-slate-500"
+              }`}
               aria-hidden="true"
             >
-              <path
-                d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
-              ></path>
-            </svg>
+              {#if isPushing}
+                <svg viewBox="0 0 16 16" class="h-5 w-5 animate-spin fill-current">
+                  <path
+                    d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5.75.75 0 0 0-1.5 0 5 5 0 1 1-1.46-3.54.75.75 0 1 0 1.06-1.06A6.48 6.48 0 0 0 8 1.5Z"
+                  ></path>
+                </svg>
+              {:else}
+                <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current">
+                  <path
+                    d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
+                  ></path>
+                </svg>
+              {/if}
+            </span>
+
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-[0.95rem] font-semibold">
+              <span class="block truncate text-[0.95rem] font-semibold text-[#f0f6fc]">
                 {switchingBranch
                   ? translate($locale, "push.switching")
                   : isPushing
                     ? translate($locale, "push.pushing")
                     : translate($locale, "push.button")}
               </span>
-              <span class="mt-0.5 block truncate text-xs text-slate-400">
-                {branchStatus?.aheadCount
-                  ? translate($locale, "push.aheadCommits", {
-                      count: branchStatus.aheadCount,
-                    })
-                  : translate($locale, "push.upToDate")}
+              <span class="mt-1 block truncate text-xs text-slate-400">
+                {isPushing
+                  ? translate($locale, "push.uploading")
+                  : branchStatus?.aheadCount
+                    ? translate($locale, "push.aheadCommits", {
+                        count: branchStatus.aheadCount,
+                      })
+                    : translate($locale, "push.upToDate")}
               </span>
             </span>
+
             <span
-              class="flex shrink-0 items-center gap-1 rounded-full bg-[#6e7681] px-2.5 py-1 text-[11px] font-semibold text-[#f0f6fc]"
+              class={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] ${
+                canPushCurrentBranch({
+                  branchStatus,
+                  switchingBranch,
+                  isPushing: isPushing || syncingRemoteStatus,
+                  stepPushState,
+                })
+                  ? "bg-[#347dff] text-white shadow-[0_8px_22px_rgba(52,125,255,0.3)]"
+                  : "bg-[#6e7681]/35 text-slate-400"
+              }`}
             >
               <span>{branchStatus?.aheadCount ?? 0}</span>
-              <svg
-                viewBox="0 0 16 16"
-                class="h-3 w-3 fill-current"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
-                ></path>
-              </svg>
+              <span aria-hidden="true">↑</span>
             </span>
           </button>
         </div>
