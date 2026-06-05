@@ -33,7 +33,6 @@ export function filterRepositories(
   });
 }
 
-
 export function formatRepositoryPath(path: string, homePath?: string | null) {
   const normalizedHome = homePath?.replace(/[\\/]+$/, "") ?? null;
 

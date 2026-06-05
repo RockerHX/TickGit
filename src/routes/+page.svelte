@@ -1465,10 +1465,7 @@
   on:cancel={closeStepPushPlanDialog}
 />
 
-<SettingsDialog
-  open={settingsOpen}
-  on:close={() => (settingsOpen = false)}
-/>
+<SettingsDialog open={settingsOpen} on:close={() => (settingsOpen = false)} />
 
 <CommitContextMenu
   open={contextMenu.open}
@@ -1496,18 +1493,41 @@
 <main
   class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200"
 >
-  <header class="shrink-0 border-b border-[#15191f] bg-[#1b2027] shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
-    <div class="relative flex h-11 items-center justify-center border-b border-white/[0.06] bg-[#161b22] px-4">
-      <div class="pointer-events-none absolute left-4 hidden items-center gap-2 sm:flex" aria-hidden="true">
-        <span class="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[0_0_10px_rgba(255,95,87,0.35)]"></span>
-        <span class="h-3 w-3 rounded-full bg-[#ffbd2e] shadow-[0_0_10px_rgba(255,189,46,0.28)]"></span>
-        <span class="h-3 w-3 rounded-full bg-[#28c840] shadow-[0_0_10px_rgba(40,200,64,0.28)]"></span>
+  <header
+    class="shrink-0 border-b border-[#15191f] bg-[#1b2027] shadow-[0_12px_36px_rgba(0,0,0,0.22)]"
+  >
+    <div
+      class="relative flex h-11 items-center justify-center border-b border-white/[0.06] bg-[#161b22] px-4"
+    >
+      <div
+        class="pointer-events-none absolute left-4 hidden items-center gap-2 sm:flex"
+        aria-hidden="true"
+      >
+        <span
+          class="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[0_0_10px_rgba(255,95,87,0.35)]"
+        ></span>
+        <span
+          class="h-3 w-3 rounded-full bg-[#ffbd2e] shadow-[0_0_10px_rgba(255,189,46,0.28)]"
+        ></span>
+        <span
+          class="h-3 w-3 rounded-full bg-[#28c840] shadow-[0_0_10px_rgba(40,200,64,0.28)]"
+        ></span>
       </div>
 
-      <div class="flex items-center gap-2 text-sm font-semibold tracking-[0.16em] text-[#f0f6fc]">
-        <span class="flex h-7 w-7 items-center justify-center rounded-full border border-[#539bf5]/35 bg-[#347dff]/15 text-[#cae8ff] shadow-[0_0_22px_rgba(52,125,255,0.18)]">
-          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current" aria-hidden="true">
-            <path d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"></path>
+      <div
+        class="flex items-center gap-2 text-sm font-semibold tracking-[0.16em] text-[#f0f6fc]"
+      >
+        <span
+          class="flex h-7 w-7 items-center justify-center rounded-full border border-[#539bf5]/35 bg-[#347dff]/15 text-[#cae8ff] shadow-[0_0_22px_rgba(52,125,255,0.18)]"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            class="h-3.5 w-3.5 fill-current"
+            aria-hidden="true"
+          >
+            <path
+              d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
+            ></path>
           </svg>
         </span>
         <span>{translate($locale, "app.title")}</span>
@@ -1515,9 +1535,11 @@
     </div>
 
     <div class="overflow-x-auto px-4 py-3">
-      <div class="flex min-w-[840px] items-stretch gap-3">
+      <div class="flex min-w-[960px] items-stretch gap-3">
         <div class="min-w-[280px] flex-[1.2]">
-          <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div
+            class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+          >
             {translate($locale, "repository.current")}
           </div>
           <RepositorySwitcher
@@ -1530,8 +1552,14 @@
           />
         </div>
 
+        <div class="flex items-end pb-[25px] text-slate-600" aria-hidden="true">
+          <span class="text-lg">→</span>
+        </div>
+
         <div class="min-w-[240px] flex-1">
-          <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div
+            class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+          >
             {translate($locale, "branch.current")}
           </div>
           <BranchSwitcher
@@ -1547,6 +1575,10 @@
             })}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
+        </div>
+
+        <div class="flex items-end pb-[25px] text-slate-600" aria-hidden="true">
+          <span class="text-lg">→</span>
         </div>
 
         <div class="flex min-w-[360px] items-stretch gap-3">
@@ -1568,7 +1600,10 @@
               aria-hidden="true"
             >
               {#if isPushing}
-                <svg viewBox="0 0 16 16" class="h-5 w-5 animate-spin fill-current">
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-5 w-5 animate-spin fill-current"
+                >
                   <path
                     d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5.75.75 0 0 0-1.5 0 5 5 0 1 1-1.46-3.54.75.75 0 1 0 1.06-1.06A6.48 6.48 0 0 0 8 1.5Z"
                   ></path>
@@ -1583,7 +1618,9 @@
             </span>
 
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-[0.95rem] font-semibold text-[#f0f6fc]">
+              <span
+                class="block truncate text-[0.95rem] font-semibold text-[#f0f6fc]"
+              >
                 {switchingBranch
                   ? translate($locale, "push.switching")
                   : isPushing
@@ -1647,7 +1684,11 @@
             title={translate($locale, "settings.title")}
             on:click={() => (settingsOpen = true)}
           >
-            <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current" aria-hidden="true">
+            <svg
+              viewBox="0 0 16 16"
+              class="h-5 w-5 fill-current"
+              aria-hidden="true"
+            >
               <path
                 d="M8 1.5a1.75 1.75 0 0 0-1.72 1.43l-.05.26a5.8 5.8 0 0 0-.9.37l-.22-.15a1.75 1.75 0 0 0-2.23.22l-.25.25a1.75 1.75 0 0 0-.22 2.23l.15.22c-.15.29-.27.59-.37.9l-.26.05a1.75 1.75 0 0 0 0 3.44l.26.05c.1.31.22.61.37.9l-.15.22a1.75 1.75 0 0 0 .22 2.23l.25.25a1.75 1.75 0 0 0 2.23.22l.22-.15c.29.15.59.27.9.37l.05.26a1.75 1.75 0 0 0 3.44 0l.05-.26c.31-.1.61-.22.9-.37l.22.15a1.75 1.75 0 0 0 2.23-.22l.25-.25a1.75 1.75 0 0 0 .22-2.23l-.15-.22c.15-.29.27-.59.37-.9l.26-.05a1.75 1.75 0 0 0 0-3.44l-.26-.05a5.8 5.8 0 0 0-.37-.9l.15-.22a1.75 1.75 0 0 0-.22-2.23l-.25-.25a1.75 1.75 0 0 0-2.23-.22l-.22.15a5.8 5.8 0 0 0-.9-.37l-.05-.26A1.75 1.75 0 0 0 8 1.5Zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"
               ></path>

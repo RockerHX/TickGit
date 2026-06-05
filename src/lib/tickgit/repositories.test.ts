@@ -41,12 +41,10 @@ describe("repository helpers", () => {
   });
 
   it("formats repository paths relative to home", () => {
-    expect(formatRepositoryPath("/Users/tickgit/Project", "/Users/tickgit")).toBe(
-      "~/Project",
-    );
-    expect(formatRepositoryPath("/Users/tickgit", "/Users/tickgit/")).toBe(
-      "~",
-    );
+    expect(
+      formatRepositoryPath("/Users/tickgit/Project", "/Users/tickgit"),
+    ).toBe("~/Project");
+    expect(formatRepositoryPath("/Users/tickgit", "/Users/tickgit/")).toBe("~");
     expect(formatRepositoryPath("/tmp/Project", "/Users/tickgit")).toBe(
       "/tmp/Project",
     );
@@ -67,11 +65,9 @@ describe("repository helpers", () => {
       "Missing",
       "Invalid",
     ]);
-    expect(statuses.map((status) => repositoryStatusBadgeLabel(status))).toEqual([
-      "ACTIVE",
-      "MISSING",
-      "INVALID",
-    ]);
+    expect(
+      statuses.map((status) => repositoryStatusBadgeLabel(status)),
+    ).toEqual(["ACTIVE", "MISSING", "INVALID"]);
     expect(repositoryStatusTone("available")).toContain("emerald");
     expect(repositoryStatusTone("missing")).toContain("amber");
     expect(repositoryStatusTone("invalid")).toContain("rose");

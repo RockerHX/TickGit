@@ -43,7 +43,10 @@
         class="flex items-center justify-between border-b border-white/[0.06] px-5 py-4"
       >
         <div>
-          <h2 id="settings-title" class="text-base font-semibold text-[#f0f6fc]">
+          <h2
+            id="settings-title"
+            class="text-base font-semibold text-[#f0f6fc]"
+          >
             {translate($locale, "settings.title")}
           </h2>
           <p class="mt-1 text-xs text-slate-400">
@@ -56,7 +59,11 @@
           aria-label={translate($locale, "settings.close")}
           on:click={close}
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" aria-hidden="true">
+          <svg
+            viewBox="0 0 16 16"
+            class="h-4 w-4 fill-current"
+            aria-hidden="true"
+          >
             <path
               d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"
             ></path>
@@ -65,7 +72,9 @@
       </div>
 
       <div class="px-5 py-5">
-        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div
+          class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+        >
           {translate($locale, "settings.language")}
         </div>
         <div class="mt-3 grid gap-2">

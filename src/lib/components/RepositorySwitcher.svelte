@@ -88,7 +88,9 @@
 
     <span class="min-w-0 flex-1">
       <span class="flex min-w-0 items-center gap-2">
-        <span class="min-w-0 flex-1 truncate text-[1rem] font-semibold text-[#f0f6fc]">
+        <span
+          class="min-w-0 flex-1 truncate text-[1rem] font-semibold text-[#f0f6fc]"
+        >
           {currentRepository?.name ?? translate($locale, "repository.select")}
         </span>
         {#if currentRepository}

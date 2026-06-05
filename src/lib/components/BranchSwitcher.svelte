@@ -68,7 +68,9 @@
     }`}
     type="button"
     disabled={disabled || branches.length === 0}
-    title={disabled ? translate($locale, "branch.pushDisabledFallback") : undefined}
+    title={disabled
+      ? translate($locale, "branch.pushDisabledFallback")
+      : undefined}
     on:click|stopPropagation={toggleOpen}
   >
     <span
