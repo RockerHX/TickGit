@@ -200,11 +200,13 @@ describe("page data", () => {
 
     const details = await fetchCommitDetails(
       createApiMock({
-        getCommitFiles: vi.fn().mockResolvedValue([
-          fileChange("README.md"),
-          fileChange("src/main.ts"),
-          fileChange("src/app.ts"),
-        ]),
+        getCommitFiles: vi
+          .fn()
+          .mockResolvedValue([
+            fileChange("README.md"),
+            fileChange("src/main.ts"),
+            fileChange("src/app.ts"),
+          ]),
         getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
         getCommitFileDiff,
       }),
@@ -381,10 +383,12 @@ describe("page data", () => {
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
         getCommitHistory,
-        getCommitFiles: vi.fn().mockResolvedValue([
-          fileChange("README.md"),
-          fileChange("src/filter-match.ts"),
-        ]),
+        getCommitFiles: vi
+          .fn()
+          .mockResolvedValue([
+            fileChange("README.md"),
+            fileChange("src/filter-match.ts"),
+          ]),
         getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
         getCommitFileDiff,
       }),

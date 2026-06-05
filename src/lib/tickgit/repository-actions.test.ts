@@ -208,10 +208,12 @@ describe("repository actions", () => {
     const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
     const api = createApiMock({
       getCommitHistory,
-      getCommitFiles: vi.fn().mockResolvedValue([
-        fileChange("README.md"),
-        fileChange("src/matched.ts"),
-      ]),
+      getCommitFiles: vi
+        .fn()
+        .mockResolvedValue([
+          fileChange("README.md"),
+          fileChange("src/matched.ts"),
+        ]),
       getCommitFileDiff,
     });
 

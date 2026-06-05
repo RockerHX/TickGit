@@ -232,17 +232,22 @@ describe("diff parser", () => {
 
   it("adds hunk indexes to split hunk rows", () => {
     const diff = parseUnifiedDiff(
-      ["@@ -1,1 +1,1 @@", "-one", "+two", "@@ -4,1 +4,1 @@", "-old", "+new"].join(
-        "\n",
-      ),
+      [
+        "@@ -1,1 +1,1 @@",
+        "-one",
+        "+two",
+        "@@ -4,1 +4,1 @@",
+        "-old",
+        "+new",
+      ].join("\n"),
     );
 
-    expect(buildSplitDiffRows(diff).filter((row) => row.kind === "hunk")).toEqual(
-      [
-        { kind: "hunk", header: "@@ -1,1 +1,1 @@", hunkIndex: 0 },
-        { kind: "hunk", header: "@@ -4,1 +4,1 @@", hunkIndex: 1 },
-      ],
-    );
+    expect(
+      buildSplitDiffRows(diff).filter((row) => row.kind === "hunk"),
+    ).toEqual([
+      { kind: "hunk", header: "@@ -1,1 +1,1 @@", hunkIndex: 0 },
+      { kind: "hunk", header: "@@ -4,1 +4,1 @@", hunkIndex: 1 },
+    ]);
   });
 
   it("builds copy text for a hunk with raw lines and newline markers", () => {

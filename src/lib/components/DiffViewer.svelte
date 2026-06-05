@@ -285,7 +285,9 @@
                 {imagePanelLabel(panel.kind as "old" | "new")}
               </div>
               {#if panel.url}
-                <div class="flex min-h-64 items-center justify-center bg-[#24292f] p-4">
+                <div
+                  class="flex min-h-64 items-center justify-center bg-[#24292f] p-4"
+                >
                   <img
                     class="max-h-[52vh] max-w-full rounded border border-[#373e47] bg-white/5 object-contain"
                     src={panel.url}

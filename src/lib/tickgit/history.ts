@@ -46,7 +46,10 @@ export function historyFiltersEqual(
   );
 }
 
-function containsPathFragment(value: string | null | undefined, filter: string) {
+function containsPathFragment(
+  value: string | null | undefined,
+  filter: string,
+) {
   return value?.toLocaleLowerCase().includes(filter) ?? false;
 }
 

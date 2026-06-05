@@ -320,8 +320,7 @@
                   type="button"
                   class="min-w-0 flex-1 text-left"
                   title={file.displayPath}
-                  on:click={() =>
-                    dispatch("selectFile", { path: file.path })}
+                  on:click={() => dispatch("selectFile", { path: file.path })}
                 >
                   <div class="flex items-center gap-3">
                     <span
