@@ -5,6 +5,7 @@
     buildHunkCopyText,
     getDiffViewerState,
     getSplitDiffRowsForMode,
+    hasPreviewableImageDiff,
     parseUnifiedDiff,
     type DiffLine,
     type ParsedTextDiff,
@@ -114,6 +115,10 @@
 
   function highlightedLineContent(content: string) {
     return highlightDiffContent(content || " ", selectedFilePath);
+  }
+
+  function imagePanelLabel(kind: "old" | "new") {
+    return kind === "old" ? "变更前" : "变更后";
   }
 
   async function copyHunk(hunkIndex: number) {
@@ -268,11 +273,42 @@
         Select a changed file to inspect the diff
       </div>
     {:else if viewerState === "image"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
-        图片文件暂不展示图片 Diff
-      </div>
+      {#if hasPreviewableImageDiff(diffResult)}
+        <div class="grid gap-4 p-4 xl:grid-cols-2">
+          {#each [{ kind: "old", url: diffResult.oldImageDataUrl }, { kind: "new", url: diffResult.newImageDataUrl }] as panel}
+            <div
+              class="min-w-0 overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b]"
+            >
+              <div
+                class="border-b border-[#373e47] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+              >
+                {imagePanelLabel(panel.kind as "old" | "new")}
+              </div>
+              {#if panel.url}
+                <div class="flex min-h-64 items-center justify-center bg-[#24292f] p-4">
+                  <img
+                    class="max-h-[52vh] max-w-full rounded border border-[#373e47] bg-white/5 object-contain"
+                    src={panel.url}
+                    alt={`${imagePanelLabel(panel.kind as "old" | "new")} ${selectedFilePath ?? "image"}`}
+                  />
+                </div>
+              {:else}
+                <div
+                  class="flex min-h-64 items-center justify-center px-4 text-center text-sm text-slate-500"
+                >
+                  {panel.kind === "old" ? "无旧图片" : "无新图片"}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div
+          class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
+        >
+          图片 Diff 无法预览
+        </div>
+      {/if}
     {:else if viewerState === "binary"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"

@@ -254,6 +254,13 @@ export function buildHunkCopyText(hunk: DiffHunk): string {
   return [hunk.header, ...lines].join("\n");
 }
 
+export function hasPreviewableImageDiff(input: {
+  oldImageDataUrl?: string | null;
+  newImageDataUrl?: string | null;
+}) {
+  return Boolean(input.oldImageDataUrl || input.newImageDataUrl);
+}
+
 export function getSplitDiffRowsForMode(
   parsedDiff: ParsedTextDiff,
   mode: "unified" | "split",

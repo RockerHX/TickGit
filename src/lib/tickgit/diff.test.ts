@@ -4,6 +4,7 @@ import {
   buildSplitDiffRows,
   getDiffViewerState,
   getSplitDiffRowsForMode,
+  hasPreviewableImageDiff,
   parseUnifiedDiff,
 } from "$lib/tickgit/diff";
 
@@ -277,6 +278,21 @@ describe("diff parser", () => {
     expect(getDiffViewerState({ ...base, isBinary: true })).toBe("binary");
     expect(getDiffViewerState({ ...base, isImage: true })).toBe("image");
     expect(getDiffViewerState({ ...base, isTooLarge: true })).toBe("too-large");
+  });
+
+  it("detects previewable image diffs", () => {
+    expect(
+      hasPreviewableImageDiff({
+        oldImageDataUrl: null,
+        newImageDataUrl: "data:image/png;base64,abc",
+      }),
+    ).toBe(true);
+    expect(
+      hasPreviewableImageDiff({
+        oldImageDataUrl: null,
+        newImageDataUrl: null,
+      }),
+    ).toBe(false);
   });
 
   it("builds split rows only for split mode", () => {
