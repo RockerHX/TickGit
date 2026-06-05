@@ -67,21 +67,21 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`flex min-h-[74px] w-full items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition ${
+    class={`flex min-h-[68px] w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left backdrop-blur transition ${
       open
-        ? "border-[#539bf5]/70 bg-[#1f6feb]/16 shadow-[0_0_0_1px_rgba(83,155,245,0.2),0_18px_42px_rgba(0,0,0,0.28)]"
-        : "border-white/[0.08] bg-white/[0.045] hover:border-[#539bf5]/35 hover:bg-white/[0.07]"
+        ? "border-[#4d7cff]/55 bg-[#1f6feb]/14 shadow-[0_0_0_1px_rgba(83,155,245,0.12)]"
+        : "border-white/[0.08] bg-white/[0.04] hover:border-[#539bf5]/30 hover:bg-white/[0.06]"
     }`}
     type="button"
     on:click|stopPropagation={toggleOpen}
   >
     <span
-      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#539bf5]/30 bg-gradient-to-br from-[#2f81f7] to-[#6f42c1] text-[#f0f6fc] shadow-[0_12px_24px_rgba(47,129,247,0.22)]"
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#539bf5]/25 bg-gradient-to-br from-[#2f81f7] to-[#5b5cf6] text-[#f0f6fc] shadow-[0_10px_22px_rgba(47,129,247,0.2)]"
       aria-hidden="true"
     >
       <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current">
         <path
-          d="M1.75 2.5A1.5 1.5 0 0 1 3.25 1h5.5a1.5 1.5 0 0 1 1.5 1.5V4h1.5a1.5 1.5 0 0 1 1.5 1.5v8a.75.75 0 0 1-1.2.6L10.5 12.94 8.95 14.1a.75.75 0 0 1-.9 0L6.5 12.94 4.95 14.1a.75.75 0 0 1-.9 0L2.5 12.94.95 14.1a.75.75 0 0 1-1.2-.6v-8A1.5 1.5 0 0 1 1.25 4h.5V2.5Zm1.5 1.5h5.5V2.5h-5.5V4Zm-2 1.5v6.5l.8-.6a.75.75 0 0 1 .9 0l1.55 1.16 1.55-1.16a.75.75 0 0 1 .9 0l1.55 1.16 1.55-1.16a.75.75 0 0 1 .9 0l.8.6V5.5h-10.5Z"
+          d="M8 1.75c-3.1 0-5.5.95-5.5 2.25v8c0 1.3 2.4 2.25 5.5 2.25s5.5-.95 5.5-2.25V4c0-1.3-2.4-2.25-5.5-2.25Zm0 1.5c2.35 0 3.55.53 3.9.75-.35.22-1.55.75-3.9.75S4.45 4.22 4.1 4c.35-.22 1.55-.75 3.9-.75Zm4 3.02V8c-.67.42-2.08.75-4 .75S4.67 8.42 4 8V6.27c1.01.45 2.46.73 4 .73s2.99-.28 4-.73Zm0 3V12c-.35.22-1.55.75-4 .75s-3.55-.53-3.9-.75V9.27c1.01.45 2.46.73 4 .73s2.99-.28 4-.73Z"
         ></path>
       </svg>
     </span>
@@ -89,19 +89,19 @@
     <span class="min-w-0 flex-1">
       <span class="flex min-w-0 items-center gap-2">
         <span
-          class="min-w-0 flex-1 truncate text-[1rem] font-semibold text-[#f0f6fc]"
+          class="min-w-0 flex-1 truncate text-[0.95rem] font-semibold text-[#f0f6fc]"
         >
           {currentRepository?.name ?? translate($locale, "repository.select")}
         </span>
         {#if currentRepository}
           <span
-            class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-[0.12em] ${repositoryStatusTone(currentRepository.status)}`}
+            class={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-[0.12em] ${repositoryStatusTone(currentRepository.status)}`}
           >
             {repositoryStatusBadgeLabel(currentRepository.status)}
           </span>
         {/if}
       </span>
-      <span class="mt-1 block truncate text-xs text-slate-400">
+      <span class="mt-0.5 block truncate text-xs text-slate-400">
         {currentRepository
           ? formatRepositoryPath(currentRepository.path)
           : translate($locale, "repository.select")}
@@ -109,10 +109,10 @@
     </span>
 
     <span
-      class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+      class={`flex h-10 w-8 shrink-0 items-center justify-center border-l transition ${
         open
-          ? "border-[#539bf5]/50 bg-[#347dff]/20 text-[#cae8ff]"
-          : "border-white/[0.08] bg-[#0d1117]/30 text-slate-400"
+          ? "border-[#539bf5]/40 text-[#cae8ff]"
+          : "border-white/[0.08] text-slate-400"
       }`}
     >
       <svg
@@ -201,12 +201,12 @@
                       {repository.name}
                     </span>
                     <span
-                      class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${repositoryStatusTone(repository.status)}`}
+                      class={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase ${repositoryStatusTone(repository.status)}`}
                     >
                       {repositoryStatusLabel(repository.status, $locale)}
                     </span>
                   </span>
-                  <span class="mt-1 block truncate text-xs opacity-75">
+                  <span class="mt-0.5 block truncate text-xs opacity-75">
                     {formatRepositoryPath(repository.path)}
                   </span>
                   {#if repositoryStatusMessage(repository, $locale)}
