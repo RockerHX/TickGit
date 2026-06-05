@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     error::AppError,
-    models::{WorkspaceChangeKind, WorkspaceChangeSection},
+    models::{CommitHistoryFilters, WorkspaceChangeKind, WorkspaceChangeSection},
 };
 use std::{
     env, fs,
@@ -92,6 +92,22 @@ fn commit_file(path: &Path, relative_path: &str, content: &str, message: &str) -
     write_file(path, relative_path, content);
     run_git(path, &["add", relative_path]);
     run_git(path, &["commit", "--no-gpg-sign", "-m", message]);
+    run_git(path, &["rev-parse", "HEAD"])
+}
+
+fn commit_file_with_body(
+    path: &Path,
+    relative_path: &str,
+    content: &str,
+    message: &str,
+    body: &str,
+) -> String {
+    write_file(path, relative_path, content);
+    run_git(path, &["add", relative_path]);
+    run_git(
+        path,
+        &["commit", "--no-gpg-sign", "-m", message, "-m", body],
+    );
     run_git(path, &["rev-parse", "HEAD"])
 }
 
@@ -300,6 +316,139 @@ fn separates_total_history_from_safe_step_push_targets_after_merge() {
         Some(UNSAFE_PUSH_TARGET_MESSAGE)
     );
     assert!(base_item.is_pushed);
+}
+
+#[test]
+fn filters_commit_history_by_summary_and_body_case_insensitively() {
+    let repo = init_repo();
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "Initial setup");
+    let body_hash = commit_file_with_body(
+        &repo.path,
+        "body.txt",
+        "body\n",
+        "Refactor internals",
+        "Includes a Release Note marker",
+    );
+    let title_hash = commit_file(&repo.path, "title.txt", "title\n", "Add Search Panel");
+
+    let title_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            query: Some("search".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(title_history.items.len(), 1);
+    assert_eq!(title_history.items[0].hash, title_hash);
+    assert_eq!(title_history.next_skip, 1);
+    assert!(!title_history.has_more);
+
+    let body_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            query: Some("release note".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(body_history.items.len(), 1);
+    assert_eq!(body_history.items[0].hash, body_hash);
+    assert!(body_history
+        .items
+        .iter()
+        .all(|item| item.hash != first_hash));
+}
+
+#[test]
+fn filters_commit_history_by_author_name_and_email_case_insensitively() {
+    let repo = init_repo();
+    commit_file(&repo.path, "first.txt", "first\n", "first");
+    run_git(&repo.path, &["config", "user.name", "Alice Example"]);
+    run_git(&repo.path, &["config", "user.email", "alice@example.com"]);
+    let alice_hash = commit_file(&repo.path, "alice.txt", "alice\n", "alice commit");
+    run_git(&repo.path, &["config", "user.name", "Bob Example"]);
+    run_git(&repo.path, &["config", "user.email", "bob@example.com"]);
+    let bob_hash = commit_file(&repo.path, "bob.txt", "bob\n", "bob commit");
+
+    let name_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            author: Some("alice".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(name_history.items.len(), 1);
+    assert_eq!(name_history.items[0].hash, alice_hash);
+
+    let email_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            author: Some("BOB@EXAMPLE".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(email_history.items.len(), 1);
+    assert_eq!(email_history.items[0].hash, bob_hash);
+}
+
+#[test]
+fn paginates_filtered_commit_history_after_metadata_filters() {
+    let repo = init_repo();
+    let first_hash = commit_file(&repo.path, "one.txt", "one\n", "ticket one");
+    let second_hash = commit_file(&repo.path, "two.txt", "two\n", "ticket two");
+    let third_hash = commit_file(&repo.path, "three.txt", "three\n", "ticket three");
+    commit_file(&repo.path, "other.txt", "other\n", "other");
+
+    let first_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        2,
+        Some(CommitHistoryFilters {
+            query: Some("ticket".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+    let second_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        first_page.next_skip,
+        2,
+        Some(CommitHistoryFilters {
+            query: Some("ticket".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(
+        first_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![third_hash.as_str(), second_hash.as_str()]
+    );
+    assert!(first_page.has_more);
+    assert_eq!(first_page.next_skip, 2);
+    assert_eq!(second_page.items.len(), 1);
+    assert_eq!(second_page.items[0].hash, first_hash);
+    assert!(!second_page.has_more);
+    assert_eq!(second_page.next_skip, 3);
 }
 
 #[test]

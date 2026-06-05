@@ -4,9 +4,9 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitCreated, CommitFileChange, CommitFileDiffResult,
-        CommitHistoryFilters, CommitHistoryPage, CommitMeta, PushToCommitJobStarted,
-        PushToCommitRequest, RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
+        BranchStatus, CommitCreated, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
+        CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest,
+        RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
         WorkspaceChangeSection, WorkspaceStatus,
     },
     repo_store::{self, RepositoryStoreState},

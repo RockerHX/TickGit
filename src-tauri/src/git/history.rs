@@ -12,6 +12,72 @@ use super::{
     repository::{branch_status_for_path, resolve_repository_path},
 };
 
+#[derive(Debug, Default)]
+struct NormalizedCommitHistoryFilters {
+    query: Option<String>,
+    author: Option<String>,
+    file_path: Option<String>,
+}
+
+fn normalize_filter_value(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+}
+
+fn normalize_history_filters(
+    filters: Option<CommitHistoryFilters>,
+) -> NormalizedCommitHistoryFilters {
+    let filters = filters.unwrap_or_default();
+
+    NormalizedCommitHistoryFilters {
+        query: normalize_filter_value(filters.query),
+        author: normalize_filter_value(filters.author),
+        file_path: normalize_filter_value(filters.file_path),
+    }
+}
+
+impl NormalizedCommitHistoryFilters {
+    fn has_commit_metadata_filters(&self) -> bool {
+        self.query.is_some() || self.author.is_some()
+    }
+}
+
+fn contains_normalized(value: &str, needle: &str) -> bool {
+    value.to_ascii_lowercase().contains(needle)
+}
+
+fn commit_record_matches_metadata(record: &str, filters: &NormalizedCommitHistoryFilters) -> bool {
+    if !filters.has_commit_metadata_filters() {
+        return true;
+    }
+
+    let fields: Vec<&str> = record.split('\u{1f}').collect();
+    if fields.len() < 9 {
+        return false;
+    }
+
+    if let Some(query) = filters.query.as_deref() {
+        let summary = fields[2];
+        let body = fields[8];
+
+        if !contains_normalized(summary, query) && !contains_normalized(body, query) {
+            return false;
+        }
+    }
+
+    if let Some(author) = filters.author.as_deref() {
+        let author_name = fields[3];
+        let author_email = fields[4];
+
+        if !contains_normalized(author_name, author) && !contains_normalized(author_email, author) {
+            return false;
+        }
+    }
+
+    true
+}
+
 pub(super) fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", &range])?;
@@ -25,7 +91,7 @@ pub fn get_commit_history(
     filters: Option<CommitHistoryFilters>,
 ) -> AppResult<CommitHistoryPage> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let _filters = filters.unwrap_or_default();
+    let filters = normalize_history_filters(filters);
     let branch_status = branch_status_for_path(&repo_path)?;
     let (unpushed, safe_push_targets, unsafe_push_reason) = match branch_status.upstream.as_deref()
     {
@@ -46,29 +112,75 @@ pub fn get_commit_history(
         _ => (HashSet::new(), HashSet::new(), None),
     };
 
-    let output = git_trimmed(
-        &repo_path,
-        &[
-            "log",
-            "--topo-order",
-            "--skip",
-            &skip.to_string(),
-            "-n",
-            &limit.to_string(),
-            "--date=iso-strict",
-            "--decorate=short",
-            "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1e",
-            "HEAD",
-        ],
-    )?;
+    let (items, item_count, has_more) = if filters.has_commit_metadata_filters() {
+        let output = git_trimmed(
+            &repo_path,
+            &[
+                "log",
+                "--topo-order",
+                "--date=iso-strict",
+                "--decorate=short",
+                "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1f%B%x1e",
+                "HEAD",
+            ],
+        )?;
+        let matched_records: Vec<&str> = output
+            .split('\u{1e}')
+            .filter(|record| !record.trim().is_empty())
+            .filter(|record| commit_record_matches_metadata(record, &filters))
+            .collect();
+        let page_records: Vec<&str> = matched_records
+            .iter()
+            .skip(skip)
+            .take(limit)
+            .copied()
+            .collect();
+        let page_output = if page_records.is_empty() {
+            String::new()
+        } else {
+            let mut output = page_records.join("\u{1e}");
+            output.push('\u{1e}');
+            output
+        };
+        let items = parse_commit_history(
+            &page_output,
+            &unpushed,
+            &safe_push_targets,
+            unsafe_push_reason,
+        );
+        let item_count = items.len();
+        let has_more = skip + item_count < matched_records.len();
 
-    let items = parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
-    let item_count = items.len();
+        (items, item_count, has_more)
+    } else {
+        let output = git_trimmed(
+            &repo_path,
+            &[
+                "log",
+                "--topo-order",
+                "--skip",
+                &skip.to_string(),
+                "-n",
+                &limit.to_string(),
+                "--date=iso-strict",
+                "--decorate=short",
+                "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1e",
+                "HEAD",
+            ],
+        )?;
+
+        let items =
+            parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
+        let item_count = items.len();
+        let has_more = item_count == limit;
+
+        (items, item_count, has_more)
+    };
 
     Ok(CommitHistoryPage {
         items,
         next_skip: skip + item_count,
-        has_more: item_count == limit,
+        has_more,
         unpushed_count: unpushed.len(),
         safe_unpushed_count: safe_push_targets.len(),
     })
