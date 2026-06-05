@@ -125,18 +125,33 @@ pub(super) fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus
     } else {
         safe_ahead_count
     };
-    let disabled_reason = if detached {
-        Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string())
+    let (disabled_reason, disabled_reason_code) = if detached {
+        (
+            Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string()),
+            Some("detached_head".to_string()),
+        )
     } else if !has_origin {
-        Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string())
+        (
+            Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string()),
+            Some("missing_origin".to_string()),
+        )
     } else if upstream.is_none() {
-        Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string())
+        (
+            Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string()),
+            Some("missing_upstream".to_string()),
+        )
     } else if !upstream_uses_origin {
-        Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string())
+        (
+            Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string()),
+            Some("non_origin_upstream".to_string()),
+        )
     } else if behind_count > 0 {
-        Some(BRANCH_BEHIND_REMOTE_MESSAGE.to_string())
+        (
+            Some(BRANCH_BEHIND_REMOTE_MESSAGE.to_string()),
+            Some("behind_remote".to_string()),
+        )
     } else {
-        None
+        (None, None)
     };
 
     Ok(BranchStatus {
@@ -148,6 +163,7 @@ pub(super) fn branch_status_for_path(repo_path: &Path) -> AppResult<BranchStatus
         detached,
         push_available,
         disabled_reason,
+        disabled_reason_code,
     })
 }
 

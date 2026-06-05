@@ -97,24 +97,25 @@ fn find_current_repository(store: &RepositoryConfig) -> Option<RepositorySummary
     })
 }
 
-fn repository_status(path: &str) -> (RepositoryStatus, Option<String>) {
+fn repository_status(path: &str) -> (RepositoryStatus, Option<String>, Option<String>) {
     let path = Path::new(path);
 
     if !path.exists() {
         return (
             RepositoryStatus::Missing,
             Some("仓库路径不存在".to_string()),
+            Some("repository_missing".to_string()),
         );
     }
 
     match git::resolve_repository_path(path.to_string_lossy().as_ref()) {
-        Ok(_) => (RepositoryStatus::Available, None),
-        Err(error) => (RepositoryStatus::Invalid, Some(error.message)),
+        Ok(_) => (RepositoryStatus::Available, None, None),
+        Err(error) => (RepositoryStatus::Invalid, Some(error.message), Some(error.code)),
     }
 }
 
 fn repository_summary(repository: &StoredRepository) -> RepositorySummary {
-    let (status, disabled_reason) = repository_status(&repository.path);
+    let (status, disabled_reason, disabled_reason_code) = repository_status(&repository.path);
 
     RepositorySummary {
         name: repository.name.clone(),
@@ -122,6 +123,7 @@ fn repository_summary(repository: &StoredRepository) -> RepositorySummary {
         last_opened_at: repository.last_opened_at,
         status,
         disabled_reason,
+        disabled_reason_code,
     }
 }
 

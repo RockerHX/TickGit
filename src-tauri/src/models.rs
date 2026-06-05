@@ -8,6 +8,7 @@ pub struct RepositorySummary {
     pub last_opened_at: i64,
     pub status: RepositoryStatus,
     pub disabled_reason: Option<String>,
+    pub disabled_reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -37,6 +38,7 @@ pub struct BranchStatus {
     pub detached: bool,
     pub push_available: bool,
     pub disabled_reason: Option<String>,
+    pub disabled_reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,6 +55,7 @@ pub struct CommitListItem {
     pub is_pushed: bool,
     pub is_safe_push_target: bool,
     pub push_blocked_reason: Option<String>,
+    pub push_blocked_reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -215,6 +218,7 @@ pub struct StepPushFailed {
     pub total: usize,
     pub hash: String,
     pub message: String,
+    pub code: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -255,6 +259,7 @@ pub struct PushToCommitFailed {
     pub target: String,
     pub target_kind: PushTargetKind,
     pub message: String,
+    pub code: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

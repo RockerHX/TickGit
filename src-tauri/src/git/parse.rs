@@ -77,6 +77,8 @@ pub(super) fn parse_commit_history(
                         .unwrap_or(UNSAFE_PUSH_TARGET_MESSAGE)
                         .to_string()
                 }),
+                push_blocked_reason_code: (!is_pushed && !is_safe_push_target)
+                    .then(|| "unsafe_push_target".to_string()),
                 hash,
             })
         })

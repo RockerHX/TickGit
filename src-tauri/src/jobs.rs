@@ -147,6 +147,7 @@ pub fn start_step_push(
                         total,
                         hash: hash.clone(),
                         message: error.message,
+                        code: error.code,
                     },
                 );
                 clear_running_job(&running_job, job_id);
@@ -225,6 +226,7 @@ pub fn start_push_to_commit(
                     target: event_target,
                     target_kind: PushTargetKind::Commit,
                     message: error.message,
+                    code: error.code,
                 },
             );
             clear_running_job(&running_job, job_id);
@@ -292,6 +294,7 @@ pub fn start_push_current_branch(
                     target: target_for_thread.clone(),
                     target_kind: PushTargetKind::Branch,
                     message: error.message,
+                    code: error.code,
                 },
             );
             clear_running_job(&running_job, job_id);
