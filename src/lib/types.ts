@@ -47,6 +47,12 @@ export type CommitHistoryPage = {
   safeUnpushedCount: number;
 };
 
+export type CommitHistoryFilters = {
+  query?: string | null;
+  author?: string | null;
+  filePath?: string | null;
+};
+
 export type CommitFileChange = {
   status: string;
   path: string;

@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::Path};
 
 use crate::{
     error::AppResult,
-    models::{CommitFileChange, CommitHistoryPage, CommitMeta},
+    models::{CommitFileChange, CommitHistoryFilters, CommitHistoryPage, CommitMeta},
 };
 
 use super::{
@@ -22,8 +22,10 @@ pub fn get_commit_history(
     repo_path: &str,
     skip: usize,
     limit: usize,
+    filters: Option<CommitHistoryFilters>,
 ) -> AppResult<CommitHistoryPage> {
     let repo_path = resolve_repository_path(repo_path)?;
+    let _filters = filters.unwrap_or_default();
     let branch_status = branch_status_for_path(&repo_path)?;
     let (unpushed, safe_push_targets, unsafe_push_reason) = match branch_status.upstream.as_deref()
     {

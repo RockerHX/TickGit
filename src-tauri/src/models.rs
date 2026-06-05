@@ -73,6 +73,14 @@ pub struct CommitHistoryPage {
     pub safe_unpushed_count: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitHistoryFilters {
+    pub query: Option<String>,
+    pub author: Option<String>,
+    pub file_path: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitFileChange {

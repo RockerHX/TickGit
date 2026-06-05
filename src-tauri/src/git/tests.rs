@@ -252,7 +252,7 @@ fn separates_total_history_from_safe_step_push_targets_after_merge() {
     assert_eq!(status.safe_ahead_count, 2);
     assert_eq!(status.behind_count, 0);
 
-    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10, None).unwrap();
     let hashes: Vec<&str> = history
         .items
         .iter()
@@ -714,7 +714,7 @@ fn keeps_unpushed_commits_visible_when_branch_is_behind_remote() {
 
     refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
 
-    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10, None).unwrap();
     let status = branch_status_for_path(&repo.path).unwrap();
     let local_item = history
         .items
@@ -772,7 +772,7 @@ fn limits_safe_step_push_targets_to_fast_forwardable_suffix_when_remote_is_merge
     assert_eq!(status.ahead_count, 2);
     assert_eq!(status.safe_ahead_count, 1);
 
-    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10).unwrap();
+    let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10, None).unwrap();
     let merge_item = history
         .items
         .iter()

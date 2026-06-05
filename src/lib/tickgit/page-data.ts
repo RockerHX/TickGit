@@ -1,5 +1,6 @@
 import type {
   BranchStatus,
+  CommitHistoryFilters,
   CommitMeta,
   CommitFileChange,
   CommitFileDiffResult,
@@ -27,6 +28,7 @@ export type TickGitPageApi = {
     repoPath: string,
     skip: number,
     limit: number,
+    filters?: CommitHistoryFilters | null,
   ) => Promise<CommitHistoryPage>;
   getCommitFiles: (
     repoPath: string,

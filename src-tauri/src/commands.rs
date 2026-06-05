@@ -4,9 +4,10 @@ use crate::{
     error::AppResult,
     git, jobs,
     models::{
-        BranchStatus, CommitCreated, CommitFileChange, CommitFileDiffResult, CommitHistoryPage,
-        CommitMeta, PushToCommitJobStarted, PushToCommitRequest, RepositorySummary,
-        StepPushJobStarted, StepPushPlan, StepPushRequest, WorkspaceChangeSection, WorkspaceStatus,
+        BranchStatus, CommitCreated, CommitFileChange, CommitFileDiffResult,
+        CommitHistoryFilters, CommitHistoryPage, CommitMeta, PushToCommitJobStarted,
+        PushToCommitRequest, RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
+        WorkspaceChangeSection, WorkspaceStatus,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -89,8 +90,9 @@ pub fn get_commit_history(
     repo_path: String,
     skip: usize,
     limit: usize,
+    filters: Option<CommitHistoryFilters>,
 ) -> AppResult<CommitHistoryPage> {
-    git::get_commit_history(&repo_path, skip, limit)
+    git::get_commit_history(&repo_path, skip, limit, filters)
 }
 
 #[tauri::command]

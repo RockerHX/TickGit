@@ -4,6 +4,7 @@ import type {
   CommitMeta,
   CommitFileChange,
   CommitFileDiffResult,
+  CommitHistoryFilters,
   CommitHistoryPage,
   CommitCreated,
   PushToCommitJobStarted,
@@ -36,8 +37,18 @@ export const api = {
     invoke<string[]>("list_local_branches", { repoPath }),
   checkoutBranch: (repoPath: string, branch: string) =>
     invoke<void>("checkout_branch", { repoPath, branch }),
-  getCommitHistory: (repoPath: string, skip: number, limit: number) =>
-    invoke<CommitHistoryPage>("get_commit_history", { repoPath, skip, limit }),
+  getCommitHistory: (
+    repoPath: string,
+    skip: number,
+    limit: number,
+    filters?: CommitHistoryFilters | null,
+  ) =>
+    invoke<CommitHistoryPage>("get_commit_history", {
+      repoPath,
+      skip,
+      limit,
+      filters: filters ?? null,
+    }),
   getCommitFiles: (repoPath: string, hash: string) =>
     invoke<CommitFileChange[]>("get_commit_files", { repoPath, hash }),
   getCommitMeta: (repoPath: string, hash: string) =>
