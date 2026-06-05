@@ -32,6 +32,20 @@ export function hasActiveHistoryFilters(
   return getActiveHistoryFilterCount(filters) > 0;
 }
 
+export function historyFiltersEqual(
+  left: CommitHistoryFilters | null | undefined,
+  right: CommitHistoryFilters | null | undefined,
+) {
+  const normalizedLeft = normalizeHistoryFilters(left);
+  const normalizedRight = normalizeHistoryFilters(right);
+
+  return (
+    normalizedLeft.query === normalizedRight.query &&
+    normalizedLeft.author === normalizedRight.author &&
+    normalizedLeft.filePath === normalizedRight.filePath
+  );
+}
+
 function containsPathFragment(value: string | null | undefined, filter: string) {
   return value?.toLocaleLowerCase().includes(filter) ?? false;
 }

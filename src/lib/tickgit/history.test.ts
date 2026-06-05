@@ -4,6 +4,7 @@ import {
   commitFileMatchesPathFilter,
   getActiveHistoryFilterCount,
   hasActiveHistoryFilters,
+  historyFiltersEqual,
   normalizeHistoryFilters,
   pickCommitFileForPathFilter,
 } from "$lib/tickgit/history";
@@ -37,6 +38,21 @@ describe("history filters", () => {
     expect(getActiveHistoryFilterCount(filters)).toBe(2);
     expect(hasActiveHistoryFilters(filters)).toBe(true);
     expect(getActiveHistoryFilterCount(null)).toBe(0);
+  });
+
+  it("compares normalized history filters", () => {
+    expect(
+      historyFiltersEqual(
+        { query: " fix ", author: "Ada", filePath: "" },
+        { query: "fix", author: "Ada", filePath: null },
+      ),
+    ).toBe(true);
+    expect(
+      historyFiltersEqual(
+        { query: "fix", author: "Ada" },
+        { query: "fix", author: "Bob" },
+      ),
+    ).toBe(false);
   });
 
   it("matches file paths by current, previous, and display paths", () => {

@@ -200,4 +200,42 @@ describe("repository actions", () => {
     expect(state.snapshot.selectedCommit?.hash).toBe("c1");
     expect(api.getBranchStatus).toHaveBeenCalledWith("/repo-a");
   });
+
+  it("passes history filters and preferred file filters into snapshot loading", async () => {
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValue(historyPage([commit("c1")]));
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getCommitHistory,
+      getCommitFiles: vi.fn().mockResolvedValue([
+        fileChange("README.md"),
+        fileChange("src/matched.ts"),
+      ]),
+      getCommitFileDiff,
+    });
+
+    const state = await loadRepositoryStateSnapshot(api, "/repo-a", {
+      pageSize: 50,
+      keepSelection: false,
+      previousSelectedHash: null,
+      ignoreWhitespace: false,
+      filters: { query: "fix", author: "Ada", filePath: "src/matched" },
+      preferredFilePathFilter: "src/matched",
+    });
+
+    expect(getCommitHistory).toHaveBeenCalledWith("/repo-a", 0, 50, {
+      query: "fix",
+      author: "Ada",
+      filePath: "src/matched",
+    });
+    expect(state.snapshot.selectedFilePath).toBe("src/matched.ts");
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo-a",
+      "c1",
+      "src/matched.ts",
+      false,
+      null,
+    );
+  });
 });

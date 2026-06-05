@@ -1,4 +1,4 @@
-import type { RepositorySummary } from "$lib/types";
+import type { CommitHistoryFilters, RepositorySummary } from "$lib/types";
 import {
   fetchRepositoryIndex,
   fetchRepositorySnapshot,
@@ -17,6 +17,8 @@ export type LoadRepositoryStateOptions = {
   keepSelection: boolean;
   previousSelectedHash: string | null;
   ignoreWhitespace: boolean;
+  filters?: CommitHistoryFilters | null;
+  preferredFilePathFilter?: string | null;
 };
 
 export type RepositoryStateResult = {
@@ -56,6 +58,10 @@ export async function loadRepositoryStateSnapshot(
       options.keepSelection,
       options.previousSelectedHash,
       options.ignoreWhitespace,
+      {
+        filters: options.filters,
+        preferredFilePathFilter: options.preferredFilePathFilter,
+      },
     ),
     api.listLocalBranches(repoPath),
   ]);

@@ -35,6 +35,7 @@
   import {
     EMPTY_HISTORY_FILTERS,
     getActiveHistoryFilterCount,
+    historyFiltersEqual,
     normalizeHistoryFilters,
   } from "$lib/tickgit/history";
   import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
@@ -105,6 +106,7 @@
   const PAGE_SIZE = 50;
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
+  const HISTORY_FILTER_DEBOUNCE_MS = 300;
   // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
 
@@ -169,6 +171,8 @@
   };
 
   let saveWindowSizeTimer: number | null = null;
+  let historyFilterTimer: number | null = null;
+  let historyRequestId = 0;
 
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
@@ -264,6 +268,17 @@
     resetWorkspaceState();
   }
 
+  function clearHistoryDetailState() {
+    selectedCommit = null;
+    selectedCommitMeta = null;
+    commitFiles = [];
+    selectedFilePath = null;
+    diffResult = EMPTY_DIFF_RESULT;
+    loadingFiles = false;
+    loadingDiff = false;
+    contextMenu = { open: false, x: 0, y: 0, commit: null };
+  }
+
   function canRunRepositoryManagement() {
     return (
       !managingRepositoryPath &&
@@ -316,11 +331,41 @@
   }
 
   function setHistoryFilters(filters: CommitHistoryFilters) {
-    historyFilters = normalizeHistoryFilters(filters);
+    const nextFilters = normalizeHistoryFilters(filters);
+
+    if (historyFiltersEqual(historyFilters, nextFilters)) {
+      return;
+    }
+
+    historyFilters = nextFilters;
+    scheduleHistoryFilterReload();
   }
 
   function clearHistoryFilters() {
+    if (activeHistoryFilterCount === 0) {
+      return;
+    }
+
     historyFilters = { ...EMPTY_HISTORY_FILTERS };
+    scheduleHistoryFilterReload();
+  }
+
+  function scheduleHistoryFilterReload() {
+    if (historyFilterTimer) {
+      window.clearTimeout(historyFilterTimer);
+    }
+
+    historyRequestId += 1;
+    loadingHistory = false;
+    commits = [];
+    nextSkip = 0;
+    hasMore = false;
+    clearHistoryDetailState();
+
+    historyFilterTimer = window.setTimeout(() => {
+      historyFilterTimer = null;
+      void loadHistory(false);
+    }, HISTORY_FILTER_DEBOUNCE_MS);
   }
 
   async function switchMainView(view: "history" | "changes") {
@@ -344,6 +389,8 @@
         keepSelection: false,
         previousSelectedHash: null,
         ignoreWhitespace: hideWhitespaceInDiff,
+        filters: historyFilters,
+        preferredFilePathFilter: historyFilters.filePath,
       });
       repositories = bootstrapState.repositories;
       currentRepository = bootstrapState.currentRepository;
@@ -390,6 +437,8 @@
         keepSelection,
         previousSelectedHash: selectedCommit?.hash ?? null,
         ignoreWhitespace: hideWhitespaceInDiff,
+        filters: historyFilters,
+        preferredFilePathFilter: historyFilters.filePath,
       });
 
       notifyRemoteRefreshError(repositoryState);
@@ -497,6 +546,8 @@
 
   async function loadHistory(append: boolean) {
     const repository = currentRepository;
+    const requestId = ++historyRequestId;
+    const filters = normalizeHistoryFilters(historyFilters);
 
     if (
       !repository ||
@@ -512,23 +563,48 @@
         repository.path,
         append ? nextSkip : 0,
         PAGE_SIZE,
+        filters,
       );
+
+      if (requestId !== historyRequestId) {
+        return;
+      }
+
       commits = append ? [...commits, ...page.items] : page.items;
       nextSkip = page.nextSkip;
       hasMore = page.hasMore;
+
+      if (!append) {
+        const selected = page.items[0] ?? null;
+        if (selected) {
+          await selectCommit(selected, filters.filePath);
+        } else {
+          clearHistoryDetailState();
+        }
+      }
     } catch (error) {
-      notify("加载历史失败", getErrorMessage(error), "error");
+      if (requestId === historyRequestId) {
+        notify("加载历史失败", getErrorMessage(error), "error");
+      }
     } finally {
-      loadingHistory = false;
+      if (requestId === historyRequestId) {
+        loadingHistory = false;
+      }
     }
   }
 
-  async function selectCommit(commit: CommitListItem) {
+  async function selectCommit(
+    commit: CommitListItem,
+    preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+  ) {
     selectedCommit = commit;
-    await loadCommitFiles(commit.hash);
+    await loadCommitFiles(commit.hash, preferredFilePathFilter);
   }
 
-  async function loadCommitFiles(hash: string) {
+  async function loadCommitFiles(
+    hash: string,
+    preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+  ) {
     const repository = currentRepository;
 
     if (!repository || !canLoadCommitFiles({ currentRepository: repository })) {
@@ -545,6 +621,7 @@
         repository.path,
         hash,
         hideWhitespaceInDiff,
+        preferredFilePathFilter,
       );
       selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
@@ -1160,6 +1237,9 @@
       window.removeEventListener("click", closeMenu);
       if (saveWindowSizeTimer) {
         window.clearTimeout(saveWindowSizeTimer);
+      }
+      if (historyFilterTimer) {
+        window.clearTimeout(historyFilterTimer);
       }
     };
   });
