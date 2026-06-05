@@ -30,6 +30,7 @@ export type SplitDiffRow =
   | {
       kind: "hunk";
       header: string;
+      hunkIndex: number;
     }
   | {
       kind: "line";
@@ -208,8 +209,8 @@ function flushSplitBuffer(
 export function buildSplitDiffRows(parsedDiff: ParsedTextDiff): SplitDiffRow[] {
   const rows: SplitDiffRow[] = [];
 
-  for (const hunk of parsedDiff.hunks) {
-    rows.push({ kind: "hunk", header: hunk.header });
+  for (const [hunkIndex, hunk] of parsedDiff.hunks.entries()) {
+    rows.push({ kind: "hunk", header: hunk.header, hunkIndex });
 
     const deletedLines: DiffLine[] = [];
     const addedLines: DiffLine[] = [];
@@ -237,6 +238,20 @@ export function buildSplitDiffRows(parsedDiff: ParsedTextDiff): SplitDiffRow[] {
   }
 
   return rows;
+}
+
+export function buildHunkCopyText(hunk: DiffHunk): string {
+  const lines = hunk.lines.flatMap((line) => {
+    const values = [line.raw];
+
+    if (line.noTrailingNewLine) {
+      values.push("\\ No newline at end of file");
+    }
+
+    return values;
+  });
+
+  return [hunk.header, ...lines].join("\n");
 }
 
 export function getSplitDiffRowsForMode(

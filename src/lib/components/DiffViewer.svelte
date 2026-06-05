@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { createEventDispatcher } from "svelte";
   import {
+    buildHunkCopyText,
     getDiffViewerState,
     getSplitDiffRowsForMode,
     parseUnifiedDiff,
@@ -8,6 +10,7 @@
     type ParsedTextDiff,
     type SplitDiffRow,
   } from "$lib/tickgit/diff";
+  import { writeClipboardText } from "$lib/tickgit/clipboard";
   import type { CommitFileDiffResult } from "$lib/types";
 
   export let title = "Diff";
@@ -35,6 +38,8 @@
   let optionsOpen = false;
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
   let splitRows: SplitDiffRow[] = [];
+  let copiedHunkIndex: number | null = null;
+  let hunkCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
   $: diffText = diffResult.text;
@@ -105,6 +110,36 @@
 
     return `${value} B`;
   }
+
+  async function copyHunk(hunkIndex: number) {
+    const hunk = parsedDiff.hunks[hunkIndex];
+
+    if (!hunk) {
+      return;
+    }
+
+    try {
+      await writeClipboardText(buildHunkCopyText(hunk));
+      copiedHunkIndex = hunkIndex;
+
+      if (hunkCopyResetTimer) {
+        clearTimeout(hunkCopyResetTimer);
+      }
+
+      hunkCopyResetTimer = setTimeout(() => {
+        copiedHunkIndex = null;
+      }, 1600);
+    } catch (error) {
+      console.error("Failed to copy diff hunk:", error);
+      copiedHunkIndex = null;
+    }
+  }
+
+  onDestroy(() => {
+    if (hunkCopyResetTimer) {
+      clearTimeout(hunkCopyResetTimer);
+    }
+  });
 </script>
 
 {#if optionsOpen}
@@ -274,9 +309,22 @@
         {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
           {#if row.kind === "hunk"}
             <div
-              class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+              class="flex items-center justify-between gap-3 border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
             >
-              {row.header}
+              <span class="min-w-0 truncate">{row.header}</span>
+              <button
+                type="button"
+                class="rounded border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+                title={copiedHunkIndex === row.hunkIndex
+                  ? "已复制 Diff Hunk"
+                  : "复制 Diff Hunk"}
+                aria-label={copiedHunkIndex === row.hunkIndex
+                  ? "已复制 Diff Hunk"
+                  : "复制 Diff Hunk"}
+                on:click={() => copyHunk(row.hunkIndex)}
+              >
+                {copiedHunkIndex === row.hunkIndex ? "Copied" : "Copy hunk"}
+              </button>
             </div>
           {:else}
             <div
@@ -318,11 +366,24 @@
       </div>
     {:else}
       <div>
-        {#each parsedDiff.hunks as hunk}
+        {#each parsedDiff.hunks as hunk, hunkIndex}
           <div
-            class="border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+            class="flex items-center justify-between gap-3 border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
           >
-            {hunk.header}
+            <span class="min-w-0 truncate">{hunk.header}</span>
+            <button
+              type="button"
+              class="rounded border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+              title={copiedHunkIndex === hunkIndex
+                ? "已复制 Diff Hunk"
+                : "复制 Diff Hunk"}
+              aria-label={copiedHunkIndex === hunkIndex
+                ? "已复制 Diff Hunk"
+                : "复制 Diff Hunk"}
+              on:click={() => copyHunk(hunkIndex)}
+            >
+              {copiedHunkIndex === hunkIndex ? "Copied" : "Copy hunk"}
+            </button>
           </div>
           {#each hunk.lines as line}
             <div

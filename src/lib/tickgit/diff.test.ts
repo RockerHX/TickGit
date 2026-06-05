@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildHunkCopyText,
   buildSplitDiffRows,
   getDiffViewerState,
   getSplitDiffRowsForMode,
@@ -157,7 +158,7 @@ describe("diff parser", () => {
     );
 
     expect(buildSplitDiffRows(diff)).toEqual([
-      { kind: "hunk", header: "@@ -1,3 +1,3 @@" },
+      { kind: "hunk", header: "@@ -1,3 +1,3 @@", hunkIndex: 0 },
       {
         kind: "line",
         left: expect.objectContaining({ type: "context", content: "keep" }),
@@ -209,7 +210,7 @@ describe("diff parser", () => {
     );
 
     expect(buildSplitDiffRows(diff)).toEqual([
-      { kind: "hunk", header: "@@ -4,2 +4,3 @@" },
+      { kind: "hunk", header: "@@ -4,2 +4,3 @@", hunkIndex: 0 },
       {
         kind: "line",
         left: expect.objectContaining({ type: "delete", content: "before" }),
@@ -226,6 +227,41 @@ describe("diff parser", () => {
         right: expect.objectContaining({ type: "add", content: "extra" }),
       },
     ]);
+  });
+
+  it("adds hunk indexes to split hunk rows", () => {
+    const diff = parseUnifiedDiff(
+      ["@@ -1,1 +1,1 @@", "-one", "+two", "@@ -4,1 +4,1 @@", "-old", "+new"].join(
+        "\n",
+      ),
+    );
+
+    expect(buildSplitDiffRows(diff).filter((row) => row.kind === "hunk")).toEqual(
+      [
+        { kind: "hunk", header: "@@ -1,1 +1,1 @@", hunkIndex: 0 },
+        { kind: "hunk", header: "@@ -4,1 +4,1 @@", hunkIndex: 1 },
+      ],
+    );
+  });
+
+  it("builds copy text for a hunk with raw lines and newline markers", () => {
+    const diff = parseUnifiedDiff(
+      [
+        "@@ -1,1 +1,1 @@",
+        "-before",
+        "+after",
+        "\\ No newline at end of file",
+      ].join("\n"),
+    );
+
+    expect(buildHunkCopyText(diff.hunks[0])).toBe(
+      [
+        "@@ -1,1 +1,1 @@",
+        "-before",
+        "+after",
+        "\\ No newline at end of file",
+      ].join("\n"),
+    );
   });
 
   it("computes diff viewer state for protected diffs", () => {
