@@ -32,6 +32,11 @@
     loadRepositoryStateSnapshot,
     type RepositoryStateResult,
   } from "$lib/tickgit/repository-actions";
+  import {
+    EMPTY_HISTORY_FILTERS,
+    getActiveHistoryFilterCount,
+    normalizeHistoryFilters,
+  } from "$lib/tickgit/history";
   import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
   import {
     canLoadCommitFiles,
@@ -83,6 +88,7 @@
   } from "$lib/tickgit/layout";
   import type {
     BranchStatus,
+    CommitHistoryFilters,
     CommitMeta,
     CommitFileChange,
     CommitFileDiffResult,
@@ -108,6 +114,8 @@
   let localBranches: string[] = [];
 
   let commits: CommitListItem[] = [];
+  let historyFilters: CommitHistoryFilters = { ...EMPTY_HISTORY_FILTERS };
+  $: activeHistoryFilterCount = getActiveHistoryFilterCount(historyFilters);
   let selectedCommit: CommitListItem | null = null;
   let selectedCommitMeta: CommitMeta | null = null;
   let commitFiles: CommitFileChange[] = [];
@@ -305,6 +313,14 @@
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
+  }
+
+  function setHistoryFilters(filters: CommitHistoryFilters) {
+    historyFilters = normalizeHistoryFilters(filters);
+  }
+
+  function clearHistoryFilters() {
+    historyFilters = { ...EMPTY_HISTORY_FILTERS };
   }
 
   async function switchMainView(view: "history" | "changes") {
@@ -1478,6 +1494,8 @@
     >
       <CommitHistoryList
         {commits}
+        filters={historyFilters}
+        activeFilterCount={activeHistoryFilterCount}
         selectedHash={selectedCommit?.hash ?? null}
         loading={loadingHistory || loadingRepository}
         {hasMore}
@@ -1486,6 +1504,8 @@
         on:loadMore={() => loadHistory(true)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
+        on:filterChange={(event) => setHistoryFilters(event.detail.filters)}
+        on:clearFilters={clearHistoryFilters}
       />
 
       <ResizeHandle

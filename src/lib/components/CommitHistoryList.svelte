@@ -1,18 +1,27 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { BranchStatus, CommitListItem } from "$lib/types";
+  import type {
+    BranchStatus,
+    CommitHistoryFilters,
+    CommitListItem,
+  } from "$lib/types";
   import { formatRelativeDate, getInitials } from "$lib/utils";
+  import { EMPTY_HISTORY_FILTERS } from "$lib/tickgit/history";
 
   export let commits: CommitListItem[] = [];
   export let selectedHash: string | null = null;
   export let loading = false;
   export let hasMore = false;
   export let branchStatus: BranchStatus | null = null;
+  export let filters: CommitHistoryFilters = EMPTY_HISTORY_FILTERS;
+  export let activeFilterCount = 0;
 
   const dispatch = createEventDispatcher<{
     select: { commit: CommitListItem };
     loadMore: void;
     openMenu: { commit: CommitListItem; x: number; y: number };
+    filterChange: { filters: CommitHistoryFilters };
+    clearFilters: void;
   }>();
 
   function handleScroll(event: Event) {
@@ -36,11 +45,33 @@
     event.preventDefault();
     dispatch("openMenu", { commit, x: event.clientX, y: event.clientY });
   }
+
+  function updateFilter(key: keyof CommitHistoryFilters, value: string) {
+    dispatch("filterChange", {
+      filters: {
+        query: filters.query ?? "",
+        author: filters.author ?? "",
+        filePath: filters.filePath ?? "",
+        [key]: value,
+      },
+    });
+  }
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
-    <div class="text-sm font-semibold text-[#f0f6fc]">History</div>
+    <div class="flex items-center justify-between gap-3">
+      <div class="text-sm font-semibold text-[#f0f6fc]">History</div>
+      {#if activeFilterCount > 0}
+        <button
+          type="button"
+          class="rounded-md border border-[#444c56] bg-[#373e47] px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#539bf5]/45 hover:bg-[#347dff]/15"
+          on:click={() => dispatch("clearFilters")}
+        >
+          Clear {activeFilterCount}
+        </button>
+      {/if}
+    </div>
     <div class="mt-1 text-xs text-slate-400">
       {#if branchStatus?.pushAvailable}
         Ahead {branchStatus.aheadCount} · Safe step-push {branchStatus.safeAheadCount}
@@ -49,6 +80,30 @@
         {branchStatus?.disabledReason ?? "当前仓库未启用推送"}
       {/if}
     </div>
+    <div class="mt-3 space-y-2">
+      <input
+        class="h-8 w-full rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
+        placeholder="Commit search"
+        value={filters.query ?? ""}
+        on:input={(event) => updateFilter("query", event.currentTarget.value)}
+      />
+      <div class="grid grid-cols-2 gap-2">
+        <input
+          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
+          placeholder="Author"
+          value={filters.author ?? ""}
+          on:input={(event) =>
+            updateFilter("author", event.currentTarget.value)}
+        />
+        <input
+          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
+          placeholder="File path"
+          value={filters.filePath ?? ""}
+          on:input={(event) =>
+            updateFilter("filePath", event.currentTarget.value)}
+        />
+      </div>
+    </div>
   </div>
 
   <div class="min-h-0 flex-1 overflow-y-auto" on:scroll={handleScroll}>
@@ -56,7 +111,9 @@
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
       >
-        No commits found for this repository
+        {activeFilterCount > 0
+          ? "没有匹配提交"
+          : "No commits found for this repository"}
       </div>
     {/if}
 
