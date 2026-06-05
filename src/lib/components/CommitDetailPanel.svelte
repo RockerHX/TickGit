@@ -10,6 +10,7 @@
     MIN_BRANCH_PANE_WIDTH,
     RESIZE_DIVIDER_LINE_WIDTH,
   } from "$lib/tickgit/layout";
+  import { writeClipboardText } from "$lib/tickgit/clipboard";
   import type {
     CommitFileChange,
     CommitFileDiffResult,
@@ -38,7 +39,9 @@
   let filesPaneWidth = DEFAULT_FILES_PANE_WIDTH;
   let panelElement: HTMLDivElement | null = null;
   let copiedCommitHash: string | null = null;
+  let copiedFilePath: string | null = null;
   let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
+  let filePathCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: if (commit && copiedCommitHash !== commit.hash) {
     copiedCommitHash = null;
@@ -79,24 +82,7 @@
 
   async function copyCommitHash(hash: string) {
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(hash);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = hash;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "absolute";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        const copied = document.execCommand("copy");
-        document.body.removeChild(textarea);
-
-        if (!copied) {
-          throw new Error("document.execCommand(copy) failed");
-        }
-      }
-
+      await writeClipboardText(hash);
       copiedCommitHash = hash;
 
       if (copyResetTimer) {
@@ -112,9 +98,32 @@
     }
   }
 
+  async function copyFilePath(event: MouseEvent, path: string) {
+    event.stopPropagation();
+
+    try {
+      await writeClipboardText(path);
+      copiedFilePath = path;
+
+      if (filePathCopyResetTimer) {
+        clearTimeout(filePathCopyResetTimer);
+      }
+
+      filePathCopyResetTimer = setTimeout(() => {
+        copiedFilePath = null;
+      }, 1600);
+    } catch (error) {
+      console.error("Failed to copy file path:", error);
+      copiedFilePath = null;
+    }
+  }
+
   onDestroy(() => {
     if (copyResetTimer) {
       clearTimeout(copyResetTimer);
+    }
+    if (filePathCopyResetTimer) {
+      clearTimeout(filePathCopyResetTimer);
     }
   });
 </script>
@@ -300,26 +309,70 @@
         {:else}
           <div>
             {#each files as file (file.path + file.status)}
-              <button
-                class={`w-full border-b border-[#373e47] px-4 py-2.5 text-left transition ${
+              <div
+                class={`flex items-center gap-2 border-b border-[#373e47] px-4 py-2.5 transition ${
                   selectedFilePath === file.path
                     ? "bg-[#347dff]/12"
                     : "bg-transparent hover:bg-[#373e47]/45"
                 }`}
-                title={file.displayPath}
-                on:click={() => dispatch("selectFile", { path: file.path })}
               >
-                <div class="flex items-center gap-3">
-                  <span
-                    class={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold uppercase ${statusTone(file.status)}`}
-                  >
-                    {file.status}
-                  </span>
-                  <span class="truncate text-[13px] leading-5 text-slate-200">
-                    {file.displayPath}
-                  </span>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  class="min-w-0 flex-1 text-left"
+                  title={file.displayPath}
+                  on:click={() =>
+                    dispatch("selectFile", { path: file.path })}
+                >
+                  <div class="flex items-center gap-3">
+                    <span
+                      class={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold uppercase ${statusTone(file.status)}`}
+                    >
+                      {file.status}
+                    </span>
+                    <span
+                      class="min-w-0 flex-1 truncate text-[13px] leading-5 text-slate-200"
+                    >
+                      {file.displayPath}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
+                  title={copiedFilePath === file.path
+                    ? "已复制文件路径"
+                    : "复制文件路径"}
+                  aria-label={copiedFilePath === file.path
+                    ? "已复制文件路径"
+                    : "复制文件路径"}
+                  on:click={(event) => copyFilePath(event, file.path)}
+                >
+                  {#if copiedFilePath === file.path}
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="h-3.5 w-3.5 fill-current text-emerald-300"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                      ></path>
+                    </svg>
+                  {:else}
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="h-3.5 w-3.5 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                      ></path>
+                      <path
+                        d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                      ></path>
+                    </svg>
+                  {/if}
+                </button>
+              </div>
             {/each}
           </div>
         {/if}
