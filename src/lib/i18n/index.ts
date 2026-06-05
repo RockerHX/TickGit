@@ -1,6 +1,10 @@
 import { writable } from "svelte/store";
 import { FALLBACK_LOCALE, resources, type TranslationKey } from "./resources";
-import { SUPPORTED_LOCALES, type Locale, type TranslationParams } from "./types";
+import {
+  SUPPORTED_LOCALES,
+  type Locale,
+  type TranslationParams,
+} from "./types";
 
 export { FALLBACK_LOCALE, resources, SUPPORTED_LOCALES };
 export type { Locale, TranslationKey, TranslationParams };
@@ -8,11 +12,15 @@ export type { Locale, TranslationKey, TranslationParams };
 export const LOCALE_STORAGE_KEY = "tickgit.locale";
 export const DEFAULT_CHINESE_LOCALE: Locale = "zh-CN";
 
-export function isSupportedLocale(value: string | null | undefined): value is Locale {
+export function isSupportedLocale(
+  value: string | null | undefined,
+): value is Locale {
   return SUPPORTED_LOCALES.includes(value as Locale);
 }
 
-export function normalizeLocale(value: string | null | undefined): Locale | null {
+export function normalizeLocale(
+  value: string | null | undefined,
+): Locale | null {
   if (!value) {
     return null;
   }
@@ -149,7 +157,9 @@ export function errorCodeTranslationKey(code: string | null | undefined) {
   return code ? (ERROR_CODE_KEYS[code] ?? null) : null;
 }
 
-export function branchDisabledReasonTranslationKey(code: string | null | undefined) {
+export function branchDisabledReasonTranslationKey(
+  code: string | null | undefined,
+) {
   return code ? (BRANCH_DISABLED_REASON_KEYS[code] ?? null) : null;
 }
 
@@ -159,7 +169,9 @@ export function translateErrorCode(
   fallback: string | null | undefined = null,
 ) {
   const key = errorCodeTranslationKey(code);
-  return key ? translate(locale, key) : (fallback ?? translate(locale, "common.unknownError"));
+  return key
+    ? translate(locale, key)
+    : (fallback ?? translate(locale, "common.unknownError"));
 }
 
 export function translateBranchDisabledReason(
@@ -168,7 +180,9 @@ export function translateBranchDisabledReason(
   fallback: string | null | undefined = null,
 ) {
   const key = branchDisabledReasonTranslationKey(code);
-  return key ? translate(locale, key) : (fallback ?? translate(locale, "branch.pushDisabledFallback"));
+  return key
+    ? translate(locale, key)
+    : (fallback ?? translate(locale, "branch.pushDisabledFallback"));
 }
 
 export function translate(
@@ -177,7 +191,8 @@ export function translate(
   params: TranslationParams = {},
 ) {
   const localeResources = resources[locale] ?? resources[FALLBACK_LOCALE];
-  const template = localeResources[key] ?? resources[FALLBACK_LOCALE][key] ?? key;
+  const template =
+    localeResources[key] ?? resources[FALLBACK_LOCALE][key] ?? key;
 
   return template.replace(/\{(\w+)\}/g, (match, name) => {
     const value = params[name];

@@ -1,4 +1,9 @@
-import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
+import {
+  FALLBACK_LOCALE,
+  translate,
+  translateErrorCode,
+  type Locale,
+} from "$lib/i18n";
 import type {
   StepPushJobStarted,
   StepPushPlan,

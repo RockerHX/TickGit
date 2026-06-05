@@ -792,7 +792,11 @@
     try {
       await api.stageWorkspaceFile(repository.path, filePath);
       await loadWorkspaceState(repository.path, true);
-      notify(translate($locale, "workspace.fileStagedTitle"), filePath, "success");
+      notify(
+        translate($locale, "workspace.fileStagedTitle"),
+        filePath,
+        "success",
+      );
     } catch (error) {
       notify(
         translate($locale, "workspace.stageFailedTitle"),
@@ -1240,7 +1244,9 @@
 
           notify(
             translate($locale, "push.successTitle"),
-            translate($locale, "push.successMessage", { target: target.message }),
+            translate($locale, "push.successMessage", {
+              target: target.message,
+            }),
             "success",
           );
 
@@ -1503,7 +1509,8 @@
               />
             </div>
             <div class="mt-0.5 truncate text-xs text-slate-400">
-              {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
+              {branchStatus?.upstream ??
+                translate($locale, "branch.noUpstream")}
             </div>
           </div>
         </div>
@@ -1540,7 +1547,9 @@
             </span>
             <span class="mt-0.5 block truncate text-xs text-slate-400">
               {branchStatus?.aheadCount
-                ? translate($locale, "push.aheadCommits", { count: branchStatus.aheadCount })
+                ? translate($locale, "push.aheadCommits", {
+                    count: branchStatus.aheadCount,
+                  })
                 : translate($locale, "push.upToDate")}
             </span>
           </span>

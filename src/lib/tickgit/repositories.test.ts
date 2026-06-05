@@ -64,14 +64,11 @@ describe("repository helpers", () => {
     ).toBe("Repository path does not exist");
     expect(
       repositoryStatusMessage(
-        repository(
-          "/missing",
-          {
-            status: "missing",
-            disabledReason: "仓库路径不存在",
-            disabledReasonCode: "repository_missing",
-          },
-        ),
+        repository("/missing", {
+          status: "missing",
+          disabledReason: "仓库路径不存在",
+          disabledReasonCode: "repository_missing",
+        }),
         "zh-CN",
       ),
     ).toBe("仓库路径不存在");
@@ -80,7 +77,7 @@ describe("repository helpers", () => {
         repository("/invalid", {
           status: "invalid",
           disabledReason: null,
-    disabledReasonCode: null,
+          disabledReasonCode: null,
         }),
       ),
     ).toBe("The current path is not a valid Git repository");

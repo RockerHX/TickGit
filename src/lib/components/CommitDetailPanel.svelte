@@ -270,10 +270,14 @@
               ></path>
             </svg>
             <span class="font-medium text-emerald-300">
-              {translate($locale, "commit.addedLines", { count: commitMeta.additions })}
+              {translate($locale, "commit.addedLines", {
+                count: commitMeta.additions,
+              })}
             </span>
             <span class="font-medium text-rose-300">
-              {translate($locale, "commit.removedLines", { count: commitMeta.deletions })}
+              {translate($locale, "commit.removedLines", {
+                count: commitMeta.deletions,
+              })}
             </span>
           </div>
         {/if}
@@ -293,7 +297,9 @@
       <div
         class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
       >
-        <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "commit.changedFiles")}</div>
+        <div class="text-sm font-semibold text-[#f0f6fc]">
+          {translate($locale, "commit.changedFiles")}
+        </div>
         <div class="text-xs font-medium text-slate-400">{files.length}</div>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto bg-[#2d333b]">

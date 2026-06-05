@@ -49,19 +49,23 @@ describe("i18n resources", () => {
   });
 
   it("translates known keys and interpolates params", () => {
-    expect(translate("en-US", "branch.switchedMessage", { branch: "main" })).toBe(
-      "Current branch switched to main",
-    );
-    expect(translate("zh-CN", "branch.switchedMessage", { branch: "main" })).toBe(
-      "当前已切换到 main",
-    );
+    expect(
+      translate("en-US", "branch.switchedMessage", { branch: "main" }),
+    ).toBe("Current branch switched to main");
+    expect(
+      translate("zh-CN", "branch.switchedMessage", { branch: "main" }),
+    ).toBe("当前已切换到 main");
   });
 
   it("keeps missing params as visible placeholders", () => {
-    expect(translate("en-US", "push.successMessage")).toBe("Pushed to {target}");
+    expect(translate("en-US", "push.successMessage")).toBe(
+      "Pushed to {target}",
+    );
   });
 
   it("falls back to the key for unknown keys", () => {
-    expect(translate("en-US", "missing.key" as TranslationKey)).toBe("missing.key");
+    expect(translate("en-US", "missing.key" as TranslationKey)).toBe(
+      "missing.key",
+    );
   });
 });

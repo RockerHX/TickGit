@@ -24,11 +24,14 @@ describe("page helpers", () => {
     expect(getErrorMessage("plain error")).toBe("plain error");
     expect(getErrorMessage(new Error("native error"))).toBe("native error");
     expect(getErrorMessage({ message: "app error" })).toBe("app error");
-    expect(getErrorMessage({ code: "repository_exists", message: "fallback" })).toBe(
-      "This repository is already in the list",
-    );
     expect(
-      getErrorMessage({ code: "repository_exists", message: "fallback" }, "zh-CN"),
+      getErrorMessage({ code: "repository_exists", message: "fallback" }),
+    ).toBe("This repository is already in the list");
+    expect(
+      getErrorMessage(
+        { code: "repository_exists", message: "fallback" },
+        "zh-CN",
+      ),
     ).toBe("该仓库已存在于列表中");
     expect(getErrorMessage({ code: "unknown_code", message: "fallback" })).toBe(
       "fallback",

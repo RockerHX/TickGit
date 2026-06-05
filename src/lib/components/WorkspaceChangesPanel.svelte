@@ -178,7 +178,9 @@
       class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
     >
       <div>
-        <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "workspace.title")}</div>
+        <div class="text-sm font-semibold text-[#f0f6fc]">
+          {translate($locale, "workspace.title")}
+        </div>
         <div class="mt-1 text-xs text-slate-400">
           {translate($locale, "workspace.counts", {
             staged: status.staged.length,
@@ -202,7 +204,8 @@
         </div>
       {:else}
         {#each WORKSPACE_GROUPS as group}
-          {@const files = group.section === "staged" ? status.staged : status.unstaged}
+          {@const files =
+            group.section === "staged" ? status.staged : status.unstaged}
           <div class="border-b border-[#1f2328]">
             <div
               class="flex items-center justify-between gap-3 bg-[#24292f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
@@ -212,7 +215,9 @@
             </div>
 
             {#if files.length === 0}
-              <div class="px-4 py-3 text-xs text-slate-500">{translate($locale, "workspace.noFiles")}</div>
+              <div class="px-4 py-3 text-xs text-slate-500">
+                {translate($locale, "workspace.noFiles")}
+              </div>
             {:else}
               {#each files as file (workspaceFileKey(file))}
                 <div

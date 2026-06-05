@@ -1,7 +1,15 @@
-import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
+import {
+  FALLBACK_LOCALE,
+  translate,
+  translateErrorCode,
+  type Locale,
+} from "$lib/i18n";
 import type { AppError, CommitListItem, ToastItem } from "$lib/types";
 
-export function getErrorMessage(error: unknown, locale: Locale = FALLBACK_LOCALE) {
+export function getErrorMessage(
+  error: unknown,
+  locale: Locale = FALLBACK_LOCALE,
+) {
   if (typeof error === "string") {
     return error;
   }

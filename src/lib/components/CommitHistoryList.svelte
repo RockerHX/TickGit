@@ -62,14 +62,18 @@
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
     <div class="flex items-center justify-between gap-3">
-      <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "history.title")}</div>
+      <div class="text-sm font-semibold text-[#f0f6fc]">
+        {translate($locale, "history.title")}
+      </div>
       {#if activeFilterCount > 0}
         <button
           type="button"
           class="rounded-md border border-[#444c56] bg-[#373e47] px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#539bf5]/45 hover:bg-[#347dff]/15"
           on:click={() => dispatch("clearFilters")}
         >
-          {translate($locale, "history.clearFilters", { count: activeFilterCount })}
+          {translate($locale, "history.clearFilters", {
+            count: activeFilterCount,
+          })}
         </button>
       {/if}
     </div>

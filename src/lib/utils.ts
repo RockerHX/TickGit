@@ -1,7 +1,10 @@
 import type { Locale } from "$lib/i18n";
 import { translate } from "$lib/i18n";
 
-export function formatRelativeDate(value: string | number, locale: Locale = "en-US") {
+export function formatRelativeDate(
+  value: string | number,
+  locale: Locale = "en-US",
+) {
   const date = typeof value === "number" ? new Date(value) : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -25,7 +28,10 @@ export function formatRelativeDate(value: string | number, locale: Locale = "en-
   return date.toLocaleString(locale);
 }
 
-export function formatAbsoluteDate(value: string | number, locale: Locale = "en-US") {
+export function formatAbsoluteDate(
+  value: string | number,
+  locale: Locale = "en-US",
+) {
   const date = typeof value === "number" ? new Date(value) : new Date(value);
   return Number.isNaN(date.getTime())
     ? translate(locale, "date.unknownTime")

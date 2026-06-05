@@ -1,4 +1,9 @@
-import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
+import {
+  FALLBACK_LOCALE,
+  translate,
+  translateErrorCode,
+  type Locale,
+} from "$lib/i18n";
 import type {
   PushTargetKind,
   PushToCommitFailed,
@@ -86,7 +91,11 @@ export function toFailedPushToCommitState(
   payload: PushToCommitFailed,
   locale: Locale = FALLBACK_LOCALE,
 ): PushToCommitUiState {
-  const target = formatPushTargetLabel(payload.target, payload.targetKind, locale);
+  const target = formatPushTargetLabel(
+    payload.target,
+    payload.targetKind,
+    locale,
+  );
 
   return {
     jobId: payload.jobId,

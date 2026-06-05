@@ -45,7 +45,13 @@
                   : "border-sky-500/40 bg-sky-500/10 text-sky-200"
             }`}
           >
-            {#if state.status === "running"}{translate($locale, "push.uploading")}{:else if state.status === "finished"}{translate($locale, "common.done")}{:else}{translate($locale, "common.failed")}{/if}
+            {#if state.status === "running"}{translate(
+                $locale,
+                "push.uploading",
+              )}{:else if state.status === "finished"}{translate(
+                $locale,
+                "common.done",
+              )}{:else}{translate($locale, "common.failed")}{/if}
           </div>
 
           {#if state.status === "failed"}

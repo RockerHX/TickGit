@@ -1,4 +1,9 @@
-import { FALLBACK_LOCALE, translate, translateErrorCode, type Locale } from "$lib/i18n";
+import {
+  FALLBACK_LOCALE,
+  translate,
+  translateErrorCode,
+  type Locale,
+} from "$lib/i18n";
 import type { RepositoryStatus, RepositorySummary } from "$lib/types";
 import { isStepPushRunning } from "$lib/tickgit/page-state";
 import type { StepPushUiState } from "$lib/types";
@@ -28,7 +33,10 @@ export function filterRepositories(
   });
 }
 
-export function repositoryStatusLabel(status: RepositoryStatus, locale: Locale = FALLBACK_LOCALE) {
+export function repositoryStatusLabel(
+  status: RepositoryStatus,
+  locale: Locale = FALLBACK_LOCALE,
+) {
   switch (status) {
     case "available":
       return translate(locale, "repository.status.available");
@@ -50,7 +58,10 @@ export function repositoryStatusTone(status: RepositoryStatus) {
   }
 }
 
-export function repositoryStatusMessage(repository: RepositorySummary, locale: Locale = FALLBACK_LOCALE) {
+export function repositoryStatusMessage(
+  repository: RepositorySummary,
+  locale: Locale = FALLBACK_LOCALE,
+) {
   if (repository.status === "available") {
     return null;
   }

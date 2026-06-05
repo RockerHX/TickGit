@@ -270,7 +270,9 @@
 
   <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#2b3036]">
     {#if viewerState === "loading"}
-      <div class="px-4 py-4 text-sm text-slate-400">{translate($locale, "diff.loading")}</div>
+      <div class="px-4 py-4 text-sm text-slate-400">
+        {translate($locale, "diff.loading")}
+      </div>
     {:else if viewerState === "no-file"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
@@ -331,9 +333,13 @@
         <div>{translate($locale, "diff.largeSkipped")}</div>
         <div class="mt-2 text-xs text-slate-500">
           {#if diffResult.byteCount > 0}
-            {translate($locale, "diff.patchSize", { size: formatDiffSize(diffResult.byteCount) })} ·
+            {translate($locale, "diff.patchSize", {
+              size: formatDiffSize(diffResult.byteCount),
+            })} ·
           {/if}
-          {translate($locale, "diff.changedLines", { count: diffResult.lineCount })}
+          {translate($locale, "diff.changedLines", {
+            count: diffResult.lineCount,
+          })}
         </div>
       </div>
     {:else if viewerState === "only-whitespace"}
@@ -373,7 +379,9 @@
                   : translate($locale, "diff.copyHunk")}
                 on:click={() => copyHunk(row.hunkIndex)}
               >
-                {copiedHunkIndex === row.hunkIndex ? translate($locale, "common.copied") : translate($locale, "diff.copyHunk")}
+                {copiedHunkIndex === row.hunkIndex
+                  ? translate($locale, "common.copied")
+                  : translate($locale, "diff.copyHunk")}
               </button>
             </div>
           {:else}
@@ -432,7 +440,9 @@
                 : "复制 Diff Hunk"}
               on:click={() => copyHunk(hunkIndex)}
             >
-              {copiedHunkIndex === hunkIndex ? translate($locale, "common.copied") : translate($locale, "diff.copyHunk")}
+              {copiedHunkIndex === hunkIndex
+                ? translate($locale, "common.copied")
+                : translate($locale, "diff.copyHunk")}
             </button>
           </div>
           {#each hunk.lines as line}

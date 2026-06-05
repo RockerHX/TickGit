@@ -49,7 +49,9 @@
         </svg>
       </div>
       <div>
-        <div class="text-sm font-medium text-white">{translate($locale, "context.pushToCommit")}</div>
+        <div class="text-sm font-medium text-white">
+          {translate($locale, "context.pushToCommit")}
+        </div>
         <div class="text-xs text-slate-400">
           {pushToCommitReason ??
             translate($locale, "context.pushBranchStateTo", {

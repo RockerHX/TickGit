@@ -28,7 +28,8 @@ export const resources = {
     "repository.status.missing": "Missing",
     "repository.status.invalid": "Invalid",
     "repository.status.missingMessage": "Repository path does not exist",
-    "repository.status.invalidMessage": "The current path is not a valid Git repository",
+    "repository.status.invalidMessage":
+      "The current path is not a valid Git repository",
     "repository.pathUnavailable": "Repository path unavailable",
     "repository.currentUnavailable": "Current repository is unavailable",
     "repository.relocate": "Relocate",
@@ -36,10 +37,12 @@ export const resources = {
     "repository.removeFromList": "Remove from list",
     "repository.chooseDirectoryTitle": "Choose a new repository directory",
     "repository.removedTitle": "Repository removed",
-    "repository.removedMessage": "Removed only from the TickGit list. Local files were not deleted.",
+    "repository.removedMessage":
+      "Removed only from the TickGit list. Local files were not deleted.",
     "repository.removeFailedTitle": "Failed to remove repository",
     "repository.relocatedTitle": "Repository relocated",
-    "repository.relocatedMessage": "Repository path updated and state refreshed.",
+    "repository.relocatedMessage":
+      "Repository path updated and state refreshed.",
     "repository.relocateFailedTitle": "Failed to relocate repository",
     "repository.addedTitle": "Repository added",
     "repository.addedMessage": "A new Git repository was added to TickGit.",
@@ -53,19 +56,27 @@ export const resources = {
     "branch.filter": "Filter branch",
     "branch.noneFound": "No branches found",
     "branch.noUpstream": "No upstream configured",
-    "branch.pushDisabledFallback": "Push is not enabled for the current repository",
+    "branch.pushDisabledFallback":
+      "Push is not enabled for the current repository",
     "branch.switchedTitle": "Branch switched",
     "branch.switchedMessage": "Current branch switched to {branch}",
     "branch.switchFailedTitle": "Failed to switch branch",
-    "branch.detachedPushDisabled": "The current repository is in detached HEAD state. Push actions are disabled.",
-    "branch.missingOriginPushDisabled": "The current repository has no origin remote. Push actions are disabled.",
-    "branch.missingUpstreamPushDisabled": "The current branch has no upstream tracking branch. Push actions are disabled.",
-    "branch.nonOriginUpstreamPushDisabled": "The current branch upstream is not origin. Push actions are disabled.",
-    "branch.behindRemote": "Remote has updates. TickGit cannot push safely yet. Sync the remote with GitHub Desktop or SourceTree, then return to TickGit and refresh.",
-    "branch.currentPushUnavailable": "The current branch cannot be pushed right now.",
+    "branch.detachedPushDisabled":
+      "The current repository is in detached HEAD state. Push actions are disabled.",
+    "branch.missingOriginPushDisabled":
+      "The current repository has no origin remote. Push actions are disabled.",
+    "branch.missingUpstreamPushDisabled":
+      "The current branch has no upstream tracking branch. Push actions are disabled.",
+    "branch.nonOriginUpstreamPushDisabled":
+      "The current branch upstream is not origin. Push actions are disabled.",
+    "branch.behindRemote":
+      "Remote has updates. TickGit cannot push safely yet. Sync the remote with GitHub Desktop or SourceTree, then return to TickGit and refresh.",
+    "branch.currentPushUnavailable":
+      "The current branch cannot be pushed right now.",
     "history.title": "History",
     "history.clearFilters": "Clear {count}",
-    "history.branchStats": "Ahead {aheadCount} · Safe step-push {safeAheadCount} · Behind {behindCount}",
+    "history.branchStats":
+      "Ahead {aheadCount} · Safe step-push {safeAheadCount} · Behind {behindCount}",
     "history.commitSearch": "Commit search",
     "history.author": "Author",
     "history.filePath": "File path",
@@ -73,7 +84,8 @@ export const resources = {
     "history.noCommits": "No commits found for this repository",
     "history.safeStepPush": "Safe step push target",
     "history.unsafeStepPush": "Cannot step push safely",
-    "history.unsafeStepPushFallback": "This commit cannot be step pushed safely",
+    "history.unsafeStepPushFallback":
+      "This commit cannot be step pushed safely",
     "history.localCommit": "Local commit",
     "history.loading": "Loading history…",
     "history.loadFailedTitle": "Failed to load history",
@@ -99,7 +111,8 @@ export const resources = {
     "diff.options": "Diff options",
     "diff.display": "Diff display",
     "diff.hideWhitespace": "Hide whitespace changes",
-    "diff.hideWhitespaceDescription": "Reload the current file diff with Git whitespace filtering.",
+    "diff.hideWhitespaceDescription":
+      "Reload the current file diff with Git whitespace filtering.",
     "diff.loading": "Loading diff…",
     "diff.noFile": "Select a changed file to inspect the diff",
     "diff.imageBefore": "Before",
@@ -113,7 +126,8 @@ export const resources = {
     "diff.changedLines": "Changed lines: {count}",
     "diff.onlyWhitespace": "Only whitespace changes were found for this file",
     "diff.noContent": "No diff content is available for this file",
-    "diff.parseError": "This diff could not be rendered in the structured viewer yet",
+    "diff.parseError":
+      "This diff could not be rendered in the structured viewer yet",
     "diff.copyHunk": "Copy hunk",
     "diff.copiedHunk": "Diff hunk copied",
     "diff.noNewlineAtEnd": "\\ No newline at end of file",
@@ -134,7 +148,8 @@ export const resources = {
     "workspace.commitFiles": "Commit {count} staged {filesLabel}",
     "workspace.fileSingular": "file",
     "workspace.filePlural": "files",
-    "workspace.commitHint": "Only staged files will be committed. Unstaged files remain in the workspace.",
+    "workspace.commitHint":
+      "Only staged files will be committed. Unstaged files remain in the workspace.",
     "workspace.readFailedTitle": "Failed to read workspace",
     "workspace.readDiffFailedTitle": "Failed to read workspace diff",
     "workspace.fileStagedTitle": "File staged",
@@ -147,10 +162,12 @@ export const resources = {
     "context.pushToCommit": "Push to this commit",
     "context.pushBranchStateTo": "Push branch state to {target}",
     "context.stepPushToCommit": "Step push to this commit",
-    "context.stepPushDescription": "Push each unpushed commit in order until this target",
+    "context.stepPushDescription":
+      "Push each unpushed commit in order until this target",
     "drop.title": "Drop Repository",
     "drop.heading": "Drop a local Git repository here",
-    "drop.description": "TickGit will verify the folder and add it to your repository list",
+    "drop.description":
+      "TickGit will verify the folder and add it to your repository list",
     "push.targetCommit": "Commit {hash}",
     "push.button": "Push origin",
     "push.switching": "Switching…",
@@ -165,16 +182,24 @@ export const resources = {
     "push.pushingBranch": "Pushing branch",
     "push.uploading": "Uploading",
     "push.closeError": "Close push error",
-    "push.busy": "A push task is already running. Please wait for it to finish.",
-    "push.stepBusy": "A step push task is already running. Please wait for it to finish.",
-    "push.toCommitBusy": "A push to commit task is already running. Please wait for it to finish.",
-    "push.currentBusy": "A push task is already running. Please wait for it to finish.",
+    "push.busy":
+      "A push task is already running. Please wait for it to finish.",
+    "push.stepBusy":
+      "A step push task is already running. Please wait for it to finish.",
+    "push.toCommitBusy":
+      "A push to commit task is already running. Please wait for it to finish.",
+    "push.currentBusy":
+      "A push task is already running. Please wait for it to finish.",
     "push.invalidHash": "Target Commit cannot be empty",
     "push.emptyHashes": "No commits are available to push",
-    "push.unsafeTarget": "This local commit is not on the first-parent safe path, so it cannot be used as a step push / push to commit target.",
-    "push.missingUpstream": "The current branch has no upstream tracking branch, so it cannot be pushed.",
-    "push.detachedHead": "The current repository is in detached HEAD state, so the current branch cannot be pushed.",
-    "push.branchMismatch": "Target branch does not match the currently checked out branch. Push was rejected.",
+    "push.unsafeTarget":
+      "This local commit is not on the first-parent safe path, so it cannot be used as a step push / push to commit target.",
+    "push.missingUpstream":
+      "The current branch has no upstream tracking branch, so it cannot be pushed.",
+    "push.detachedHead":
+      "The current repository is in detached HEAD state, so the current branch cannot be pushed.",
+    "push.branchMismatch":
+      "Target branch does not match the currently checked out branch. Push was rejected.",
     "stepPush.finished": "Step push finished",
     "stepPush.failed": "Step push failed",
     "stepPush.running": "Step pushing commits",
@@ -184,7 +209,8 @@ export const resources = {
     "stepPush.failedTitle": "Step push failed",
     "stepPush.cannotStartTitle": "Unable to start step push",
     "stepPush.previewTitle": "Step push preview",
-    "stepPush.previewDescription": "TickGit will push each commit in the order verified by the backend.",
+    "stepPush.previewDescription":
+      "TickGit will push each commit in the order verified by the backend.",
     "stepPush.closePreview": "Close step push preview",
     "stepPush.loadingPlan": "Generating step push plan…",
     "stepPush.unavailable": "Step push is currently unavailable",
@@ -194,18 +220,21 @@ export const resources = {
     "stepPush.noPushableCommits": "No commits are available to push.",
     "stepPush.start": "Start step push",
     "remoteBlock.title": "Remote has updates. Push is temporarily unavailable",
-    "remoteBlock.noAutoSync": "TickGit only refreshes remote tracking state. It will not automatically pull, merge, or rebase code.",
+    "remoteBlock.noAutoSync":
+      "TickGit only refreshes remote tracking state. It will not automatically pull, merge, or rebase code.",
     "remoteBlock.refreshStatus": "Refresh status",
     "remoteBlock.githubDesktop": "GitHub Desktop",
     "remoteBlock.sourceTree": "SourceTree",
     "remoteBlock.githubStep1": "Open this repository",
     "remoteBlock.githubStep2": "Click Fetch origin at the top",
     "remoteBlock.githubStep3": "If Pull origin appears, click Pull origin",
-    "remoteBlock.githubStep4": "If there are conflicts, resolve them in the tool and return to TickGit to refresh",
+    "remoteBlock.githubStep4":
+      "If there are conflicts, resolve them in the tool and return to TickGit to refresh",
     "remoteBlock.sourceTreeStep1": "Open this repository",
     "remoteBlock.sourceTreeStep2": "Click Fetch in the toolbar",
     "remoteBlock.sourceTreeStep3": "Click Pull to pull remote updates",
-    "remoteBlock.sourceTreeStep4": "If there are conflicts, resolve them in the tool and return to TickGit to refresh",
+    "remoteBlock.sourceTreeStep4":
+      "If there are conflicts, resolve them in the tool and return to TickGit to refresh",
     "mainView.history": "History",
     "mainView.changes": "Changes",
     "resize.repositoryAndHistory": "Resize repository and history panels",
@@ -227,7 +256,8 @@ export const resources = {
     "error.windowNotFound": "Main window was not found",
     "error.gitUnavailable": "Git is unavailable",
     "error.gitCommandFailed": "Git command failed",
-    "error.invalidRepository": "The selected path is not a valid Git repository",
+    "error.invalidRepository":
+      "The selected path is not a valid Git repository",
     "error.invalidBranch": "Target branch cannot be empty",
     "error.missingOrigin": "The current repository has no origin remote.",
     "error.nonOriginUpstream": "The current branch upstream is not origin.",
@@ -286,15 +316,21 @@ export const resources = {
     "branch.switchedTitle": "分支已切换",
     "branch.switchedMessage": "当前已切换到 {branch}",
     "branch.switchFailedTitle": "切换分支失败",
-    "branch.detachedPushDisabled": "当前仓库处于 detached HEAD 状态，已禁用推送动作。",
-    "branch.missingOriginPushDisabled": "当前仓库未配置 origin 远端，已禁用推送动作。",
-    "branch.missingUpstreamPushDisabled": "当前分支没有上游跟踪分支，已禁用推送动作。",
-    "branch.nonOriginUpstreamPushDisabled": "当前分支的上游不是 origin 远端，已禁用推送动作。",
-    "branch.behindRemote": "远端已有更新，TickGit 暂不能安全推送。请先使用 GitHub Desktop 或 SourceTree 同步远端后，再回到 TickGit 刷新重试。",
+    "branch.detachedPushDisabled":
+      "当前仓库处于 detached HEAD 状态，已禁用推送动作。",
+    "branch.missingOriginPushDisabled":
+      "当前仓库未配置 origin 远端，已禁用推送动作。",
+    "branch.missingUpstreamPushDisabled":
+      "当前分支没有上游跟踪分支，已禁用推送动作。",
+    "branch.nonOriginUpstreamPushDisabled":
+      "当前分支的上游不是 origin 远端，已禁用推送动作。",
+    "branch.behindRemote":
+      "远端已有更新，TickGit 暂不能安全推送。请先使用 GitHub Desktop 或 SourceTree 同步远端后，再回到 TickGit 刷新重试。",
     "branch.currentPushUnavailable": "当前分支当前不可推送。",
     "history.title": "历史",
     "history.clearFilters": "清除 {count}",
-    "history.branchStats": "领先 {aheadCount} · 可安全分步推送 {safeAheadCount} · 落后 {behindCount}",
+    "history.branchStats":
+      "领先 {aheadCount} · 可安全分步推送 {safeAheadCount} · 落后 {behindCount}",
     "history.commitSearch": "搜索 Commit",
     "history.author": "作者",
     "history.filePath": "文件路径",
@@ -328,7 +364,8 @@ export const resources = {
     "diff.options": "Diff 选项",
     "diff.display": "Diff 展示",
     "diff.hideWhitespace": "隐藏空白变更",
-    "diff.hideWhitespaceDescription": "使用 Git 空白过滤重新加载当前文件 Diff。",
+    "diff.hideWhitespaceDescription":
+      "使用 Git 空白过滤重新加载当前文件 Diff。",
     "diff.loading": "正在加载 Diff…",
     "diff.noFile": "选择一个变更文件查看 Diff",
     "diff.imageBefore": "变更前",
@@ -400,7 +437,8 @@ export const resources = {
     "push.currentBusy": "已有 push 任务正在运行，请等待完成。",
     "push.invalidHash": "目标 Commit 不能为空",
     "push.emptyHashes": "没有可推送的 Commit",
-    "push.unsafeTarget": "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标。",
+    "push.unsafeTarget":
+      "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标。",
     "push.missingUpstream": "当前分支没有上游跟踪分支，无法执行推送。",
     "push.detachedHead": "当前仓库处于 detached HEAD 状态，无法推送当前分支。",
     "push.branchMismatch": "目标分支与当前检出分支不一致，已拒绝推送。",
@@ -413,7 +451,8 @@ export const resources = {
     "stepPush.failedTitle": "分步提交失败",
     "stepPush.cannotStartTitle": "无法开始分步提交",
     "stepPush.previewTitle": "分步推送预览",
-    "stepPush.previewDescription": "TickGit 将按后端校验后的顺序逐个推送 Commit。",
+    "stepPush.previewDescription":
+      "TickGit 将按后端校验后的顺序逐个推送 Commit。",
     "stepPush.closePreview": "关闭分步推送预览",
     "stepPush.loadingPlan": "正在生成分步推送计划…",
     "stepPush.unavailable": "当前不可分步推送",
@@ -423,7 +462,8 @@ export const resources = {
     "stepPush.noPushableCommits": "没有可推送的 Commit。",
     "stepPush.start": "开始分步推送",
     "remoteBlock.title": "远端已有更新，暂不能推送",
-    "remoteBlock.noAutoSync": "TickGit 只会刷新远端跟踪状态，不会自动拉取、合并或变基代码。",
+    "remoteBlock.noAutoSync":
+      "TickGit 只会刷新远端跟踪状态，不会自动拉取、合并或变基代码。",
     "remoteBlock.refreshStatus": "刷新状态",
     "remoteBlock.githubDesktop": "GitHub Desktop",
     "remoteBlock.sourceTree": "SourceTree",

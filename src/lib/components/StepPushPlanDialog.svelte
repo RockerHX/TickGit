@@ -73,7 +73,9 @@
           <div
             class="rounded-sm border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
           >
-            <div class="font-semibold">{translate($locale, "stepPush.unavailable")}</div>
+            <div class="font-semibold">
+              {translate($locale, "stepPush.unavailable")}
+            </div>
             <div class="mt-1 text-xs leading-5 text-rose-100/85">
               {blockedMessage}
             </div>
@@ -83,9 +85,14 @@
             class="mb-3 flex items-center justify-between gap-3 text-xs text-slate-400"
           >
             <span
-              >{translate($locale, "stepPush.branch")}: <span class="text-slate-200">{plan.branch}</span></span
+              >{translate($locale, "stepPush.branch")}:
+              <span class="text-slate-200">{plan.branch}</span></span
             >
-            <span>{translate($locale, "stepPush.commits", { count: plan.items.length })}</span>
+            <span
+              >{translate($locale, "stepPush.commits", {
+                count: plan.items.length,
+              })}</span
+            >
           </div>
           <ol
             class="max-h-80 overflow-y-auto rounded-sm border border-[#444c56] bg-[#24292f]"
@@ -101,7 +108,8 @@
                 </span>
                 <div class="min-w-0 flex-1">
                   <div class="truncate text-sm font-medium text-white">
-                    {item.summary || translate($locale, "stepPush.noCommitMessage")}
+                    {item.summary ||
+                      translate($locale, "stepPush.noCommitMessage")}
                   </div>
                   <div class="mt-1 font-mono text-xs text-slate-400">
                     {item.shortHash || item.hash}
