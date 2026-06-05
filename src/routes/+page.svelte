@@ -1,5 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import {
+    locale,
+    translate,
+    translateBranchDisabledReason,
+    translateErrorCode,
+  } from "$lib/i18n";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
@@ -110,6 +116,13 @@
   const HISTORY_FILTER_DEBOUNCE_MS = 300;
   // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
+  const MAIN_VIEW_TABS: Array<{
+    id: "history" | "changes";
+    labelKey: "mainView.history" | "mainView.changes";
+  }> = [
+    { id: "history", labelKey: "mainView.history" },
+    { id: "changes", labelKey: "mainView.changes" },
+  ];
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
@@ -292,6 +305,28 @@
     );
   }
 
+  function currentBranchDisabledReason() {
+    return translateBranchDisabledReason(
+      $locale,
+      branchStatus?.disabledReasonCode,
+      branchStatus?.disabledReason,
+    );
+  }
+
+  function currentCommitPushBlockedReason() {
+    const commit = contextMenu.commit;
+
+    if (!commit) {
+      return null;
+    }
+
+    return translateErrorCode(
+      $locale,
+      commit.pushBlockedReasonCode,
+      commit.pushBlockedReason,
+    );
+  }
+
   async function loadCurrentRepositoryState(keepSelection = false) {
     if (shouldClearRepositoryData(currentRepository)) {
       clearRepositoryData();
@@ -312,8 +347,8 @@
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
     if (state.remoteRefreshError) {
       notify(
-        "同步远端状态失败",
-        getErrorMessage(state.remoteRefreshError),
+        translate($locale, "repository.remoteSyncFailedTitle"),
+        getErrorMessage(state.remoteRefreshError, $locale),
         "error",
       );
     }
@@ -403,7 +438,11 @@
         clearRepositoryData();
       }
     } catch (error) {
-      notify("初始化失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "app.initFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingRepository = false;
     }
@@ -423,7 +462,11 @@
 
       await loadCurrentRepositoryState();
     } catch (error) {
-      notify("切换仓库失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "repository.switchFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     }
   }
 
@@ -445,7 +488,11 @@
       notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
     } catch (error) {
-      notify("读取仓库失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "repository.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingRepository = false;
     }
@@ -465,7 +512,11 @@
       applyWorkspaceSnapshot(snapshot);
     } catch (error) {
       resetWorkspaceState();
-      notify("读取工作区失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "workspace.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingWorkspace = false;
     }
@@ -500,9 +551,17 @@
       if (activeMainView === "changes") {
         await loadWorkspaceState(repository.path);
       }
-      notify("分支已切换", `当前已切换到 ${branch}`, "success");
+      notify(
+        translate($locale, "branch.switchedTitle"),
+        translate($locale, "branch.switchedMessage", { branch }),
+        "success",
+      );
     } catch (error) {
-      notify("切换分支失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "branch.switchFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingRepository = false;
       switchingBranch = false;
@@ -585,7 +644,11 @@
       }
     } catch (error) {
       if (requestId === historyRequestId) {
-        notify("加载历史失败", getErrorMessage(error), "error");
+        notify(
+          translate($locale, "history.loadFailedTitle"),
+          getErrorMessage(error, $locale),
+          "error",
+        );
       }
     } finally {
       if (requestId === historyRequestId) {
@@ -630,7 +693,11 @@
       diffResult = details.diffResult;
     } catch (error) {
       selectedCommitMeta = null;
-      notify("读取 Commit 详情失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "commit.detailsFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingFiles = false;
     }
@@ -662,7 +729,11 @@
       );
     } catch (error) {
       diffResult = EMPTY_DIFF_RESULT;
-      notify("读取 Diff 失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "diff.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingDiff = false;
     }
@@ -696,7 +767,11 @@
       );
     } catch (error) {
       workspaceDiffResult = EMPTY_DIFF_RESULT;
-      notify("读取工作区 Diff 失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "workspace.readDiffFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       loadingWorkspaceDiff = false;
     }
@@ -717,9 +792,13 @@
     try {
       await api.stageWorkspaceFile(repository.path, filePath);
       await loadWorkspaceState(repository.path, true);
-      notify("文件已暂存", filePath, "success");
+      notify(translate($locale, "workspace.fileStagedTitle"), filePath, "success");
     } catch (error) {
-      notify("暂存文件失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "workspace.stageFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       workspaceActionFileKey = null;
     }
@@ -740,9 +819,17 @@
     try {
       await api.unstageWorkspaceFile(repository.path, filePath);
       await loadWorkspaceState(repository.path, true);
-      notify("文件已取消暂存", filePath, "success");
+      notify(
+        translate($locale, "workspace.fileUnstagedTitle"),
+        filePath,
+        "success",
+      );
     } catch (error) {
-      notify("取消暂存失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "workspace.unstageFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       workspaceActionFileKey = null;
     }
@@ -773,11 +860,19 @@
         await loadRepositoryState(repository.path);
       }
 
-      notify("提交成功", `${created.shortHash} ${created.summary}`, "success");
+      notify(
+        translate($locale, "workspace.commitSuccessTitle"),
+        `${created.shortHash} ${created.summary}`,
+        "success",
+      );
     } catch (error) {
       const effect = getWorkspaceCommitFailureEffect(workspaceCommitMessage);
       workspaceCommitMessage = effect.nextCommitMessage;
-      notify("提交失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "workspace.commitFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       committingWorkspace = false;
     }
@@ -785,7 +880,7 @@
 
   async function chooseRepositoryDirectory() {
     const selected = await openDialog({
-      title: "选择新的仓库目录",
+      title: translate($locale, "repository.chooseDirectoryTitle"),
       directory: true,
       multiple: false,
     });
@@ -808,9 +903,17 @@
       await api.removeRepository(path);
       await refreshRepositories();
       await loadCurrentRepositoryState();
-      notify("仓库已移除", "仅从 TickGit 列表移除，本地文件未删除", "success");
+      notify(
+        translate($locale, "repository.removedTitle"),
+        translate($locale, "repository.removedMessage"),
+        "success",
+      );
     } catch (error) {
-      notify("移除仓库失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "repository.removeFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       managingRepositoryPath = null;
     }
@@ -833,9 +936,17 @@
       await api.relocateRepository(path, newPath);
       await refreshRepositories();
       await loadCurrentRepositoryState();
-      notify("仓库已重新定位", "已更新仓库路径并刷新状态", "success");
+      notify(
+        translate($locale, "repository.relocatedTitle"),
+        translate($locale, "repository.relocatedMessage"),
+        "success",
+      );
     } catch (error) {
-      notify("重新定位失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "repository.relocateFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
       managingRepositoryPath = null;
     }
@@ -855,7 +966,11 @@
         await api.setCurrentRepository(path);
         added = true;
       } catch (error) {
-        notify("添加仓库失败", getErrorMessage(error), "error");
+        notify(
+          translate($locale, "repository.addFailedTitle"),
+          getErrorMessage(error, $locale),
+          "error",
+        );
       }
     }
 
@@ -864,7 +979,11 @@
       if (currentRepository) {
         await loadCurrentRepositoryState();
       }
-      notify("仓库已添加", "新的 Git 仓库已加入 TickGit", "success");
+      notify(
+        translate($locale, "repository.addedTitle"),
+        translate($locale, "repository.addedMessage"),
+        "success",
+      );
     }
   }
 
@@ -924,7 +1043,11 @@
       pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
-      notify("推送失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "push.failedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     }
   }
 
@@ -987,7 +1110,11 @@
       pushToCommitState = toRunningPushToCommitState(started);
     } catch (error) {
       isPushing = false;
-      notify("推送失败", getErrorMessage(error), "error");
+      notify(
+        translate($locale, "push.failedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     }
   }
 
@@ -1034,7 +1161,7 @@
         return;
       }
 
-      stepPushPlanErrorMessage = getErrorMessage(error);
+      stepPushPlanErrorMessage = getErrorMessage(error, $locale);
     } finally {
       if (requestId === stepPushPlanRequestId) {
         loadingStepPushPlan = false;
@@ -1054,13 +1181,15 @@
         api,
         stepPushPlan,
         stepPushPlanRepoPath,
+        1500,
+        $locale,
       );
       stepPushPlanRequestId += 1;
       clearStepPushPlanDialog();
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getErrorMessage(error, $locale);
       stepPushPlanErrorMessage = message;
-      notify("无法开始分步提交", message, "error");
+      notify(translate($locale, "stepPush.cannotStartTitle"), message, "error");
     } finally {
       submittingStepPushPlan = false;
     }
@@ -1104,11 +1233,16 @@
           const target = formatPushTargetLabel(
             payload.target,
             payload.targetKind,
+            $locale,
           );
           pushToCommitState = toFinishedPushToCommitState(payload);
           isPushing = false;
 
-          notify("推送成功", `已推送到 ${target.message}`, "success");
+          notify(
+            translate($locale, "push.successTitle"),
+            translate($locale, "push.successMessage", { target: target.message }),
+            "success",
+          );
 
           void loadCurrentRepositoryState(true);
 
@@ -1123,14 +1257,14 @@
 
       disposers.push(
         await listenPushToCommitFailed((payload) => {
-          const target = formatPushTargetLabel(
-            payload.target,
-            payload.targetKind,
-          );
-          pushToCommitState = toFailedPushToCommitState(payload);
+          pushToCommitState = toFailedPushToCommitState(payload, $locale);
           isPushing = false;
 
-          notify("推送失败", payload.message, "error");
+          notify(
+            translate($locale, "push.failedTitle"),
+            getErrorMessage(payload, $locale),
+            "error",
+          );
 
           void loadCurrentRepositoryState(true);
 
@@ -1153,7 +1287,11 @@
         await listenStepPushFinished((payload) => {
           stepPushState = toFinishedStepPushState(payload, stepPushState);
 
-          notify("分步提交完成", "所有目标 Commit 已按顺序推送", "success");
+          notify(
+            translate($locale, "stepPush.completeTitle"),
+            translate($locale, "stepPush.completeMessage"),
+            "success",
+          );
 
           void loadCurrentRepositoryState(true);
 
@@ -1168,9 +1306,13 @@
 
       disposers.push(
         await listenStepPushFailed((payload) => {
-          stepPushState = toFailedStepPushState(payload);
+          stepPushState = toFailedStepPushState(payload, $locale);
 
-          notify("分步提交失败", payload.message, "error");
+          notify(
+            translate($locale, "stepPush.failedTitle"),
+            getErrorMessage(payload, $locale),
+            "error",
+          );
 
           void loadCurrentRepositoryState(true);
 
@@ -1247,7 +1389,7 @@
 </script>
 
 <svelte:head>
-  <title>TickGit</title>
+  <title>{translate($locale, "app.title")}</title>
 </svelte:head>
 
 <DropOverlay active={dragActive} />
@@ -1283,10 +1425,10 @@
   stepPushDisabled={!contextMenu.commit?.isSafePushTarget}
   pushToCommitReason={contextMenu.commit?.isSafePushTarget
     ? null
-    : (contextMenu.commit?.pushBlockedReason ?? null)}
+    : currentCommitPushBlockedReason()}
   stepPushReason={contextMenu.commit?.isSafePushTarget
     ? null
-    : (contextMenu.commit?.pushBlockedReason ?? null)}
+    : currentCommitPushBlockedReason()}
   on:pushToCommit={pushToTargetCommit}
   on:stepPush={startStepPush}
   on:close={closeContextMenu}
@@ -1306,7 +1448,7 @@
             <div
               class="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
             >
-              Current Repository
+              {translate($locale, "repository.current")}
             </div>
             <RepositorySwitcher
               {repositories}
@@ -1323,7 +1465,7 @@
       <ResizeHandle
         active={activeResizeTarget === "header" ||
           activeResizeTarget === "history"}
-        ariaLabel="Resize repository and history panels"
+        ariaLabel={translate($locale, "resize.repositoryAndHistory")}
         on:mousedown={(event) => startLayoutResize("header", event.detail)}
       />
 
@@ -1344,7 +1486,7 @@
             <div
               class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
             >
-              Current Branch
+              {translate($locale, "branch.current")}
             </div>
             <div class="mt-1">
               <BranchSwitcher
@@ -1361,7 +1503,7 @@
               />
             </div>
             <div class="mt-0.5 truncate text-xs text-slate-400">
-              {branchStatus?.upstream ?? "No upstream configured"}
+              {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
             </div>
           </div>
         </div>
@@ -1391,15 +1533,15 @@
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[0.95rem] font-semibold">
               {switchingBranch
-                ? "Switching…"
+                ? translate($locale, "push.switching")
                 : isPushing
-                  ? "Pushing…"
-                  : "Push origin"}
+                  ? translate($locale, "push.pushing")
+                  : translate($locale, "push.button")}
             </span>
             <span class="mt-0.5 block truncate text-xs text-slate-400">
               {branchStatus?.aheadCount
-                ? `Ahead ${branchStatus.aheadCount} commits`
-                : "Everything up to date"}
+                ? translate($locale, "push.aheadCommits", { count: branchStatus.aheadCount })
+                : translate($locale, "push.upToDate")}
             </span>
           </span>
           <span
@@ -1436,11 +1578,11 @@
                 >
                   !
                 </span>
-                <span>远端已有更新，暂不能推送</span>
+                <span>{translate($locale, "remoteBlock.title")}</span>
               </div>
               <p class="mt-1 max-w-3xl text-xs leading-5 text-amber-100/85">
-                {branchStatus.disabledReason}
-                TickGit 只会刷新远端跟踪状态，不会自动拉取、合并或变基代码。
+                {currentBranchDisabledReason()}
+                {translate($locale, "remoteBlock.noAutoSync")}
               </p>
             </div>
             <button
@@ -1454,7 +1596,9 @@
               })}
               on:click={refreshBlockedBranchStatus}
             >
-              {loadingRepository ? "刷新中…" : "刷新状态"}
+              {loadingRepository
+                ? translate($locale, "common.refreshing")
+                : translate($locale, "remoteBlock.refreshStatus")}
             </button>
           </div>
 
@@ -1463,28 +1607,30 @@
               class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
             >
               <div class="text-xs font-semibold text-amber-100">
-                GitHub Desktop
+                {translate($locale, "remoteBlock.githubDesktop")}
               </div>
               <ol
                 class="mt-2 list-decimal space-y-1 pl-4 text-xs text-amber-50/80"
               >
-                <li>打开这个仓库</li>
-                <li>点击顶部 Fetch origin</li>
-                <li>如果出现 Pull origin，继续点击 Pull origin</li>
-                <li>如有冲突，按工具提示处理后回 TickGit 刷新</li>
+                <li>{translate($locale, "remoteBlock.githubStep1")}</li>
+                <li>{translate($locale, "remoteBlock.githubStep2")}</li>
+                <li>{translate($locale, "remoteBlock.githubStep3")}</li>
+                <li>{translate($locale, "remoteBlock.githubStep4")}</li>
               </ol>
             </div>
             <div
               class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
             >
-              <div class="text-xs font-semibold text-amber-100">SourceTree</div>
+              <div class="text-xs font-semibold text-amber-100">
+                {translate($locale, "remoteBlock.sourceTree")}
+              </div>
               <ol
                 class="mt-2 list-decimal space-y-1 pl-4 text-xs text-amber-50/80"
               >
-                <li>打开这个仓库</li>
-                <li>点击工具栏 Fetch</li>
-                <li>点击 Pull 拉取远端更新</li>
-                <li>如有冲突，按工具提示处理后回 TickGit 刷新</li>
+                <li>{translate($locale, "remoteBlock.sourceTreeStep1")}</li>
+                <li>{translate($locale, "remoteBlock.sourceTreeStep2")}</li>
+                <li>{translate($locale, "remoteBlock.sourceTreeStep3")}</li>
+                <li>{translate($locale, "remoteBlock.sourceTreeStep4")}</li>
               </ol>
             </div>
           </div>
@@ -1493,7 +1639,7 @@
         <div
           class="border-t border-[#1f2328] bg-[#48322a] px-4 py-2 text-sm text-amber-100"
         >
-          {branchStatus.disabledReason}
+          {currentBranchDisabledReason()}
         </div>
       {/if}
     {/if}
@@ -1502,7 +1648,7 @@
       <div
         class="inline-flex overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b] p-0.5"
       >
-        {#each [{ id: "history", label: "History" }, { id: "changes", label: "Changes" }] as item}
+        {#each MAIN_VIEW_TABS as item}
           <button
             type="button"
             class={`rounded px-3 py-1.5 text-xs font-semibold transition ${
@@ -1513,7 +1659,7 @@
             on:click={() =>
               void switchMainView(item.id as "history" | "changes")}
           >
-            {item.label}
+            {translate($locale, item.labelKey)}
           </button>
         {/each}
       </div>
@@ -1533,12 +1679,12 @@
           !
         </div>
         <h2 class="mt-4 text-lg font-semibold text-[#f0f6fc]">
-          仓库路径不可用
+          {translate($locale, "repository.pathUnavailable")}
         </h2>
         <p class="mt-2 text-sm leading-6 text-slate-300">
           {currentRepository
-            ? repositoryStatusMessage(currentRepository)
-            : "当前仓库不可用"}
+            ? repositoryStatusMessage(currentRepository, $locale)
+            : translate($locale, "repository.currentUnavailable")}
         </p>
         {#if currentRepository}
           <p class="mt-2 break-all font-mono text-xs text-slate-500">
@@ -1553,7 +1699,7 @@
                 currentRepository &&
                 relocateRepositoryPath(currentRepository.path)}
             >
-              重新定位
+              {translate($locale, "repository.relocate")}
             </button>
             <button
               type="button"
@@ -1563,7 +1709,7 @@
                 currentRepository &&
                 removeRepositoryFromList(currentRepository.path)}
             >
-              从列表移除
+              {translate($locale, "repository.removeFromList")}
             </button>
           </div>
         {/if}
@@ -1593,7 +1739,7 @@
       <ResizeHandle
         active={activeResizeTarget === "header" ||
           activeResizeTarget === "history"}
-        ariaLabel="Resize history and details panels"
+        ariaLabel={translate($locale, "resize.historyAndDetails")}
         on:mousedown={(event) => startLayoutResize("history", event.detail)}
       />
 

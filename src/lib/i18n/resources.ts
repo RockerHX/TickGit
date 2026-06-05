@@ -5,6 +5,7 @@ export const FALLBACK_LOCALE: Locale = "en-US";
 export const resources = {
   "en-US": {
     "app.title": "TickGit",
+    "app.initFailedTitle": "Initialization failed",
     "common.cancel": "Cancel",
     "common.close": "Close",
     "common.copied": "Copied",
@@ -91,6 +92,7 @@ export const resources = {
     "file.copiedPath": "File path copied",
     "file.copyPathFailedLog": "Failed to copy file path:",
     "diff.title": "Diff",
+    "diff.readFailedTitle": "Failed to read diff",
     "diff.workspaceTitle": "Workspace Diff",
     "diff.mode.unified": "Unified",
     "diff.mode.split": "Split",
@@ -208,6 +210,7 @@ export const resources = {
     "mainView.changes": "Changes",
     "resize.repositoryAndHistory": "Resize repository and history panels",
     "resize.changedFilesAndDiff": "Resize changed files and diff panels",
+    "resize.historyAndDetails": "Resize history and details panels",
     "resize.workspaceFilesAndDiff": "Resize workspace files and diff panels",
     "error.repositoryExists": "This repository is already in the list",
     "error.repositoryNotFound": "Repository not found",
@@ -231,6 +234,7 @@ export const resources = {
   },
   "zh-CN": {
     "app.title": "TickGit",
+    "app.initFailedTitle": "初始化失败",
     "common.cancel": "取消",
     "common.close": "关闭",
     "common.copied": "已复制",
@@ -317,6 +321,7 @@ export const resources = {
     "file.copiedPath": "已复制文件路径",
     "file.copyPathFailedLog": "复制文件路径失败：",
     "diff.title": "Diff",
+    "diff.readFailedTitle": "读取 Diff 失败",
     "diff.workspaceTitle": "工作区 Diff",
     "diff.mode.unified": "统一视图",
     "diff.mode.split": "分栏视图",
@@ -434,6 +439,7 @@ export const resources = {
     "mainView.changes": "变更",
     "resize.repositoryAndHistory": "调整仓库和历史面板大小",
     "resize.changedFilesAndDiff": "调整变更文件和 Diff 面板大小",
+    "resize.historyAndDetails": "调整历史和详情面板大小",
     "resize.workspaceFilesAndDiff": "调整工作区文件和 Diff 面板大小",
     "error.repositoryExists": "该仓库已存在于列表中",
     "error.repositoryNotFound": "仓库不存在",
