@@ -17,6 +17,7 @@ export type LoadRepositoryStateOptions = {
   keepSelection: boolean;
   previousSelectedHash: string | null;
   ignoreWhitespace: boolean;
+  refreshRemoteTracking?: boolean;
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
 };
@@ -44,10 +45,12 @@ export async function loadRepositoryStateSnapshot(
 ): Promise<RepositoryStateResult> {
   let remoteRefreshError: unknown | null = null;
 
-  try {
-    await api.refreshRemoteTracking(repoPath);
-  } catch (error) {
-    remoteRefreshError = error;
+  if (options.refreshRemoteTracking) {
+    try {
+      await api.refreshRemoteTracking(repoPath);
+    } catch (error) {
+      remoteRefreshError = error;
+    }
   }
 
   const [snapshot, branches] = await Promise.all([

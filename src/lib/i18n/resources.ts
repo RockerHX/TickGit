@@ -221,8 +221,8 @@ export const resources = {
     "stepPush.start": "Start step push",
     "remoteBlock.title": "Remote has updates. Push is temporarily unavailable",
     "remoteBlock.noAutoSync":
-      "TickGit only refreshes remote tracking state. It will not automatically pull, merge, or rebase code.",
-    "remoteBlock.refreshStatus": "Refresh status",
+      "TickGit will not automatically access the remote. Use the button only when the current network can reach this repository; TickGit will never pull, merge, or rebase code automatically.",
+    "remoteBlock.refreshStatus": "Fetch remote status",
     "remoteBlock.githubDesktop": "GitHub Desktop",
     "remoteBlock.sourceTree": "SourceTree",
     "remoteBlock.githubStep1": "Open this repository",
@@ -463,8 +463,8 @@ export const resources = {
     "stepPush.start": "开始分步推送",
     "remoteBlock.title": "远端已有更新，暂不能推送",
     "remoteBlock.noAutoSync":
-      "TickGit 只会刷新远端跟踪状态，不会自动拉取、合并或变基代码。",
-    "remoteBlock.refreshStatus": "刷新状态",
+      "TickGit 不会自动访问远端。仅在当前网络可访问该仓库时手动点击按钮；TickGit 永远不会自动拉取、合并或变基代码。",
+    "remoteBlock.refreshStatus": "获取远端状态",
     "remoteBlock.githubDesktop": "GitHub Desktop",
     "remoteBlock.sourceTree": "SourceTree",
     "remoteBlock.githubStep1": "打开这个仓库",

@@ -154,6 +154,7 @@
   let loadingDiff = false;
   let loadingWorkspace = false;
   let loadingWorkspaceDiff = false;
+  let syncingRemoteStatus = false;
   let workspaceActionFileKey: string | null = null;
   let workspaceCommitMessage = "";
   let committingWorkspace = false;
@@ -432,7 +433,6 @@
       currentRepository = bootstrapState.currentRepository;
 
       if (bootstrapState.repositoryState) {
-        notifyRemoteRefreshError(bootstrapState.repositoryState);
         applyRepositoryState(bootstrapState.repositoryState);
       } else if (shouldClearRepositoryData(currentRepository)) {
         clearRepositoryData();
@@ -470,7 +470,11 @@
     }
   }
 
-  async function loadRepositoryState(path: string, keepSelection = false) {
+  async function loadRepositoryState(
+    path: string,
+    keepSelection = false,
+    refreshRemoteTracking = false,
+  ) {
     loadingRepository = true;
 
     try {
@@ -481,6 +485,7 @@
         keepSelection,
         previousSelectedHash: selectedCommit?.hash ?? null,
         ignoreWhitespace: hideWhitespaceInDiff,
+        refreshRemoteTracking,
         filters: historyFilters,
         preferredFilePathFilter: historyFilters.filePath,
       });
@@ -585,7 +590,7 @@
     await loadCurrentRepositoryState(true);
   }
 
-  async function refreshBlockedBranchStatus() {
+  async function fetchRemoteStatusManually() {
     const repository = currentRepository;
 
     if (
@@ -596,12 +601,40 @@
         switchingBranch,
         isPushing,
         stepPushState,
-      })
+      }) ||
+      syncingRemoteStatus
     ) {
       return;
     }
 
-    await loadRepositoryState(repository.path, true);
+    syncingRemoteStatus = true;
+
+    try {
+      const repositoryState = await loadRepositoryStateSnapshot(
+        api,
+        repository.path,
+        {
+          pageSize: PAGE_SIZE,
+          keepSelection: true,
+          previousSelectedHash: selectedCommit?.hash ?? null,
+          ignoreWhitespace: hideWhitespaceInDiff,
+          refreshRemoteTracking: true,
+          filters: historyFilters,
+          preferredFilePathFilter: historyFilters.filePath,
+        },
+      );
+
+      notifyRemoteRefreshError(repositoryState);
+      applyRepositoryState(repositoryState);
+    } catch (error) {
+      notify(
+        translate($locale, "repository.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    } finally {
+      syncingRemoteStatus = false;
+    }
   }
 
   async function loadHistory(append: boolean) {
@@ -1500,7 +1533,7 @@
                 currentBranch={branchStatus?.branch ?? null}
                 disabled={isBranchSwitcherDisabled({
                   currentRepository,
-                  loadingRepository,
+                  loadingRepository: loadingRepository || syncingRemoteStatus,
                   switchingBranch,
                   isPushing,
                   stepPushState,
@@ -1519,11 +1552,26 @@
       <div class="flex items-center gap-3 px-4 py-3">
         <LanguageSwitcher />
         <button
+          class="flex h-[54px] items-center justify-center rounded-sm border border-[#1f2328] bg-[#24292f] px-3 text-xs font-semibold text-slate-300 transition hover:bg-[#2d333b] hover:text-[#f0f6fc] disabled:cursor-not-allowed disabled:text-slate-600"
+          disabled={!canRefreshBlockedBranchStatus({
+            currentRepository,
+            loadingRepository,
+            switchingBranch,
+            isPushing,
+            stepPushState,
+          }) || syncingRemoteStatus}
+          on:click={fetchRemoteStatusManually}
+        >
+          {syncingRemoteStatus
+            ? translate($locale, "common.refreshing")
+            : translate($locale, "remoteBlock.refreshStatus")}
+        </button>
+        <button
           class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
           disabled={!canPushCurrentBranch({
             branchStatus,
             switchingBranch,
-            isPushing,
+            isPushing: isPushing || syncingRemoteStatus,
             stepPushState,
           })}
           on:click={pushCurrentBranch}
@@ -1602,10 +1650,10 @@
                 switchingBranch,
                 isPushing,
                 stepPushState,
-              })}
-              on:click={refreshBlockedBranchStatus}
+              }) || syncingRemoteStatus}
+              on:click={fetchRemoteStatusManually}
             >
-              {loadingRepository
+              {syncingRemoteStatus
                 ? translate($locale, "common.refreshing")
                 : translate($locale, "remoteBlock.refreshStatus")}
             </button>

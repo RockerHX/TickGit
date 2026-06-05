@@ -140,9 +140,11 @@ describe("repository actions", () => {
   it("loads bootstrap state with current repository snapshot", async () => {
     const repositories = [repository("/repo-a")];
     const currentRepository = repository("/repo-a");
+    const refreshRemoteTracking = vi.fn().mockResolvedValue(undefined);
     const api = createApiMock({
       listRepositories: vi.fn().mockResolvedValue(repositories),
       getCurrentRepository: vi.fn().mockResolvedValue(currentRepository),
+      refreshRemoteTracking,
       listLocalBranches: vi.fn().mockResolvedValue(["main", "feature"]),
     });
 
@@ -157,6 +159,7 @@ describe("repository actions", () => {
     expect(state.currentRepository).toEqual(currentRepository);
     expect(state.repositoryState?.branches).toEqual(["main", "feature"]);
     expect(state.repositoryState?.snapshot.selectedCommit?.hash).toBe("c1");
+    expect(refreshRemoteTracking).not.toHaveBeenCalled();
   });
 
   it("does not load repository snapshot when current repository is unavailable", async () => {
@@ -182,7 +185,25 @@ describe("repository actions", () => {
     expect(getBranchStatus).not.toHaveBeenCalled();
   });
 
-  it("keeps loading snapshot when remote refresh fails", async () => {
+  it("loads repository snapshot without automatically refreshing remote tracking", async () => {
+    const refreshRemoteTracking = vi.fn().mockResolvedValue(undefined);
+    const api = createApiMock({ refreshRemoteTracking });
+
+    const state = await loadRepositoryStateSnapshot(api, "/repo-a", {
+      pageSize: 50,
+      keepSelection: true,
+      previousSelectedHash: "c1",
+      ignoreWhitespace: false,
+    });
+
+    expect(state.remoteRefreshError).toBeNull();
+    expect(refreshRemoteTracking).not.toHaveBeenCalled();
+    expect(state.branches).toEqual(["main"]);
+    expect(state.snapshot.selectedCommit?.hash).toBe("c1");
+    expect(api.getBranchStatus).toHaveBeenCalledWith("/repo-a");
+  });
+
+  it("keeps loading snapshot when manual remote refresh fails", async () => {
     const remoteRefreshError = new Error("fetch failed");
     const api = createApiMock({
       refreshRemoteTracking: vi.fn().mockRejectedValue(remoteRefreshError),
@@ -193,9 +214,11 @@ describe("repository actions", () => {
       keepSelection: true,
       previousSelectedHash: "c1",
       ignoreWhitespace: false,
+      refreshRemoteTracking: true,
     });
 
     expect(state.remoteRefreshError).toBe(remoteRefreshError);
+    expect(api.refreshRemoteTracking).toHaveBeenCalledWith("/repo-a");
     expect(state.branches).toEqual(["main"]);
     expect(state.snapshot.selectedCommit?.hash).toBe("c1");
     expect(api.getBranchStatus).toHaveBeenCalledWith("/repo-a");
