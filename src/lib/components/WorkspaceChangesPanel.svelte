@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
@@ -36,6 +37,14 @@
   export let commitMessage = "";
   export let commitDisabled = false;
   export let committingWorkspace = false;
+
+  const WORKSPACE_GROUPS: Array<{
+    titleKey: "workspace.stagedChanges" | "workspace.unstagedChanges";
+    section: WorkspaceChangeSection;
+  }> = [
+    { titleKey: "workspace.stagedChanges", section: "staged" },
+    { titleKey: "workspace.unstagedChanges", section: "unstaged" },
+  ];
 
   const dispatch = createEventDispatcher<{
     selectFile: { section: WorkspaceChangeSection; path: string };
@@ -97,7 +106,9 @@
   }
 
   function actionLabel(file: WorkspaceFileChange) {
-    return file.section === "staged" ? "Unstage" : "Stage";
+    return file.section === "staged"
+      ? translate($locale, "workspace.unstage")
+      : translate($locale, "workspace.stage");
   }
 
   function isActionRunning(file: WorkspaceFileChange) {
@@ -134,7 +145,7 @@
         copiedFilePath = null;
       }, 1600);
     } catch (error) {
-      console.error("Failed to copy file path:", error);
+      console.error(translate($locale, "file.copyPathFailedLog"), error);
       copiedFilePath = null;
     }
   }
@@ -167,9 +178,12 @@
       class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
     >
       <div>
-        <div class="text-sm font-semibold text-[#f0f6fc]">Changes</div>
+        <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "workspace.title")}</div>
         <div class="mt-1 text-xs text-slate-400">
-          {status.staged.length} staged · {status.unstaged.length} unstaged
+          {translate($locale, "workspace.counts", {
+            staged: status.staged.length,
+            unstaged: status.unstaged.length,
+          })}
         </div>
       </div>
       <div class="text-xs font-medium text-slate-400">{totalChanges}</div>
@@ -178,28 +192,29 @@
     <div class="min-h-0 flex-1 overflow-y-auto bg-[#2d333b]">
       {#if loadingWorkspace}
         <div class="px-4 py-4 text-sm text-slate-400">
-          Loading workspace changes…
+          {translate($locale, "workspace.loading")}
         </div>
       {:else if totalChanges === 0}
         <div
           class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-8 text-center text-sm text-slate-500"
         >
-          No workspace changes
+          {translate($locale, "workspace.none")}
         </div>
       {:else}
-        {#each [{ title: "Staged changes", files: status.staged }, { title: "Unstaged changes", files: status.unstaged }] as group}
+        {#each WORKSPACE_GROUPS as group}
+          {@const files = group.section === "staged" ? status.staged : status.unstaged}
           <div class="border-b border-[#1f2328]">
             <div
               class="flex items-center justify-between gap-3 bg-[#24292f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
             >
-              <span>{group.title}</span>
-              <span>{group.files.length}</span>
+              <span>{translate($locale, group.titleKey)}</span>
+              <span>{files.length}</span>
             </div>
 
-            {#if group.files.length === 0}
-              <div class="px-4 py-3 text-xs text-slate-500">No files</div>
+            {#if files.length === 0}
+              <div class="px-4 py-3 text-xs text-slate-500">{translate($locale, "workspace.noFiles")}</div>
             {:else}
-              {#each group.files as file (workspaceFileKey(file))}
+              {#each files as file (workspaceFileKey(file))}
                 <div
                   class={`flex items-center gap-2 border-t border-[#373e47] px-4 py-2.5 transition ${
                     isSelected(file)
@@ -230,11 +245,11 @@
                     type="button"
                     class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
                     title={copiedFilePath === file.path
-                      ? "已复制文件路径"
-                      : "复制文件路径"}
+                      ? translate($locale, "file.copiedPath")
+                      : translate($locale, "file.copyPath")}
                     aria-label={copiedFilePath === file.path
-                      ? "已复制文件路径"
-                      : "复制文件路径"}
+                      ? translate($locale, "file.copiedPath")
+                      : translate($locale, "file.copyPath")}
                     on:click={(event) => copyFilePath(event, file.path)}
                   >
                     {#if copiedFilePath === file.path}
@@ -268,7 +283,9 @@
                     disabled={workspaceActionsDisabled || isActionRunning(file)}
                     on:click={() => runFileAction(file)}
                   >
-                    {isActionRunning(file) ? "..." : actionLabel(file)}
+                    {isActionRunning(file)
+                      ? translate($locale, "workspace.actionRunning")
+                      : actionLabel(file)}
                   </button>
                 </div>
               {/each}
@@ -283,12 +300,12 @@
         class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
         for="workspace-commit-message"
       >
-        Commit message
+        {translate($locale, "workspace.commitMessage")}
       </label>
       <textarea
         id="workspace-commit-message"
         class="mt-2 min-h-20 w-full resize-none rounded-md border border-[#444c56] bg-[#2d333b] px-3 py-2 text-sm leading-5 text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70 disabled:cursor-not-allowed disabled:opacity-60"
-        placeholder="Summary of staged changes"
+        placeholder={translate($locale, "workspace.commitMessagePlaceholder")}
         value={commitMessage}
         disabled={committingWorkspace}
         on:input={(event) => setCommitMessage(event.currentTarget.value)}
@@ -300,26 +317,29 @@
         on:click={() => dispatch("commit")}
       >
         {committingWorkspace
-          ? "Committing…"
-          : `Commit ${status.staged.length} staged file${
-              status.staged.length === 1 ? "" : "s"
-            }`}
+          ? translate($locale, "workspace.committing")
+          : translate($locale, "workspace.commitFiles", {
+              count: status.staged.length,
+              filesLabel:
+                status.staged.length === 1
+                  ? translate($locale, "workspace.fileSingular")
+                  : translate($locale, "workspace.filePlural"),
+            })}
       </button>
       <div class="mt-2 text-xs leading-5 text-slate-500">
-        Only staged files will be committed. Unstaged files remain in the
-        workspace.
+        {translate($locale, "workspace.commitHint")}
       </div>
     </div>
   </div>
 
   <ResizeHandle
     active={isResizingFilesPane}
-    ariaLabel="Resize workspace files and diff panels"
+    ariaLabel={translate($locale, "resize.workspaceFilesAndDiff")}
     on:mousedown={(event) => startFilesPaneResize(event.detail)}
   />
 
   <DiffViewer
-    title="Workspace Diff"
+    title={translate($locale, "diff.workspaceTitle")}
     {selectedFilePath}
     {diffResult}
     {loadingDiff}

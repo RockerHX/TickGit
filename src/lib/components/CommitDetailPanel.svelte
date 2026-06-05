@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
@@ -93,7 +94,7 @@
         copiedCommitHash = null;
       }, 2000);
     } catch (error) {
-      console.error("Failed to copy commit hash:", error);
+      console.error(translate($locale, "commit.copyHashFailedLog"), error);
       copiedCommitHash = null;
     }
   }
@@ -113,7 +114,7 @@
         copiedFilePath = null;
       }, 1600);
     } catch (error) {
-      console.error("Failed to copy file path:", error);
+      console.error(translate($locale, "file.copyPathFailedLog"), error);
       copiedFilePath = null;
     }
   }
@@ -174,7 +175,7 @@
           {#if !commit.isPushed}
             <span
               class="mt-0.5 flex shrink-0 items-center text-[#f0f6fc]"
-              title="Local commit"
+              title={translate($locale, "commit.local")}
             >
               <svg
                 viewBox="0 0 16 16"
@@ -218,11 +219,11 @@
             type="button"
             class="ml-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-[#f0f6fc] transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
             title={copiedCommitHash === commit.hash
-              ? "已复制 Commit Hash"
-              : "复制 Commit Hash"}
+              ? translate($locale, "commit.copiedHash")
+              : translate($locale, "commit.copyHash")}
             aria-label={copiedCommitHash === commit.hash
-              ? "已复制 Commit Hash"
-              : "复制 Commit Hash"}
+              ? translate($locale, "commit.copiedHash")
+              : translate($locale, "commit.copyHash")}
             on:click={() => copyCommitHash(commit.hash)}
           >
             {#if copiedCommitHash === commit.hash}
@@ -251,7 +252,7 @@
             {/if}
           </button>
           <span class="text-slate-400"
-            >{formatAbsoluteDate(commit.committedAt)}</span
+            >{formatAbsoluteDate(commit.committedAt, $locale)}</span
           >
         </div>
 
@@ -269,17 +270,17 @@
               ></path>
             </svg>
             <span class="font-medium text-emerald-300">
-              {commitMeta.additions} added lines
+              {translate($locale, "commit.addedLines", { count: commitMeta.additions })}
             </span>
             <span class="font-medium text-rose-300">
-              {commitMeta.deletions} removed lines
+              {translate($locale, "commit.removedLines", { count: commitMeta.deletions })}
             </span>
           </div>
         {/if}
       </div>
     {:else}
       <div class="text-sm text-slate-500">
-        Select a commit to inspect its details
+        {translate($locale, "commit.selectPrompt")}
       </div>
     {/if}
   </div>
@@ -292,19 +293,19 @@
       <div
         class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
       >
-        <div class="text-sm font-semibold text-[#f0f6fc]">changed files</div>
+        <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "commit.changedFiles")}</div>
         <div class="text-xs font-medium text-slate-400">{files.length}</div>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto bg-[#2d333b]">
         {#if loadingFiles}
           <div class="px-4 py-4 text-sm text-slate-400">
-            Loading changed files…
+            {translate($locale, "commit.loadingFiles")}
           </div>
         {:else if files.length === 0}
           <div
             class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-8 text-center text-sm text-slate-500"
           >
-            No file changes available for this commit
+            {translate($locale, "commit.noFileChanges")}
           </div>
         {:else}
           <div>
@@ -339,11 +340,11 @@
                   type="button"
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
                   title={copiedFilePath === file.path
-                    ? "已复制文件路径"
-                    : "复制文件路径"}
+                    ? translate($locale, "file.copiedPath")
+                    : translate($locale, "file.copyPath")}
                   aria-label={copiedFilePath === file.path
-                    ? "已复制文件路径"
-                    : "复制文件路径"}
+                    ? translate($locale, "file.copiedPath")
+                    : translate($locale, "file.copyPath")}
                   on:click={(event) => copyFilePath(event, file.path)}
                 >
                   {#if copiedFilePath === file.path}
@@ -380,12 +381,12 @@
 
     <ResizeHandle
       active={isResizingFilesPane}
-      ariaLabel="Resize changed files and diff panels"
+      ariaLabel={translate($locale, "resize.changedFilesAndDiff")}
       on:mousedown={(event) => startFilesPaneResize(event.detail)}
     />
 
     <DiffViewer
-      title="Diff"
+      title={translate($locale, "diff.title")}
       {selectedFilePath}
       {diffResult}
       {loadingDiff}

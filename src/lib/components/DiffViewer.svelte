@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import {
     buildHunkCopyText,
@@ -118,7 +119,9 @@
   }
 
   function imagePanelLabel(kind: "old" | "new") {
-    return kind === "old" ? "变更前" : "变更后";
+    return kind === "old"
+      ? translate($locale, "diff.imageBefore")
+      : translate($locale, "diff.imageAfter");
   }
 
   async function copyHunk(hunkIndex: number) {
@@ -140,7 +143,7 @@
         copiedHunkIndex = null;
       }, 1600);
     } catch (error) {
-      console.error("Failed to copy diff hunk:", error);
+      console.error(translate($locale, "diff.copyHunkFailedLog"), error);
       copiedHunkIndex = null;
     }
   }
@@ -155,7 +158,7 @@
 {#if optionsOpen}
   <button
     class="fixed inset-0 z-20 cursor-default bg-transparent"
-    aria-label="Close diff options"
+    aria-label={translate($locale, "diff.options")}
     on:click={closeOptions}
   ></button>
 {/if}
@@ -165,18 +168,20 @@
     class="relative flex items-center justify-between gap-3 border-b border-[#1f2328] bg-[#2d333b] px-4 py-3 text-sm"
   >
     <div class="truncate font-semibold text-[#f0f6fc]">
-      {selectedFilePath ?? title}
+      {selectedFilePath ?? title ?? translate($locale, "diff.title")}
     </div>
     <div class="flex items-center gap-2">
       <div
         class="hidden text-[11px] uppercase tracking-[0.18em] text-slate-500 sm:block"
       >
-        {mode === "split" ? "Split" : "Unified"}
+        {mode === "split"
+          ? translate($locale, "diff.mode.split")
+          : translate($locale, "diff.mode.unified")}
       </div>
       <button
         type="button"
         class="inline-flex h-8 items-center gap-1 rounded-md border border-[#444c56] bg-[#373e47] px-2.5 text-xs font-medium text-[#f0f6fc] transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
-        aria-label="Diff options"
+        aria-label={translate($locale, "diff.options")}
         aria-expanded={optionsOpen}
         on:click={toggleOptions}
       >
@@ -206,12 +211,12 @@
           <div
             class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
           >
-            Diff options
+            {translate($locale, "diff.options")}
           </div>
 
           <div class="mt-3">
             <div class="mb-2 text-xs font-medium text-slate-300">
-              Diff display
+              {translate($locale, "diff.display")}
             </div>
             <div class="grid grid-cols-2 gap-2">
               <button
@@ -251,10 +256,10 @@
             />
             <div class="min-w-0">
               <div class="text-xs font-medium text-[#f0f6fc]">
-                Hide whitespace changes
+                {translate($locale, "diff.hideWhitespace")}
               </div>
               <div class="mt-1 text-[11px] leading-4 text-slate-400">
-                Reload the current file diff with Git whitespace filtering.
+                {translate($locale, "diff.hideWhitespaceDescription")}
               </div>
             </div>
           </label>
@@ -265,12 +270,12 @@
 
   <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#2b3036]">
     {#if viewerState === "loading"}
-      <div class="px-4 py-4 text-sm text-slate-400">Loading diff…</div>
+      <div class="px-4 py-4 text-sm text-slate-400">{translate($locale, "diff.loading")}</div>
     {:else if viewerState === "no-file"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        Select a changed file to inspect the diff
+        {translate($locale, "diff.noFile")}
       </div>
     {:else if viewerState === "image"}
       {#if hasPreviewableImageDiff(diffResult)}
@@ -298,7 +303,9 @@
                 <div
                   class="flex min-h-64 items-center justify-center px-4 text-center text-sm text-slate-500"
                 >
-                  {panel.kind === "old" ? "无旧图片" : "无新图片"}
+                  {panel.kind === "old"
+                    ? translate($locale, "diff.noOldImage")
+                    : translate($locale, "diff.noNewImage")}
                 </div>
               {/if}
             </div>
@@ -308,44 +315,44 @@
         <div
           class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
         >
-          图片 Diff 无法预览
+          {translate($locale, "diff.imageUnavailable")}
         </div>
       {/if}
     {:else if viewerState === "binary"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        二进制文件暂不展示文本 Diff
+        {translate($locale, "diff.binaryUnavailable")}
       </div>
     {:else if viewerState === "too-large"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        <div>大型 Diff 已保护性跳过</div>
+        <div>{translate($locale, "diff.largeSkipped")}</div>
         <div class="mt-2 text-xs text-slate-500">
           {#if diffResult.byteCount > 0}
-            Patch size: {formatDiffSize(diffResult.byteCount)} ·
+            {translate($locale, "diff.patchSize", { size: formatDiffSize(diffResult.byteCount) })} ·
           {/if}
-          Changed lines: {diffResult.lineCount}
+          {translate($locale, "diff.changedLines", { count: diffResult.lineCount })}
         </div>
       </div>
     {:else if viewerState === "only-whitespace"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        Only whitespace changes were found for this file
+        {translate($locale, "diff.onlyWhitespace")}
       </div>
     {:else if viewerState === "no-content"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        No diff content is available for this file
+        {translate($locale, "diff.noContent")}
       </div>
     {:else if viewerState === "parse-error"}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
       >
-        This diff could not be rendered in the structured viewer yet
+        {translate($locale, "diff.parseError")}
       </div>
     {:else if mode === "split"}
       <div>
@@ -359,14 +366,14 @@
                 type="button"
                 class="rounded border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
                 title={copiedHunkIndex === row.hunkIndex
-                  ? "已复制 Diff Hunk"
-                  : "复制 Diff Hunk"}
+                  ? translate($locale, "diff.copiedHunk")
+                  : translate($locale, "diff.copyHunk")}
                 aria-label={copiedHunkIndex === row.hunkIndex
-                  ? "已复制 Diff Hunk"
-                  : "复制 Diff Hunk"}
+                  ? translate($locale, "diff.copiedHunk")
+                  : translate($locale, "diff.copyHunk")}
                 on:click={() => copyHunk(row.hunkIndex)}
               >
-                {copiedHunkIndex === row.hunkIndex ? "Copied" : "Copy hunk"}
+                {copiedHunkIndex === row.hunkIndex ? translate($locale, "common.copied") : translate($locale, "diff.copyHunk")}
               </button>
             </div>
           {:else}
@@ -397,7 +404,7 @@
                     </span>
                     {#if line?.noTrailingNewLine}
                       <div class="text-[11px] italic text-amber-200">
-                        \ No newline at end of file
+                        {translate($locale, "diff.noNewlineAtEnd")}
                       </div>
                     {/if}
                   </div>
@@ -425,7 +432,7 @@
                 : "复制 Diff Hunk"}
               on:click={() => copyHunk(hunkIndex)}
             >
-              {copiedHunkIndex === hunkIndex ? "Copied" : "Copy hunk"}
+              {copiedHunkIndex === hunkIndex ? translate($locale, "common.copied") : translate($locale, "diff.copyHunk")}
             </button>
           </div>
           {#each hunk.lines as line}
@@ -450,7 +457,7 @@
                 </span>
                 {#if line.noTrailingNewLine}
                   <div class="text-[11px] italic text-amber-200">
-                    \ No newline at end of file
+                    {translate($locale, "diff.noNewlineAtEnd")}
                   </div>
                 {/if}
               </div>
