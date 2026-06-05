@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
   import {
     filterRepositories,
     repositoryStatusLabel,
@@ -74,7 +75,7 @@
   >
     <span class="min-w-0 flex-1 pr-4">
       <span class="block truncate text-[1rem] font-semibold text-[#f0f6fc]">
-        {currentRepository?.name ?? "Select repository"}
+        {currentRepository?.name ?? translate($locale, "repository.select")}
       </span>
       {#if currentRepository}
         <span class="mt-0.5 flex min-w-0 items-center gap-2 text-xs">
@@ -83,7 +84,7 @@
             <span
               class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${repositoryStatusTone(currentRepository.status)}`}
             >
-              {repositoryStatusLabel(currentRepository.status)}
+              {repositoryStatusLabel(currentRepository.status, $locale)}
             </span>
           {/if}
         </span>
@@ -115,7 +116,7 @@
     >
       <div class="border-b border-[#373e47] px-5 pb-4 pt-5">
         <div class="text-[0.95rem] font-semibold text-slate-400">
-          Select repository
+          {translate($locale, "repository.select")}
         </div>
       </div>
 
@@ -134,7 +135,7 @@
           </svg>
           <input
             class="w-full bg-transparent text-[1rem] text-[#f0f6fc] outline-none placeholder:text-slate-500"
-            placeholder="Filter"
+            placeholder={translate($locale, "repository.filter")}
             bind:value={filterText}
           />
         </label>
@@ -143,7 +144,7 @@
       <div class="max-h-[420px] overflow-y-auto px-2 py-3">
         {#if filteredRepositories.length === 0}
           <div class="px-3 py-8 text-center text-sm text-slate-500">
-            No repositories found
+            {translate($locale, "repository.noneFound")}
           </div>
         {:else}
           {#each filteredRepositories as repository (repository.path)}
@@ -185,15 +186,15 @@
                     <span
                       class={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${repositoryStatusTone(repository.status)}`}
                     >
-                      {repositoryStatusLabel(repository.status)}
+                      {repositoryStatusLabel(repository.status, $locale)}
                     </span>
                   </span>
                   <span class="mt-1 block truncate text-xs opacity-75">
                     {repository.path}
                   </span>
-                  {#if repositoryStatusMessage(repository)}
+                  {#if repositoryStatusMessage(repository, $locale)}
                     <span class="mt-1 block text-xs text-amber-100/90">
-                      {repositoryStatusMessage(repository)}
+                      {repositoryStatusMessage(repository, $locale)}
                     </span>
                   {/if}
                 </span>
@@ -206,7 +207,7 @@
                   disabled={managementDisabled}
                   on:click={() => relocateRepository(repository.path)}
                 >
-                  Relocate
+                  {translate($locale, "repository.relocate")}
                 </button>
                 <button
                   type="button"
@@ -214,7 +215,7 @@
                   disabled={managementDisabled}
                   on:click={() => removeRepository(repository.path)}
                 >
-                  Remove
+                  {translate($locale, "repository.remove")}
                 </button>
               </div>
             </div>

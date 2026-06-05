@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate } from "$lib/i18n";
 
   export let branches: string[] = [];
   export let currentBranch: string | null = null;
@@ -69,7 +70,7 @@
   >
     <span class="min-w-0 flex-1 pr-4">
       <span class="block truncate text-[1rem] font-semibold text-[#f0f6fc]">
-        {currentBranch ?? "No branch selected"}
+        {currentBranch ?? translate($locale, "branch.noneSelected")}
       </span>
     </span>
 
@@ -100,7 +101,7 @@
     >
       <div class="border-b border-[#373e47] px-5 pb-4 pt-5">
         <div class="text-[0.95rem] font-semibold text-slate-400">
-          Switch branch
+          {translate($locale, "branch.switch")}
         </div>
       </div>
 
@@ -119,7 +120,7 @@
           </svg>
           <input
             class="w-full bg-transparent text-[1rem] text-[#f0f6fc] outline-none placeholder:text-slate-500"
-            placeholder="Filter branch"
+            placeholder={translate($locale, "branch.filter")}
             bind:value={filterText}
           />
         </label>
@@ -128,7 +129,7 @@
       <div class="max-h-[420px] overflow-y-auto px-2 py-3">
         {#if filteredBranches.length === 0}
           <div class="px-3 py-8 text-center text-sm text-slate-500">
-            No branches found
+            {translate($locale, "branch.noneFound")}
           </div>
         {:else}
           {#each filteredBranches as branch (branch)}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { locale, translate, translateBranchDisabledReason } from "$lib/i18n";
   import type {
     BranchStatus,
     CommitHistoryFilters,
@@ -61,43 +62,50 @@
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
     <div class="flex items-center justify-between gap-3">
-      <div class="text-sm font-semibold text-[#f0f6fc]">History</div>
+      <div class="text-sm font-semibold text-[#f0f6fc]">{translate($locale, "history.title")}</div>
       {#if activeFilterCount > 0}
         <button
           type="button"
           class="rounded-md border border-[#444c56] bg-[#373e47] px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#539bf5]/45 hover:bg-[#347dff]/15"
           on:click={() => dispatch("clearFilters")}
         >
-          Clear {activeFilterCount}
+          {translate($locale, "history.clearFilters", { count: activeFilterCount })}
         </button>
       {/if}
     </div>
     <div class="mt-1 text-xs text-slate-400">
       {#if branchStatus?.pushAvailable}
-        Ahead {branchStatus.aheadCount} · Safe step-push {branchStatus.safeAheadCount}
-        · Behind {branchStatus.behindCount}
+        {translate($locale, "history.branchStats", {
+          aheadCount: branchStatus.aheadCount,
+          safeAheadCount: branchStatus.safeAheadCount,
+          behindCount: branchStatus.behindCount,
+        })}
       {:else}
-        {branchStatus?.disabledReason ?? "当前仓库未启用推送"}
+        {translateBranchDisabledReason(
+          $locale,
+          branchStatus?.disabledReasonCode,
+          branchStatus?.disabledReason,
+        )}
       {/if}
     </div>
     <div class="mt-3 space-y-2">
       <input
         class="h-8 w-full rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-        placeholder="Commit search"
+        placeholder={translate($locale, "history.commitSearch")}
         value={filters.query ?? ""}
         on:input={(event) => updateFilter("query", event.currentTarget.value)}
       />
       <div class="grid grid-cols-2 gap-2">
         <input
           class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder="Author"
+          placeholder={translate($locale, "history.author")}
           value={filters.author ?? ""}
           on:input={(event) =>
             updateFilter("author", event.currentTarget.value)}
         />
         <input
           class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder="File path"
+          placeholder={translate($locale, "history.filePath")}
           value={filters.filePath ?? ""}
           on:input={(event) =>
             updateFilter("filePath", event.currentTarget.value)}
@@ -112,8 +120,8 @@
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
       >
         {activeFilterCount > 0
-          ? "没有匹配提交"
-          : "No commits found for this repository"}
+          ? translate($locale, "history.noMatchingCommits")
+          : translate($locale, "history.noCommits")}
       </div>
     {/if}
 
@@ -140,8 +148,8 @@
                 {#if commit.isSafePushTarget}
                   <span
                     class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-emerald-400/45 bg-[#1f2328] text-emerald-200 shadow-sm shadow-black/35"
-                    title="可安全分步推送"
-                    aria-label="可安全分步推送"
+                    title={translate($locale, "history.safeStepPush")}
+                    aria-label={translate($locale, "history.safeStepPush")}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -157,8 +165,8 @@
                   <span
                     class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-rose-400/45 bg-[#1f2328] text-rose-200 shadow-sm shadow-black/35"
                     title={commit.pushBlockedReason ??
-                      "当前 Commit 不能安全分步推送"}
-                    aria-label="不能安全分步推送"
+                      translate($locale, "history.unsafeStepPushFallback")}
+                    aria-label={translate($locale, "history.unsafeStepPush")}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -212,7 +220,7 @@
                   {#if !commit.isPushed}
                     <span
                       class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
-                      title="Local commit"
+                      title={translate($locale, "history.localCommit")}
                     >
                       <svg
                         viewBox="0 0 16 16"
@@ -243,7 +251,7 @@
               >
                 <span>{commit.authorName}</span>
                 <span>•</span>
-                <span>{formatRelativeDate(commit.committedAt)}</span>
+                <span>{formatRelativeDate(commit.committedAt, $locale)}</span>
                 <span>•</span>
                 <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
@@ -255,7 +263,7 @@
 
     {#if loading}
       <div class="px-4 py-4 text-center text-xs text-slate-400">
-        Loading history…
+        {translate($locale, "history.loading")}
       </div>
     {/if}
   </div>
