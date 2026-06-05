@@ -2,14 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - develop
   push:
     branches:
-      - main
-    paths-ignore:
-      - package.json
-      - src-tauri/Cargo.lock
-      - src-tauri/Cargo.toml
-      - src-tauri/tauri.conf.json
+      - develop
 
 permissions:
   contents: read
