@@ -11,6 +11,7 @@
     type SplitDiffRow,
   } from "$lib/tickgit/diff";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
+  import { highlightDiffContent } from "$lib/tickgit/diff-highlight";
   import type { CommitFileDiffResult } from "$lib/types";
 
   export let title = "Diff";
@@ -109,6 +110,10 @@
     }
 
     return `${value} B`;
+  }
+
+  function highlightedLineContent(content: string) {
+    return highlightDiffContent(content || " ", selectedFilePath);
   }
 
   async function copyHunk(hunkIndex: number) {
@@ -350,7 +355,7 @@
                     class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
                   >
                     <span class="block whitespace-pre-wrap break-all">
-                      {line ? line.content : " "}
+                      {@html line ? highlightedLineContent(line.content) : " "}
                     </span>
                     {#if line?.noTrailingNewLine}
                       <div class="text-[11px] italic text-amber-200">
@@ -403,7 +408,7 @@
                 class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
               >
                 <span class="block whitespace-pre-wrap break-all">
-                  {line.content || " "}
+                  {@html highlightedLineContent(line.content)}
                 </span>
                 {#if line.noTrailingNewLine}
                   <div class="text-[11px] italic text-amber-200">
@@ -418,3 +423,34 @@
     {/if}
   </div>
 </div>
+
+<style>
+  :global(.hljs-keyword),
+  :global(.hljs-selector-tag),
+  :global(.hljs-built_in) {
+    color: #ffb4d0;
+  }
+
+  :global(.hljs-string),
+  :global(.hljs-attr),
+  :global(.hljs-symbol) {
+    color: #a5d6ff;
+  }
+
+  :global(.hljs-number),
+  :global(.hljs-literal) {
+    color: #79c0ff;
+  }
+
+  :global(.hljs-comment),
+  :global(.hljs-quote) {
+    color: #8b949e;
+    font-style: italic;
+  }
+
+  :global(.hljs-title),
+  :global(.hljs-name),
+  :global(.hljs-section) {
+    color: #d2a8ff;
+  }
+</style>
