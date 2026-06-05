@@ -1499,7 +1499,7 @@
     >
       <div
         class="grid items-start gap-3"
-        style="grid-template-columns: minmax(300px, 1fr) 10px 200px 10px 270px 56px 56px;"
+        style="grid-template-columns: minmax(300px, 1fr) 10px minmax(200px, 0.72fr) 10px 270px 56px 56px;"
       >
         <div class="min-w-0">
           <div

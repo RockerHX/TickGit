@@ -13,9 +13,9 @@
     "windows": [
       {
         "title": "TickGit",
-        "width": 960,
+        "width": 1180,
         "height": 540,
-        "minWidth": 720,
+        "minWidth": 1040,
         "minHeight": 480
       }
     ],
