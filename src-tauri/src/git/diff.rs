@@ -124,6 +124,8 @@ pub(super) fn diff_result_from_git_args(
             truncated: false,
             byte_count: 0,
             line_count: stats.line_count,
+            old_image_data_url: None,
+            new_image_data_url: None,
         });
     }
 
@@ -136,6 +138,8 @@ pub(super) fn diff_result_from_git_args(
             truncated: true,
             byte_count: 0,
             line_count: stats.line_count,
+            old_image_data_url: None,
+            new_image_data_url: None,
         });
     }
 
@@ -154,6 +158,8 @@ pub(super) fn diff_result_from_git_args(
             truncated: true,
             byte_count,
             line_count: stats.line_count,
+            old_image_data_url: None,
+            new_image_data_url: None,
         });
     }
 
@@ -165,6 +171,8 @@ pub(super) fn diff_result_from_git_args(
         truncated: false,
         byte_count,
         line_count: stats.line_count,
+        old_image_data_url: None,
+        new_image_data_url: None,
     })
 }
 

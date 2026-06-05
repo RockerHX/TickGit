@@ -100,6 +100,8 @@ pub struct CommitFileDiffResult {
     pub truncated: bool,
     pub byte_count: usize,
     pub line_count: usize,
+    pub old_image_data_url: Option<String>,
+    pub new_image_data_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

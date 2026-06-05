@@ -68,6 +68,8 @@ export type CommitFileDiffResult = {
   truncated: boolean;
   byteCount: number;
   lineCount: number;
+  oldImageDataUrl: string | null;
+  newImageDataUrl: string | null;
 };
 
 export type WorkspaceChangeSection = "staged" | "unstaged";

@@ -8,6 +8,7 @@ import type {
   CommitListItem,
   RepositorySummary,
 } from "$lib/types";
+import { pickCommitFileForPathFilter } from "$lib/tickgit/history";
 import { pickSelectedCommit } from "$lib/tickgit/page-helpers";
 
 export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
@@ -18,6 +19,13 @@ export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
   truncated: false,
   byteCount: 0,
   lineCount: 0,
+  oldImageDataUrl: null,
+  newImageDataUrl: null,
+};
+
+export type CommitHistoryLoadOptions = {
+  filters?: CommitHistoryFilters | null;
+  preferredFilePathFilter?: string | null;
 };
 
 export type TickGitPageApi = {
@@ -70,12 +78,16 @@ export async function fetchCommitDetails(
   repoPath: string,
   hash: string,
   ignoreWhitespace = false,
+  preferredFilePathFilter?: string | null,
 ) {
   const [commitFiles, commitMeta] = await Promise.all([
     api.getCommitFiles(repoPath, hash),
     api.getCommitMeta(repoPath, hash),
   ]);
-  const selectedFile = commitFiles[0] ?? null;
+  const selectedFile = pickCommitFileForPathFilter(
+    commitFiles,
+    preferredFilePathFilter,
+  );
   const selectedFilePath = selectedFile?.path ?? null;
   // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
   const diffResult = selectedFile
@@ -103,6 +115,7 @@ export async function fetchRepositorySnapshot(
   keepSelection: boolean,
   previousSelectedHash: string | null,
   ignoreWhitespace = false,
+  options: CommitHistoryLoadOptions = {},
 ): Promise<RepositorySnapshot> {
   const branchStatus = await api.getBranchStatus(repoPath);
 
@@ -112,7 +125,12 @@ export async function fetchRepositorySnapshot(
   let expectedSafeUnpushedCount = 0;
 
   do {
-    const page = await api.getCommitHistory(repoPath, nextSkip, pageSize);
+    const page = await api.getCommitHistory(
+      repoPath,
+      nextSkip,
+      pageSize,
+      options.filters,
+    );
     commits = [...commits, ...page.items];
     nextSkip = page.nextSkip;
     hasMore = page.hasMore;
@@ -152,6 +170,7 @@ export async function fetchRepositorySnapshot(
     repoPath,
     selectedCommit.hash,
     ignoreWhitespace,
+    options.preferredFilePathFilter,
   );
 
   return {

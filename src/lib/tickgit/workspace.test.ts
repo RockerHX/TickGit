@@ -23,6 +23,8 @@ function diffResult(text = ""): CommitFileDiffResult {
     truncated: false,
     byteCount: text.length,
     lineCount: text ? text.split("\n").length : 0,
+    oldImageDataUrl: null,
+    newImageDataUrl: null,
   };
 }
 

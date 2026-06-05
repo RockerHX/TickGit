@@ -89,6 +89,8 @@ function diffResult(text = ""): CommitFileDiffResult {
     truncated: false,
     byteCount: text.length,
     lineCount: text ? text.split("\n").length : 0,
+    oldImageDataUrl: null,
+    newImageDataUrl: null,
   };
 }
 
@@ -188,6 +190,35 @@ describe("page data", () => {
       "/repo",
       "c1",
       "src/main.ts",
+      false,
+      null,
+    );
+  });
+
+  it("loads commit details with the first file matching a path filter", async () => {
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+
+    const details = await fetchCommitDetails(
+      createApiMock({
+        getCommitFiles: vi.fn().mockResolvedValue([
+          fileChange("README.md"),
+          fileChange("src/main.ts"),
+          fileChange("src/app.ts"),
+        ]),
+        getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
+        getCommitFileDiff,
+      }),
+      "/repo",
+      "c1",
+      false,
+      "src/app",
+    );
+
+    expect(details.selectedFilePath).toBe("src/app.ts");
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c1",
+      "src/app.ts",
       false,
       null,
     );
@@ -341,6 +372,48 @@ describe("page data", () => {
     );
   });
 
+  it("passes history filters and preferred file filter through snapshot loading", async () => {
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValue(historyPage([commit("c3")]));
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+
+    const snapshot = await fetchRepositorySnapshot(
+      createApiMock({
+        getCommitHistory,
+        getCommitFiles: vi.fn().mockResolvedValue([
+          fileChange("README.md"),
+          fileChange("src/filter-match.ts"),
+        ]),
+        getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
+        getCommitFileDiff,
+      }),
+      "/repo",
+      50,
+      false,
+      null,
+      false,
+      {
+        filters: { query: "fix", author: "Ada", filePath: "src/filter" },
+        preferredFilePathFilter: "src/filter",
+      },
+    );
+
+    expect(getCommitHistory).toHaveBeenCalledWith("/repo", 0, 50, {
+      query: "fix",
+      author: "Ada",
+      filePath: "src/filter",
+    });
+    expect(snapshot.selectedFilePath).toBe("src/filter-match.ts");
+    expect(getCommitFileDiff).toHaveBeenCalledWith(
+      "/repo",
+      "c3",
+      "src/filter-match.ts",
+      false,
+      null,
+    );
+  });
+
   it("keeps the previous selection when it is still present", async () => {
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
@@ -449,8 +522,20 @@ describe("page data", () => {
       null,
     );
 
-    expect(getCommitHistory).toHaveBeenNthCalledWith(1, "/repo", 0, 2);
-    expect(getCommitHistory).toHaveBeenNthCalledWith(2, "/repo", 2, 2);
+    expect(getCommitHistory).toHaveBeenNthCalledWith(
+      1,
+      "/repo",
+      0,
+      2,
+      undefined,
+    );
+    expect(getCommitHistory).toHaveBeenNthCalledWith(
+      2,
+      "/repo",
+      2,
+      2,
+      undefined,
+    );
     expect(snapshot.commits.map((item) => item.hash)).toEqual([
       "c5",
       "c4",

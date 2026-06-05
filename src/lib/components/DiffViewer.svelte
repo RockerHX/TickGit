@@ -20,6 +20,8 @@
     truncated: false,
     byteCount: 0,
     lineCount: 0,
+    oldImageDataUrl: null,
+    newImageDataUrl: null,
   };
   export let loadingDiff = false;
   export let mode: "unified" | "split" = "unified";
