@@ -110,7 +110,11 @@ fn repository_status(path: &str) -> (RepositoryStatus, Option<String>, Option<St
 
     match git::resolve_repository_path(path.to_string_lossy().as_ref()) {
         Ok(_) => (RepositoryStatus::Available, None, None),
-        Err(error) => (RepositoryStatus::Invalid, Some(error.message), Some(error.code)),
+        Err(error) => (
+            RepositoryStatus::Invalid,
+            Some(error.message),
+            Some(error.code),
+        ),
     }
 }
 
