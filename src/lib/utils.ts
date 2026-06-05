@@ -1,12 +1,15 @@
-export function formatRelativeDate(value: string | number) {
+import type { Locale } from "$lib/i18n";
+import { translate } from "$lib/i18n";
+
+export function formatRelativeDate(value: string | number, locale: Locale = "en-US") {
   const date = typeof value === "number" ? new Date(value) : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Unknown time";
+    return translate(locale, "date.unknownTime");
   }
 
   const diff = date.getTime() - Date.now();
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   const units = [
     { unit: "day", ms: 24 * 60 * 60 * 1000 },
     { unit: "hour", ms: 60 * 60 * 1000 },
@@ -19,14 +22,14 @@ export function formatRelativeDate(value: string | number) {
     }
   }
 
-  return date.toLocaleString("en-US");
+  return date.toLocaleString(locale);
 }
 
-export function formatAbsoluteDate(value: string | number) {
+export function formatAbsoluteDate(value: string | number, locale: Locale = "en-US") {
   const date = typeof value === "number" ? new Date(value) : new Date(value);
   return Number.isNaN(date.getTime())
-    ? "Unknown time"
-    : date.toLocaleString("en-US", {
+    ? translate(locale, "date.unknownTime")
+    : date.toLocaleString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",

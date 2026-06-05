@@ -11,23 +11,27 @@ describe("utils", () => {
     vi.restoreAllMocks();
   });
 
-  it("formats relative dates with the current formatter locale", () => {
+  it("formats relative dates with the requested locale", () => {
     vi.spyOn(Date, "now").mockReturnValue(
       new Date("2026-04-25T12:00:00.000Z").getTime(),
     );
 
-    expect(formatRelativeDate("2026-04-25T11:00:00.000Z")).toBe("1 hour ago");
-    expect(formatRelativeDate("2026-04-24T12:00:00.000Z")).toBe("yesterday");
-    expect(formatRelativeDate("2026-04-25T12:01:00.000Z")).toBe("in 1 minute");
+    expect(formatRelativeDate("2026-04-25T11:00:00.000Z", "en-US")).toBe("1 hour ago");
+    expect(formatRelativeDate("2026-04-24T12:00:00.000Z", "en-US")).toBe("yesterday");
+    expect(formatRelativeDate("2026-04-25T12:01:00.000Z", "en-US")).toBe("in 1 minute");
+    expect(formatRelativeDate("2026-04-25T11:00:00.000Z", "zh-CN")).toBe("1小时前");
   });
 
   it("returns fallback text for invalid dates", () => {
-    expect(formatRelativeDate("invalid")).toBe("Unknown time");
-    expect(formatAbsoluteDate("invalid")).toBe("Unknown time");
+    expect(formatRelativeDate("invalid", "en-US")).toBe("Unknown time");
+    expect(formatAbsoluteDate("invalid", "en-US")).toBe("Unknown time");
+    expect(formatRelativeDate("invalid", "zh-CN")).toBe("未知时间");
+    expect(formatAbsoluteDate("invalid", "zh-CN")).toBe("未知时间");
   });
 
   it("formats absolute dates", () => {
-    expect(formatAbsoluteDate("2026-04-25T12:00:00.000Z")).toContain("2026");
+    expect(formatAbsoluteDate("2026-04-25T12:00:00.000Z", "en-US")).toContain("2026");
+    expect(formatAbsoluteDate("2026-04-25T12:00:00.000Z", "zh-CN")).toContain("2026");
   });
 
   it("maps diff lines to style tokens", () => {
