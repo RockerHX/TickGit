@@ -1516,6 +1516,7 @@
           <BranchSwitcher
             branches={localBranches}
             currentBranch={branchStatus?.branch ?? null}
+            upstream={branchStatus?.upstream ?? null}
             disabled={isBranchSwitcherDisabled({
               currentRepository,
               loadingRepository: loadingRepository || syncingRemoteStatus,
@@ -1525,9 +1526,6 @@
             })}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
-          <div class="mt-0.5 truncate text-xs text-slate-400">
-            {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
-          </div>
         </div>
 
         <div class="flex min-w-[420px] items-end gap-3">

@@ -4,6 +4,7 @@
 
   export let branches: string[] = [];
   export let currentBranch: string | null = null;
+  export let upstream: string | null = null;
   export let disabled = false;
 
   const dispatch = createEventDispatcher<{ change: { branch: string } }>();
@@ -58,29 +59,49 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`flex h-[50px] w-full items-center justify-between rounded-sm border px-4 text-left transition ${
+    class={`flex min-h-[74px] w-full items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition ${
       disabled
-        ? "cursor-not-allowed border-[#3d444d] bg-[#2d333b] text-slate-500"
+        ? "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-75"
         : open
-          ? "border-[#539bf5] bg-[#2d333b]"
-          : "border-[#444c56] bg-[#2d333b] hover:border-[#6e7681]"
+          ? "border-[#539bf5]/70 bg-[#1f6feb]/16 shadow-[0_0_0_1px_rgba(83,155,245,0.2),0_18px_42px_rgba(0,0,0,0.28)]"
+          : "border-white/[0.08] bg-white/[0.045] hover:border-[#539bf5]/35 hover:bg-white/[0.07]"
     }`}
     type="button"
+    disabled={disabled || branches.length === 0}
+    title={disabled ? translate($locale, "branch.pushDisabledFallback") : undefined}
     on:click|stopPropagation={toggleOpen}
   >
-    <span class="min-w-0 flex-1 pr-4">
+    <span
+      class={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-[0_12px_24px_rgba(47,129,247,0.18)] ${
+        disabled
+          ? "border-white/[0.06] bg-[#30363d] text-slate-500"
+          : "border-[#539bf5]/30 bg-gradient-to-br from-[#1f6feb] to-[#39c5cf] text-[#f0f6fc]"
+      }`}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current">
+        <path
+          d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
+        ></path>
+      </svg>
+    </span>
+
+    <span class="min-w-0 flex-1">
       <span class="block truncate text-[1rem] font-semibold text-[#f0f6fc]">
         {currentBranch ?? translate($locale, "branch.noneSelected")}
+      </span>
+      <span class="mt-1 block truncate text-xs text-slate-400">
+        {upstream ?? translate($locale, "branch.noUpstream")}
       </span>
     </span>
 
     <span
-      class={`flex h-8 w-8 shrink-0 items-center justify-center border-l pl-3 ${
+      class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
         disabled
-          ? "border-[#3d444d] text-slate-500"
+          ? "border-white/[0.05] bg-[#0d1117]/20 text-slate-600"
           : open
-            ? "border-[#539bf5] text-[#cae8ff]"
-            : "border-[#444c56] text-slate-400"
+            ? "border-[#539bf5]/50 bg-[#347dff]/20 text-[#cae8ff]"
+            : "border-white/[0.08] bg-[#0d1117]/30 text-slate-400"
       }`}
     >
       <svg
