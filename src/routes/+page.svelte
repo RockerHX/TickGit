@@ -7,6 +7,7 @@
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
+  import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
@@ -1366,7 +1367,8 @@
         </div>
       </div>
 
-      <div class="flex items-center px-4 py-3">
+      <div class="flex items-center gap-3 px-4 py-3">
+        <LanguageSwitcher />
         <button
           class="flex h-[54px] min-w-[188px] items-center gap-3 rounded-sm border border-[#1f2328] bg-[#24292f] px-4 text-left text-[#f0f6fc] transition hover:bg-[#2d333b] disabled:cursor-not-allowed disabled:text-slate-500"
           disabled={!canPushCurrentBranch({
