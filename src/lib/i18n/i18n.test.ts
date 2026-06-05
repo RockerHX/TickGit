@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   FALLBACK_LOCALE,
   SUPPORTED_LOCALES,
+  detectInitialLocale,
+  isSupportedLocale,
+  normalizeLocale,
   resources,
   translate,
   type TranslationKey,
@@ -14,6 +17,35 @@ describe("i18n resources", () => {
     for (const locale of SUPPORTED_LOCALES) {
       expect(Object.keys(resources[locale]).sort()).toEqual(fallbackKeys);
     }
+  });
+
+  it("detects supported and normalized locales", () => {
+    expect(isSupportedLocale("zh-CN")).toBe(true);
+    expect(isSupportedLocale("fr-FR")).toBe(false);
+    expect(normalizeLocale("zh-Hans-CN")).toBe("zh-CN");
+    expect(normalizeLocale("en-GB")).toBe("en-US");
+    expect(normalizeLocale("fr-FR")).toBeNull();
+  });
+
+  it("prefers stored locale before navigator languages", () => {
+    expect(
+      detectInitialLocale({
+        storedLocale: "en-US",
+        navigatorLanguages: ["zh-CN"],
+      }),
+    ).toBe("en-US");
+    expect(
+      detectInitialLocale({
+        storedLocale: null,
+        navigatorLanguages: ["zh-Hans-CN"],
+      }),
+    ).toBe("zh-CN");
+    expect(
+      detectInitialLocale({
+        storedLocale: null,
+        navigatorLanguages: ["fr-FR"],
+      }),
+    ).toBe("en-US");
   });
 
   it("translates known keys and interpolates params", () => {
