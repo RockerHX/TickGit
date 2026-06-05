@@ -422,14 +422,19 @@ rtk cargo test --manifest-path src-tauri/Cargo.toml
 
 ### 7.3 历史和 Diff 增强
 
-建议功能：
+已实施（2026-06-05）：
 
-- Commit 搜索
-- 文件路径过滤
-- 作者过滤
-- 语法高亮
-- 图片 diff
-- Copy file path / copy diff hunk
+- 历史全量过滤：Commit 标题/正文搜索、作者 name/email 过滤、文件路径片段过滤；过滤结果继续保留本地未推送 commit 与安全 step-push 标记。
+- 历史过滤 UI：History 面板内支持 Commit search、Author、File path 和 Clear filters，输入防抖后重新加载第一页，分页继续使用当前过滤条件。
+- Diff 操作增强：Commit changed files 与 Workspace changes 支持复制文件路径，Unified / Split Diff hunk 支持复制 hunk 原始 patch。
+- 文本 Diff 语法高亮：基于常见文件扩展名识别 TypeScript / JavaScript / Svelte / Rust / JSON / Markdown / CSS / HTML / Python / Go / Java / Shell / YAML 等语言，未知语言安全回退纯文本。
+- 图片 Diff 预览：后端返回图片 before / after data URL，前端展示变更前 / 变更后预览；新增、删除、无法读取或过大图片均有明确降级状态。
+
+已验证：
+
+- Rust 历史过滤、文件路径过滤、未推送标记、图片 Diff data URL、workspace 图片 Diff 测试通过。
+- 前端历史过滤 helper、加载流程、Diff hunk copy、语法高亮、图片预览状态测试通过。
+- 完整门禁见本节实施提交。
 
 ### 7.4 国际化与文案统一
 
