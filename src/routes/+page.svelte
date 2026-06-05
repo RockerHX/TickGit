@@ -13,10 +13,10 @@
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
-  import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
+  import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
@@ -164,6 +164,7 @@
   let managingRepositoryPath: string | null = null;
   let activeResizeTarget: "history" | null = null;
   let leftPaneWidth = 360;
+  let settingsOpen = false;
 
   let toasts: ToastItem[] = [];
   let toastId = 1;
@@ -187,6 +188,21 @@
   let saveWindowSizeTimer: number | null = null;
   let historyFilterTimer: number | null = null;
   let historyRequestId = 0;
+
+  $: canRefreshRemoteStatus =
+    canRefreshBlockedBranchStatus({
+      currentRepository,
+      loadingRepository,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+    }) && !syncingRemoteStatus;
+  $: canPushBranch = canPushCurrentBranch({
+    branchStatus,
+    switchingBranch,
+    isPushing: isPushing || syncingRemoteStatus,
+    stepPushState,
+  });
 
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
@@ -1449,6 +1465,11 @@
   on:cancel={closeStepPushPlanDialog}
 />
 
+<SettingsDialog
+  open={settingsOpen}
+  on:close={() => (settingsOpen = false)}
+/>
+
 <CommitContextMenu
   open={contextMenu.open}
   x={contextMenu.x}
@@ -1528,50 +1549,19 @@
           />
         </div>
 
-        <div class="flex min-w-[420px] items-end gap-3">
-          <LanguageSwitcher />
-          <button
-            class="flex h-[54px] items-center justify-center rounded-sm border border-[#1f2328] bg-[#24292f] px-3 text-xs font-semibold text-slate-300 transition hover:bg-[#2d333b] hover:text-[#f0f6fc] disabled:cursor-not-allowed disabled:text-slate-600"
-            disabled={!canRefreshBlockedBranchStatus({
-              currentRepository,
-              loadingRepository,
-              switchingBranch,
-              isPushing,
-              stepPushState,
-            }) || syncingRemoteStatus}
-            on:click={fetchRemoteStatusManually}
-          >
-            {syncingRemoteStatus
-              ? translate($locale, "common.refreshing")
-              : translate($locale, "remoteBlock.refreshStatus")}
-          </button>
+        <div class="flex min-w-[360px] items-stretch gap-3">
           <button
             class={`flex min-h-[74px] min-w-[236px] items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition ${
-              canPushCurrentBranch({
-                branchStatus,
-                switchingBranch,
-                isPushing: isPushing || syncingRemoteStatus,
-                stepPushState,
-              })
+              canPushBranch
                 ? "border-[#539bf5]/28 bg-white/[0.045] text-[#f0f6fc] hover:border-[#539bf5]/45 hover:bg-[#1f6feb]/12"
                 : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-75"
             }`}
-            disabled={!canPushCurrentBranch({
-              branchStatus,
-              switchingBranch,
-              isPushing: isPushing || syncingRemoteStatus,
-              stepPushState,
-            })}
+            disabled={!canPushBranch}
             on:click={pushCurrentBranch}
           >
             <span
               class={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-[0_12px_24px_rgba(47,129,247,0.18)] ${
-                canPushCurrentBranch({
-                  branchStatus,
-                  switchingBranch,
-                  isPushing: isPushing || syncingRemoteStatus,
-                  stepPushState,
-                })
+                canPushBranch
                   ? "border-[#539bf5]/35 bg-[#347dff]/18 text-[#cae8ff]"
                   : "border-white/[0.06] bg-[#30363d] text-slate-500"
               }`}
@@ -1613,12 +1603,7 @@
 
             <span
               class={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] ${
-                canPushCurrentBranch({
-                  branchStatus,
-                  switchingBranch,
-                  isPushing: isPushing || syncingRemoteStatus,
-                  stepPushState,
-                })
+                canPushBranch
                   ? "bg-[#347dff] text-white shadow-[0_8px_22px_rgba(52,125,255,0.3)]"
                   : "bg-[#6e7681]/35 text-slate-400"
               }`}
@@ -1626,6 +1611,47 @@
               <span>{branchStatus?.aheadCount ?? 0}</span>
               <span aria-hidden="true">↑</span>
             </span>
+          </button>
+
+          <button
+            type="button"
+            class={`flex min-h-[74px] w-[74px] shrink-0 items-center justify-center rounded-xl border shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition ${
+              canRefreshRemoteStatus
+                ? "border-white/[0.08] bg-white/[0.045] text-slate-300 hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
+                : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-600 opacity-75"
+            }`}
+            disabled={!canRefreshRemoteStatus}
+            aria-label={syncingRemoteStatus
+              ? translate($locale, "common.refreshing")
+              : translate($locale, "common.refresh")}
+            title={syncingRemoteStatus
+              ? translate($locale, "common.refreshing")
+              : translate($locale, "common.refresh")}
+            on:click={fetchRemoteStatusManually}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              class={`h-5 w-5 fill-current ${syncingRemoteStatus ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            >
+              <path
+                d="M1.705 8a6.5 6.5 0 0 1 11.39-4.273V1.75a.75.75 0 0 1 1.5 0V5.5a.75.75 0 0 1-.75.75h-3.75a.75.75 0 0 1 0-1.5h1.962A5 5 0 1 0 13 8a.75.75 0 0 1 1.5 0A6.5 6.5 0 1 1 1.705 8Z"
+              ></path>
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="flex min-h-[74px] w-[74px] shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.045] text-slate-300 shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
+            aria-label={translate($locale, "settings.title")}
+            title={translate($locale, "settings.title")}
+            on:click={() => (settingsOpen = true)}
+          >
+            <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current" aria-hidden="true">
+              <path
+                d="M8 1.5a1.75 1.75 0 0 0-1.72 1.43l-.05.26a5.8 5.8 0 0 0-.9.37l-.22-.15a1.75 1.75 0 0 0-2.23.22l-.25.25a1.75 1.75 0 0 0-.22 2.23l.15.22c-.15.29-.27.59-.37.9l-.26.05a1.75 1.75 0 0 0 0 3.44l.26.05c.1.31.22.61.37.9l-.15.22a1.75 1.75 0 0 0 .22 2.23l.25.25a1.75 1.75 0 0 0 2.23.22l.22-.15c.29.15.59.27.9.37l.05.26a1.75 1.75 0 0 0 3.44 0l.05-.26c.31-.1.61-.22.9-.37l.22.15a1.75 1.75 0 0 0 2.23-.22l.25-.25a1.75 1.75 0 0 0 .22-2.23l-.15-.22c.15-.29.27-.59.37-.9l.26-.05a1.75 1.75 0 0 0 0-3.44l-.26-.05a5.8 5.8 0 0 0-.37-.9l.15-.22a1.75 1.75 0 0 0-.22-2.23l-.25-.25a1.75 1.75 0 0 0-2.23-.22l-.22.15a5.8 5.8 0 0 0-.9-.37l-.05-.26A1.75 1.75 0 0 0 8 1.5Zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"
+              ></path>
+            </svg>
           </button>
         </div>
       </div>
