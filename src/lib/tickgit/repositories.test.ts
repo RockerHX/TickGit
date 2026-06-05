@@ -3,6 +3,8 @@ import type { RepositoryStatus, RepositorySummary } from "$lib/types";
 import {
   canManageRepositories,
   filterRepositories,
+  formatRepositoryPath,
+  repositoryStatusBadgeLabel,
   repositoryStatusLabel,
   repositoryStatusMessage,
   repositoryStatusTone,
@@ -38,6 +40,25 @@ describe("repository helpers", () => {
     expect(filterRepositories(repositories, "  ")).toEqual(repositories);
   });
 
+  it("formats repository paths relative to home", () => {
+    expect(formatRepositoryPath("/Users/tickgit/Project", "/Users/tickgit")).toBe(
+      "~/Project",
+    );
+    expect(formatRepositoryPath("/Users/tickgit", "/Users/tickgit/")).toBe(
+      "~",
+    );
+    expect(formatRepositoryPath("/tmp/Project", "/Users/tickgit")).toBe(
+      "/tmp/Project",
+    );
+    expect(formatRepositoryPath("/Users/tickgit/Project", null)).toBe(
+      "~/Project",
+    );
+    expect(formatRepositoryPath("/home/tickgit/Project")).toBe("~/Project");
+    expect(formatRepositoryPath("C:\\Users\\tickgit\\Project")).toBe(
+      "~\\Project",
+    );
+  });
+
   it("maps repository status labels and tones", () => {
     const statuses: RepositoryStatus[] = ["available", "missing", "invalid"];
 
@@ -45,6 +66,11 @@ describe("repository helpers", () => {
       "Available",
       "Missing",
       "Invalid",
+    ]);
+    expect(statuses.map((status) => repositoryStatusBadgeLabel(status))).toEqual([
+      "ACTIVE",
+      "MISSING",
+      "INVALID",
     ]);
     expect(repositoryStatusTone("available")).toContain("emerald");
     expect(repositoryStatusTone("missing")).toContain("amber");

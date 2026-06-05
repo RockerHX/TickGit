@@ -33,6 +33,41 @@ export function filterRepositories(
   });
 }
 
+
+export function formatRepositoryPath(path: string, homePath?: string | null) {
+  const normalizedHome = homePath?.replace(/[\\/]+$/, "") ?? null;
+
+  if (normalizedHome) {
+    if (path === normalizedHome) {
+      return "~";
+    }
+
+    if (path.startsWith(`${normalizedHome}/`)) {
+      return `~/${path.slice(normalizedHome.length + 1)}`;
+    }
+
+    if (path.startsWith(`${normalizedHome}\\`)) {
+      return `~\\${path.slice(normalizedHome.length + 1)}`;
+    }
+  }
+
+  return path
+    .replace(/^\/Users\/[^/]+(?=\/|$)/, "~")
+    .replace(/^\/home\/[^/]+(?=\/|$)/, "~")
+    .replace(/^[A-Za-z]:\\Users\\[^\\]+(?=\\|$)/, "~");
+}
+
+export function repositoryStatusBadgeLabel(status: RepositoryStatus) {
+  switch (status) {
+    case "available":
+      return "ACTIVE";
+    case "missing":
+      return "MISSING";
+    case "invalid":
+      return "INVALID";
+  }
+}
+
 export function repositoryStatusLabel(
   status: RepositoryStatus,
   locale: Locale = FALLBACK_LOCALE,
