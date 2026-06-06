@@ -114,20 +114,20 @@
       </div>
     {/if}
 
-    <div>
+    <div class="space-y-2 p-2">
       {#each commits as commit (commit.hash)}
         <button
-          class={`group relative w-full border-b border-[#373e47] px-4 py-3 text-left transition ${
+          class={`group relative w-full overflow-hidden rounded-xl border px-3.5 py-3.5 text-left transition ${
             selectedHash === commit.hash
-              ? "bg-[#347dff]/14"
-              : "bg-transparent hover:bg-[#373e47]/45"
+              ? "border-[#3b82f6]/45 bg-gradient-to-r from-[#2563eb]/28 via-[#1d4ed8]/18 to-[#111827]/20 shadow-sm shadow-[#2563eb]/20"
+              : "border-transparent bg-transparent hover:border-[#334155]/80 hover:bg-white/[0.04]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           {#if selectedHash === commit.hash}
             <div
-              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#2f81f7]"
+              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#60a5fa] to-[#2563eb]"
             ></div>
           {/if}
 
@@ -186,7 +186,7 @@
                 <div class="min-w-0">
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
-                      class="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#f0f6fc]"
+                      class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
                     >
                       {commit.summary}
                     </div>
@@ -205,7 +205,16 @@
                   {/if}
                 </div>
 
-                <div class="mt-0.5 flex shrink-0 items-center gap-1.5">
+                <div class="mt-0.5 flex shrink-0 items-center gap-2">
+                  <span
+                    class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      selectedHash === commit.hash
+                        ? "bg-[#60a5fa]/20 text-[#bfdbfe]"
+                        : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
+                    }`}
+                  >
+                    {formatRelativeDate(commit.committedAt, $locale)}
+                  </span>
                   {#if !commit.isPushed}
                     <span
                       class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
@@ -239,8 +248,6 @@
                 class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-400"
               >
                 <span>{commit.authorName}</span>
-                <span>•</span>
-                <span>{formatRelativeDate(commit.committedAt, $locale)}</span>
                 <span>•</span>
                 <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
