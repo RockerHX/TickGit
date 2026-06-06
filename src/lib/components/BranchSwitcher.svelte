@@ -61,12 +61,12 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left backdrop-blur transition ${
+    class={`group flex min-h-[60px] w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left backdrop-blur-xl transition duration-200 ${
       disabled
-        ? "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-75"
+        ? "cursor-not-allowed border-white/[0.06] bg-[#0f172a]/35 text-slate-500 opacity-70"
         : open
-          ? "border-[#4d7cff]/55 bg-[#1f6feb]/14 shadow-[0_0_0_1px_rgba(83,155,245,0.12)]"
-          : "border-white/[0.08] bg-white/[0.04] hover:border-[#539bf5]/30 hover:bg-white/[0.06]"
+          ? "border-[#60a5fa]/45 bg-[#1d4ed8]/16 shadow-[0_0_0_1px_rgba(96,165,250,0.14),0_16px_36px_rgba(15,23,42,0.35)]"
+          : "border-white/[0.1] bg-[#0f172a]/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#60a5fa]/32 hover:bg-[#1e293b]/62 hover:shadow-[0_14px_34px_rgba(15,23,42,0.24)]"
     }`}
     type="button"
     disabled={disabled || branches.length === 0}
@@ -76,14 +76,14 @@
     on:click|stopPropagation={toggleOpen}
   >
     <span
-      class={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-lg border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
+      class={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px] border transition ${
         disabled
-          ? "border-white/[0.06] bg-[#30363d] text-slate-500"
-          : "border-[#539bf5]/30 bg-gradient-to-br from-[#1f6feb] to-[#39c5cf] text-[#f0f6fc]"
+          ? "border-white/[0.06] bg-[#1f2937] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+          : "border-[#93c5fd]/25 bg-gradient-to-br from-[#2563eb] via-[#3b82f6] to-[#06b6d4] text-[#f8fafc] shadow-[0_12px_26px_rgba(37,99,235,0.28)] group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.36)]"
       }`}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
+      <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current drop-shadow">
         <path
           d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
         ></path>
@@ -91,21 +91,29 @@
     </span>
 
     <span class="min-w-0 flex-1">
-      <span class="block truncate text-[0.9rem] font-semibold text-[#f0f6fc]">
+      <span
+        class={`block truncate text-[0.95rem] font-semibold ${
+          disabled ? "text-slate-500" : "text-[#f8fafc]"
+        }`}
+      >
         {currentBranch ?? translate($locale, "branch.noneSelected")}
       </span>
-      <span class="mt-0.5 block truncate text-[11px] text-slate-400">
+      <span
+        class={`mt-1 block truncate text-[11px] ${
+          disabled ? "text-slate-600" : "text-slate-400"
+        }`}
+      >
         {upstreamLabel}
       </span>
     </span>
 
     <span
-      class={`flex h-8 w-7 shrink-0 items-center justify-center border-l transition ${
+      class={`flex h-8 w-7 shrink-0 items-center justify-center border-l transition duration-200 ${
         disabled
           ? "border-white/[0.05] text-slate-600"
           : open
-            ? "border-[#539bf5]/40 text-[#cae8ff]"
-            : "border-white/[0.08] text-slate-400"
+            ? "border-[#60a5fa]/40 text-[#dbeafe]"
+            : "border-white/[0.1] text-slate-400 group-hover:text-slate-200"
       }`}
     >
       <svg
