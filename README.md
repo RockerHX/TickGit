@@ -120,6 +120,7 @@ pnpm tauri dev
 
 ```bash
 pnpm test:run
+pnpm check
 pnpm typecheck
 pnpm build
 pnpm format
@@ -127,6 +128,8 @@ pnpm format:check
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
+
+`pnpm install` 会自动注册仓库内的 pre-commit hook。提交前 hook 会格式化已暂存文件并运行 `pnpm check`，避免格式问题推送到 CI 后才失败。
 
 ## 项目结构
 

@@ -1,14 +1,16 @@
 {
   "name": "tickgit",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "TickGit - Git history and push workflow desktop client",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "pnpm format:check && pnpm typecheck",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "prepare": "node scripts/setup-git-hooks.mjs",
+    "precommit": "node scripts/pre-commit.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "format": "prettier --write .",

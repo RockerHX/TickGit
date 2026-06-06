@@ -10,12 +10,16 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
+  import ConfirmRepositoryRemoveDialog from "$lib/components/ConfirmRepositoryRemoveDialog.svelte";
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
+  import PushCard from "$lib/components/PushCard.svelte";
+  import RefreshButton from "$lib/components/RefreshButton.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
+  import SettingsButton from "$lib/components/SettingsButton.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
@@ -162,6 +166,7 @@
   let isPushing = false;
   let switchingBranch = false;
   let managingRepositoryPath: string | null = null;
+  let repositoryPendingRemoval: RepositorySummary | null = null;
   let activeResizeTarget: "history" | null = null;
   let leftPaneWidth = 360;
   let settingsOpen = false;
@@ -197,12 +202,43 @@
       isPushing,
       stepPushState,
     }) && !syncingRemoteStatus;
+  $: canRunRepositoryManagementNow =
+    !managingRepositoryPath &&
+    canManageRepositories({
+      loadingRepository,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+    });
   $: canPushBranch = canPushCurrentBranch({
     branchStatus,
     switchingBranch,
     isPushing: isPushing || syncingRemoteStatus,
     stepPushState,
   });
+  $: pushCardAheadCount = branchStatus?.aheadCount ?? 0;
+  $: pushCardTitle = switchingBranch
+    ? translate($locale, "push.switching")
+    : isPushing
+      ? translate($locale, "push.pushing")
+      : translate($locale, "push.button");
+  $: pushCardSubtitle = isPushing
+    ? translate($locale, "push.uploading")
+    : pushCardAheadCount > 0
+      ? translate($locale, "push.aheadCommits", {
+          count: pushCardAheadCount,
+        })
+      : translate($locale, "push.upToDate");
+  $: pushCardBlockedReason = canPushBranch
+    ? null
+    : pushCardBlockedReasonMessage();
+  $: pushCardAriaLabel = [
+    pushCardTitle,
+    pushCardSubtitle,
+    pushCardBlockedReason,
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
@@ -295,6 +331,7 @@
     pushToCommitState = null;
     stepPushState = null;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
+    repositoryPendingRemoval = null;
     resetWorkspaceState();
   }
 
@@ -310,15 +347,7 @@
   }
 
   function canRunRepositoryManagement() {
-    return (
-      !managingRepositoryPath &&
-      canManageRepositories({
-        loadingRepository,
-        switchingBranch,
-        isPushing,
-        stepPushState,
-      })
-    );
+    return canRunRepositoryManagementNow;
   }
 
   function currentBranchDisabledReason() {
@@ -327,6 +356,38 @@
       branchStatus?.disabledReasonCode,
       branchStatus?.disabledReason,
     );
+  }
+
+  function pushCardBlockedReasonMessage() {
+    if (isPushing) {
+      return translate($locale, "push.currentBusy");
+    }
+
+    if (syncingRemoteStatus) {
+      return translate($locale, "common.refreshing");
+    }
+
+    if (switchingBranch) {
+      return translate($locale, "push.switching");
+    }
+
+    if (stepPushState?.status === "running") {
+      return translate($locale, "push.stepBusy");
+    }
+
+    if (!branchStatus) {
+      return translate($locale, "branch.pushDisabledFallback");
+    }
+
+    if (!branchStatus.pushAvailable) {
+      return currentBranchDisabledReason();
+    }
+
+    if (branchStatus.aheadCount <= 0) {
+      return translate($locale, "push.upToDate");
+    }
+
+    return translate($locale, "branch.currentPushUnavailable");
   }
 
   function currentCommitPushBlockedReason() {
@@ -944,15 +1005,36 @@
     return Array.isArray(selected) ? (selected[0] ?? null) : selected;
   }
 
-  async function removeRepositoryFromList(path: string) {
+  function requestRepositoryRemoval(path: string) {
     if (!canRunRepositoryManagement()) {
       return;
     }
 
-    managingRepositoryPath = path;
+    repositoryPendingRemoval =
+      repositories.find((repository) => repository.path === path) ??
+      (currentRepository?.path === path ? currentRepository : null);
+  }
+
+  function cancelRepositoryRemoval() {
+    if (managingRepositoryPath) {
+      return;
+    }
+
+    repositoryPendingRemoval = null;
+  }
+
+  async function confirmRepositoryRemoval() {
+    const repository = repositoryPendingRemoval;
+
+    if (!repository || !canRunRepositoryManagement()) {
+      return;
+    }
+
+    managingRepositoryPath = repository.path;
 
     try {
-      await api.removeRepository(path);
+      await api.removeRepository(repository.path);
+      repositoryPendingRemoval = null;
       await refreshRepositories();
       await loadCurrentRepositoryState();
       notify(
@@ -1464,6 +1546,12 @@
   on:confirm={confirmStepPushPlan}
   on:cancel={closeStepPushPlanDialog}
 />
+<ConfirmRepositoryRemoveDialog
+  repository={repositoryPendingRemoval}
+  loading={Boolean(managingRepositoryPath)}
+  on:confirm={confirmRepositoryRemoval}
+  on:cancel={cancelRepositoryRemoval}
+/>
 
 <SettingsDialog open={settingsOpen} on:close={() => (settingsOpen = false)} />
 
@@ -1510,9 +1598,9 @@
           <RepositorySwitcher
             {repositories}
             currentPath={currentRepository?.path ?? null}
-            managementDisabled={!canRunRepositoryManagement()}
+            managementDisabled={!canRunRepositoryManagementNow}
             on:change={(event) => switchRepository(event.detail.path)}
-            on:remove={(event) => removeRepositoryFromList(event.detail.path)}
+            on:remove={(event) => requestRepositoryRemoval(event.detail.path)}
             on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
           />
         </div>
@@ -1533,6 +1621,7 @@
           <BranchSwitcher
             branches={localBranches}
             currentBranch={branchStatus?.branch ?? null}
+            upstream={branchStatus?.upstream ?? null}
             disabled={isBranchSwitcherDisabled({
               currentRepository,
               loadingRepository: loadingRepository || syncingRemoteStatus,
@@ -1540,11 +1629,9 @@
               isPushing,
               stepPushState,
             })}
+            disabledReason={currentBranchDisabledReason()}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
-          <div class="mt-0.5 truncate text-xs text-slate-400">
-            {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
-          </div>
         </div>
 
         <div
@@ -1554,118 +1641,27 @@
           <span class="text-xs">›</span>
         </div>
 
-        <button
-          class={`mt-[18px] flex min-h-[56px] min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left backdrop-blur transition ${
-            canPushBranch
-              ? "border-[#4d7cff]/38 bg-white/[0.04] text-[#f0f6fc] hover:border-[#539bf5]/45 hover:bg-[#1f6feb]/10"
-              : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-500 opacity-70"
-          }`}
-          disabled={!canPushBranch}
-          on:click={pushCurrentBranch}
-        >
-          <span
-            class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-[0_10px_22px_rgba(47,129,247,0.18)] ${
-              canPushBranch
-                ? "border-[#539bf5]/35 bg-[#347dff]/18 text-[#cae8ff]"
-                : "border-white/[0.06] bg-[#30363d] text-slate-500"
-            }`}
-            aria-hidden="true"
-          >
-            {#if isPushing}
-              <svg
-                viewBox="0 0 16 16"
-                class="h-4 w-4 animate-spin fill-current"
-              >
-                <path
-                  d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5.75.75 0 0 0-1.5 0 5 5 0 1 1-1.46-3.54.75.75 0 1 0 1.06-1.06A6.48 6.48 0 0 0 8 1.5Z"
-                ></path>
-              </svg>
-            {:else}
-              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-                <path
-                  d="M8 14.25a.75.75 0 0 1-.75-.75V5.81L5.03 8.03a.75.75 0 0 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 1 1-1.06 1.06L8.75 5.81v7.69a.75.75 0 0 1-.75.75Z"
-                ></path>
-              </svg>
-            {/if}
-          </span>
+        <PushCard
+          title={pushCardTitle}
+          subtitle={pushCardSubtitle}
+          aheadCount={pushCardAheadCount}
+          enabled={canPushBranch}
+          loading={isPushing}
+          blockedReason={pushCardBlockedReason}
+          ariaLabel={pushCardAriaLabel}
+          on:push={pushCurrentBranch}
+        />
 
-          <span class="min-w-0 flex-1">
-            <span
-              class="block truncate text-[0.9rem] font-semibold text-[#f0f6fc]"
-            >
-              {switchingBranch
-                ? translate($locale, "push.switching")
-                : isPushing
-                  ? translate($locale, "push.pushing")
-                  : translate($locale, "push.button")}
-            </span>
-            <span class="mt-0.5 block truncate text-[11px] text-slate-400">
-              {isPushing
-                ? translate($locale, "push.uploading")
-                : branchStatus?.aheadCount
-                  ? translate($locale, "push.aheadCommits", {
-                      count: branchStatus.aheadCount,
-                    })
-                  : translate($locale, "push.upToDate")}
-            </span>
-          </span>
+        <RefreshButton
+          enabled={canRefreshRemoteStatus}
+          loading={syncingRemoteStatus}
+          on:refresh={fetchRemoteStatusManually}
+        />
 
-          <span
-            class={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] ${
-              canPushBranch
-                ? "bg-[#347dff] text-white shadow-[0_8px_22px_rgba(52,125,255,0.3)]"
-                : "bg-[#6e7681]/35 text-slate-400"
-            }`}
-          >
-            <span>{branchStatus?.aheadCount ?? 0}</span>
-            <span aria-hidden="true">↑</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border backdrop-blur transition ${
-            canRefreshRemoteStatus
-              ? "border-white/[0.08] bg-white/[0.045] text-slate-300 hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
-              : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-600 opacity-75"
-          }`}
-          disabled={!canRefreshRemoteStatus}
-          aria-label={syncingRemoteStatus
-            ? translate($locale, "common.refreshing")
-            : translate($locale, "common.refresh")}
-          title={syncingRemoteStatus
-            ? translate($locale, "common.refreshing")
-            : translate($locale, "common.refresh")}
-          on:click={fetchRemoteStatusManually}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class={`h-4.5 w-4.5 fill-current ${syncingRemoteStatus ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          >
-            <path
-              d="M1.705 8a6.5 6.5 0 0 1 11.39-4.273V1.75a.75.75 0 0 1 1.5 0V5.5a.75.75 0 0 1-.75.75h-3.75a.75.75 0 0 1 0-1.5h1.962A5 5 0 1 0 13 8a.75.75 0 0 1 1.5 0A6.5 6.5 0 1 1 1.705 8Z"
-            ></path>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-300 backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
-          aria-label={translate($locale, "settings.title")}
-          title={translate($locale, "settings.title")}
-          on:click={() => (settingsOpen = true)}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class="h-4.5 w-4.5 fill-current"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 1.5a1.75 1.75 0 0 0-1.72 1.43l-.05.26a5.8 5.8 0 0 0-.9.37l-.22-.15a1.75 1.75 0 0 0-2.23.22l-.25.25a1.75 1.75 0 0 0-.22 2.23l.15.22c-.15.29-.27.59-.37.9l-.26.05a1.75 1.75 0 0 0 0 3.44l.26.05c.1.31.22.61.37.9l-.15.22a1.75 1.75 0 0 0 .22 2.23l.25.25a1.75 1.75 0 0 0 2.23.22l.22-.15c.29.15.59.27.9.37l.05.26a1.75 1.75 0 0 0 3.44 0l.05-.26c.31-.1.61-.22.9-.37l.22.15a1.75 1.75 0 0 0 2.23-.22l.25-.25a1.75 1.75 0 0 0 .22-2.23l-.15-.22c.15-.29.27-.59.37-.9l.26-.05a1.75 1.75 0 0 0 0-3.44l-.26-.05a5.8 5.8 0 0 0-.37-.9l.15-.22a1.75 1.75 0 0 0-.22-2.23l-.25-.25a1.75 1.75 0 0 0-2.23-.22l-.22.15a5.8 5.8 0 0 0-.9-.37l-.05-.26A1.75 1.75 0 0 0 8 1.5Zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"
-            ></path>
-          </svg>
-        </button>
+        <SettingsButton
+          open={settingsOpen}
+          on:open={() => (settingsOpen = true)}
+        />
       </div>
     </div>
 
@@ -1801,7 +1797,7 @@
             <button
               type="button"
               class="rounded-md border border-[#539bf5]/45 bg-[#347dff]/15 px-4 py-2 text-sm font-semibold text-[#cae8ff] transition hover:bg-[#347dff]/25 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canRunRepositoryManagement()}
+              disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
                 relocateRepositoryPath(currentRepository.path)}
@@ -1811,10 +1807,10 @@
             <button
               type="button"
               class="rounded-md border border-rose-400/35 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canRunRepositoryManagement()}
+              disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
-                removeRepositoryFromList(currentRepository.path)}
+                requestRepositoryRemoval(currentRepository.path)}
             >
               {translate($locale, "repository.removeFromList")}
             </button>
