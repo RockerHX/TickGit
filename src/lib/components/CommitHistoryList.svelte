@@ -116,19 +116,20 @@
 
     <div class="space-y-2.5 p-3">
       {#each commits as commit (commit.hash)}
+        {@const isSelected = selectedHash === commit.hash}
         <button
           type="button"
-          class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm transition ${
-            selectedHash === commit.hash
-              ? "border-[#3b82f6]/45 bg-gradient-to-r from-[#2563eb]/28 via-[#1d4ed8]/18 to-[#111827]/20 shadow-sm shadow-[#2563eb]/20"
-              : "border-[#334155]/25 bg-[#0f172a]/18 shadow-black/10 hover:border-[#334155]/80 hover:bg-white/[0.04]"
+          class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-[#60a5fa]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2d333b] ${
+            isSelected
+              ? "border-[#60a5fa]/60 bg-gradient-to-r from-[#2563eb]/36 via-[#1d4ed8]/24 to-[#0f172a]/28 shadow-[0_14px_34px_rgba(37,99,235,0.2)]"
+              : "border-[#334155]/25 bg-[#0f172a]/18 shadow-black/10 hover:border-[#3b82f6]/30 hover:bg-[#1e293b]/42 hover:shadow-[0_10px_26px_rgba(15,23,42,0.24)]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
-          {#if selectedHash === commit.hash}
+          {#if isSelected}
             <div
-              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#60a5fa] to-[#2563eb]"
+              class="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-gradient-to-b from-[#93c5fd] via-[#60a5fa] to-[#2563eb] shadow-[0_0_18px_rgba(96,165,250,0.6)]"
             ></div>
           {/if}
 
@@ -173,7 +174,7 @@
 
               <div
                 class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 ${
-                  selectedHash === commit.hash
+                  isSelected
                     ? "border-[#60a5fa]/45 bg-[#2563eb]/35 text-[#dbeafe]"
                     : "border-[#334155] bg-[#1e293b] text-slate-200"
                 }`}
@@ -210,7 +211,7 @@
                 <div class="mt-0.5 flex shrink-0 items-center gap-2">
                   <span
                     class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      selectedHash === commit.hash
+                      isSelected
                         ? "bg-[#60a5fa]/20 text-[#bfdbfe]"
                         : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
                     }`}
