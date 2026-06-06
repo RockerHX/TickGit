@@ -123,13 +123,6 @@
   const HISTORY_FILTER_DEBOUNCE_MS = 300;
   // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
-  const MAIN_VIEW_TABS: Array<{
-    id: "history" | "changes";
-    labelKey: "mainView.history" | "mainView.changes";
-  }> = [
-    { id: "history", labelKey: "mainView.history" },
-    { id: "changes", labelKey: "mainView.changes" },
-  ];
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
@@ -1787,27 +1780,6 @@
         </div>
       {/if}
     {/if}
-
-    <div class="border-t border-[#1f2328] bg-[#24292f] px-4 py-2">
-      <div
-        class="inline-flex overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b] p-0.5"
-      >
-        {#each MAIN_VIEW_TABS as item}
-          <button
-            type="button"
-            class={`rounded px-3 py-1.5 text-xs font-semibold transition ${
-              activeMainView === item.id
-                ? "bg-[#347dff]/20 text-[#f0f6fc]"
-                : "text-slate-400 hover:bg-[#373e47] hover:text-slate-200"
-            }`}
-            on:click={() =>
-              void switchMainView(item.id as "history" | "changes")}
-          >
-            {translate($locale, item.labelKey)}
-          </button>
-        {/each}
-      </div>
-    </div>
   </header>
 
   {#if shouldShowRepositoryUnavailableState(currentRepository)}
@@ -1873,9 +1845,11 @@
         totalCount={historyTotalCount}
         pageIndex={historyPageIndex}
         pageSize={PAGE_SIZE}
+        {activeMainView}
         {branchStatus}
         on:select={(event) => selectCommit(event.detail.commit)}
         on:pageChange={(event) => changeHistoryPage(event.detail.pageIndex)}
+        on:mainViewChange={(event) => switchMainView(event.detail.view)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
         on:filterChange={(event) => setHistoryFilters(event.detail.filters)}
@@ -1920,8 +1894,10 @@
         commitMessage={workspaceCommitMessage}
         commitDisabled={!canCommitWorkspaceChanges()}
         {committingWorkspace}
+        {activeMainView}
         on:selectFile={(event) =>
           loadWorkspaceDiff(event.detail.section, event.detail.path)}
+        on:mainViewChange={(event) => switchMainView(event.detail.view)}
         on:stageFile={(event) =>
           stageWorkspaceFile(event.detail.section, event.detail.path)}
         on:unstageFile={(event) =>
