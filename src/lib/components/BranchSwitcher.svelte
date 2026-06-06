@@ -4,7 +4,9 @@
 
   export let branches: string[] = [];
   export let currentBranch: string | null = null;
+  export let upstream: string | null = null;
   export let disabled = false;
+  export let disabledReason: string | null = null;
 
   const dispatch = createEventDispatcher<{ change: { branch: string } }>();
 

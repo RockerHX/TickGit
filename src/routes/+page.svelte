@@ -1533,6 +1533,7 @@
           <BranchSwitcher
             branches={localBranches}
             currentBranch={branchStatus?.branch ?? null}
+            upstream={branchStatus?.upstream ?? null}
             disabled={isBranchSwitcherDisabled({
               currentRepository,
               loadingRepository: loadingRepository || syncingRemoteStatus,
@@ -1540,6 +1541,7 @@
               isPushing,
               stepPushState,
             })}
+            disabledReason={currentBranchDisabledReason()}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
           <div class="mt-0.5 truncate text-xs text-slate-400">
