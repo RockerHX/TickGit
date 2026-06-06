@@ -203,6 +203,29 @@
     isPushing: isPushing || syncingRemoteStatus,
     stepPushState,
   });
+  $: pushCardAheadCount = branchStatus?.aheadCount ?? 0;
+  $: pushCardTitle = switchingBranch
+    ? translate($locale, "push.switching")
+    : isPushing
+      ? translate($locale, "push.pushing")
+      : translate($locale, "push.button");
+  $: pushCardSubtitle = isPushing
+    ? translate($locale, "push.uploading")
+    : pushCardAheadCount > 0
+      ? translate($locale, "push.aheadCommits", {
+          count: pushCardAheadCount,
+        })
+      : translate($locale, "push.upToDate");
+  $: pushCardBlockedReason = canPushBranch
+    ? null
+    : pushCardBlockedReasonMessage();
+  $: pushCardAriaLabel = [
+    pushCardTitle,
+    pushCardSubtitle,
+    pushCardBlockedReason,
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
@@ -327,6 +350,38 @@
       branchStatus?.disabledReasonCode,
       branchStatus?.disabledReason,
     );
+  }
+
+  function pushCardBlockedReasonMessage() {
+    if (isPushing) {
+      return translate($locale, "push.currentBusy");
+    }
+
+    if (syncingRemoteStatus) {
+      return translate($locale, "common.refreshing");
+    }
+
+    if (switchingBranch) {
+      return translate($locale, "push.switching");
+    }
+
+    if (stepPushState?.status === "running") {
+      return translate($locale, "push.stepBusy");
+    }
+
+    if (!branchStatus) {
+      return translate($locale, "branch.pushDisabledFallback");
+    }
+
+    if (!branchStatus.pushAvailable) {
+      return currentBranchDisabledReason();
+    }
+
+    if (branchStatus.aheadCount <= 0) {
+      return translate($locale, "push.upToDate");
+    }
+
+    return translate($locale, "branch.currentPushUnavailable");
   }
 
   function currentCommitPushBlockedReason() {
