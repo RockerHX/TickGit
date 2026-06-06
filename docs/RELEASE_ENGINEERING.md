@@ -34,18 +34,18 @@
 
    这个脚本会先检查本地 `develop` 是否等于 `origin/develop`，然后创建 `Release v1.4.3` 提交和 `v1.4.3` tag，并自动推送 `develop` 和 tag。该步骤不会触发 CI，也不会触发 Release。
 
-4. 合并 `develop` 到 `main` 并推送。
+4. 将 `develop` 快进到 `main` 并推送。
 
    ```bash
    git switch main
    git pull --ff-only origin main
-   git merge --no-ff develop
+   git merge --ff-only develop
    git push origin main
    ```
 
-5. `main` push 会触发 Release workflow，自动打包并发布对应 tag。
+5. `main` push 会触发 Release workflow。因为 main 的 HEAD 是 `Release vX.Y.Z` 版本提交，workflow 列表标题会显示对应版本，并自动打包发布对应 tag。
 
-不要在 `main` 上执行 `./scripts/release-version.sh`。脚本已限制只能在 `develop` 上运行，避免 main 分支先推版本提交但 tag 尚未可见时导致 Release 跳过。
+不要在 `main` 上执行 `./scripts/release-version.sh`。脚本已限制只能在 `develop` 上运行。合并到 main 时使用 fast-forward，避免 main 产生额外 merge commit，让 Release workflow 标题和打包目标都对应版本提交。
 
 ## 依赖升级策略
 
