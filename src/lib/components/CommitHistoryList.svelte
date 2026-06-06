@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { locale, translate, translateBranchDisabledReason } from "$lib/i18n";
+  import HistoryFilters from "$lib/components/HistoryFilters.svelte";
   import MainViewTabs, {
     type MainViewId,
   } from "$lib/components/MainViewTabs.svelte";
@@ -45,18 +46,6 @@
 
     event.preventDefault();
     dispatch("openMenu", { commit, x: event.clientX, y: event.clientY });
-  }
-
-  function updateFilter(key: keyof CommitHistoryFilters, value: string) {
-    dispatch("filterChange", {
-      filters: {
-        query: filters.query ?? "",
-        author: filters.author ?? "",
-        filePath: filters.filePath ?? "",
-        message: filters.message ?? "",
-        [key]: value,
-      },
-    });
   }
 
   function changePage(nextPageIndex: number) {
@@ -107,30 +96,11 @@
         )}
       {/if}
     </div>
-    <div class="mt-3 space-y-2">
-      <input
-        class="h-8 w-full rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-        placeholder={translate($locale, "history.commitSearch")}
-        value={filters.query ?? ""}
-        on:input={(event) => updateFilter("query", event.currentTarget.value)}
-      />
-      <div class="grid grid-cols-2 gap-2">
-        <input
-          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder={translate($locale, "history.author")}
-          value={filters.author ?? ""}
-          on:input={(event) =>
-            updateFilter("author", event.currentTarget.value)}
-        />
-        <input
-          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder={translate($locale, "history.filePath")}
-          value={filters.filePath ?? ""}
-          on:input={(event) =>
-            updateFilter("filePath", event.currentTarget.value)}
-        />
-      </div>
-    </div>
+    <HistoryFilters
+      {filters}
+      on:filterChange={(event) =>
+        dispatch("filterChange", { filters: event.detail.filters })}
+    />
   </div>
 
   <div class="min-h-0 flex-1 overflow-y-auto">
