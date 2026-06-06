@@ -1,14 +1,22 @@
 name: Release
-run-name: Release · ${{ github.ref_name }}
+run-name: Release · ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to build, for example v1.4.1
+        required: true
+        type: string
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_type == 'tag' && github.ref_name || github.sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -33,45 +41,127 @@ jobs:
         with:
           node-version: 20
 
-      - name: Validate tag target and versions
+      - name: Resolve release tag and validate versions
         id: meta
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF_NAME}"
-          TAG_SHA="$(git rev-parse "${TAG_NAME}^{commit}")"
-          MAX_ATTEMPTS=12
-          SLEEP_SECONDS=5
-          TAG_IS_MAIN_HEAD=0
+          TAG_NAME=""
+          TAG_SHA=""
 
-          # 支持“先打 tag，再和 main 一起 push”的发布习惯：
-          # tag 事件触发时，GitHub 侧有时会比 main 分支更新更早到达 workflow，
-          # 这里短暂轮询 origin/main，等待它更新到当前 tag 指向的 commit。
-          for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
-            git fetch origin main --tags --force
+          fetch_release_refs() {
+            git fetch origin \
+              '+refs/heads/main:refs/remotes/origin/main' \
+              '+refs/tags/*:refs/tags/*' \
+              --force
+          }
 
-            if [[ "$(git rev-parse origin/main)" == "${TAG_SHA}" ]]; then
-              TAG_IS_MAIN_HEAD=1
-              break
-            fi
-
-            if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
-              echo "origin/main is not at ${TAG_NAME} yet; retrying in ${SLEEP_SECONDS}s (${attempt}/${MAX_ATTEMPTS})..."
-              sleep "${SLEEP_SECONDS}"
-            fi
-          done
-
-          if [[ "${TAG_IS_MAIN_HEAD}" -ne 1 ]]; then
-            echo "Tag ${TAG_NAME} does not point to the current origin/main HEAD after waiting $((MAX_ATTEMPTS * SLEEP_SECONDS)) seconds; skipping release build."
+          skip_release() {
+            local reason="$1"
+            echo "${reason}"
             {
               echo "should_release=false"
               echo "tag_name=${TAG_NAME}"
-              echo "release_name=${TAG_NAME}"
-              echo "release_notes=Skipped release build because ${TAG_NAME} is not on the current origin/main HEAD."
+              echo "release_name=${TAG_NAME:-No release}"
+              echo "release_notes=${reason}"
             } >> "${GITHUB_OUTPUT}"
             exit 0
+          }
+
+          release_exists() {
+            gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1
+          }
+
+          require_release_tag() {
+            TAG_NAME="${TAG_NAME#refs/tags/}"
+
+            if [[ -z "${TAG_NAME}" ]]; then
+              echo "Release tag name is empty." >&2
+              exit 1
+            fi
+
+            if [[ "${TAG_NAME}" != v* ]]; then
+              echo "Release tag ${TAG_NAME} must start with v." >&2
+              exit 1
+            fi
+
+            if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}^{commit}" >/dev/null; then
+              echo "Release tag ${TAG_NAME} does not exist." >&2
+              exit 1
+            fi
+
+            TAG_SHA="$(git rev-parse "refs/tags/${TAG_NAME}^{commit}")"
+          }
+
+          fetch_release_refs
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG_NAME="${INPUT_TAG_NAME}"
+            require_release_tag
+
+            if ! git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
+              echo "Release tag ${TAG_NAME} is not reachable from origin/main." >&2
+              exit 1
+            fi
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            require_release_tag
+
+            MAX_ATTEMPTS=12
+            SLEEP_SECONDS=5
+            TAG_IS_MAIN_HEAD=0
+
+            # tag push 只处理“tag 正好打在当前 main HEAD”这种发布。
+            # 如果先在 develop 打 tag，再 no-ff 合并到 main，tag commit 会成为 main 的祖先但不是 HEAD；
+            # 这种情况由后续 main push 事件补发，避免 tag 事件和 main 事件重复打包。
+            for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+              fetch_release_refs
+
+              if [[ "$(git rev-parse origin/main)" == "${TAG_SHA}" ]]; then
+                TAG_IS_MAIN_HEAD=1
+                break
+              fi
+
+              if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
+                echo "${TAG_NAME} is not the current origin/main HEAD yet; retrying in ${SLEEP_SECONDS}s (${attempt}/${MAX_ATTEMPTS})..."
+                sleep "${SLEEP_SECONDS}"
+              fi
+            done
+
+            if [[ "${TAG_IS_MAIN_HEAD}" -ne 1 ]]; then
+              skip_release "Skipped release build because ${TAG_NAME} is not the current origin/main HEAD. If it is merged into main, the main push event will publish it."
+            fi
+
+            if release_exists; then
+              skip_release "Skipped release build because GitHub Release ${TAG_NAME} already exists."
+            fi
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
+            PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+            TAG_NAME="v${PACKAGE_VERSION}"
+
+            if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}^{commit}" >/dev/null; then
+              skip_release "Skipped release build because main expects ${TAG_NAME}, but that tag does not exist."
+            fi
+
+            require_release_tag
+
+            if ! git merge-base --is-ancestor "${TAG_SHA}" HEAD; then
+              skip_release "Skipped release build because ${TAG_NAME} is not reachable from the pushed main commit."
+            fi
+
+            if release_exists; then
+              skip_release "Skipped release build because GitHub Release ${TAG_NAME} already exists."
+            fi
+          else
+            skip_release "Skipped release build for unsupported ref ${GITHUB_REF}."
           fi
+
+          # Build and publish the exact tagged commit, not the merge commit that happened to trigger this workflow.
+          git checkout --detach "${TAG_SHA}"
 
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
@@ -138,8 +228,10 @@ jobs:
             rust-target: ""
             tauri-args: ""
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate-release.outputs.tag_name }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
