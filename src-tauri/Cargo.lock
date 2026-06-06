@@ -4111,7 +4111,7 @@ dependencies = [
 
 [[package]]
 name = "tickgit"
-version = "1.4.4"
+version = "1.5.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
