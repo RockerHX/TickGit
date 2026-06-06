@@ -355,6 +355,7 @@ fn filters_commit_history_by_summary_and_body_case_insensitively() {
     assert_eq!(title_history.items.len(), 1);
     assert_eq!(title_history.items[0].hash, title_hash);
     assert_eq!(title_history.next_skip, 1);
+    assert_eq!(title_history.total_count, 1);
     assert!(!title_history.has_more);
 
     let body_history = get_commit_history(
@@ -370,10 +371,72 @@ fn filters_commit_history_by_summary_and_body_case_insensitively() {
 
     assert_eq!(body_history.items.len(), 1);
     assert_eq!(body_history.items[0].hash, body_hash);
+    assert_eq!(body_history.total_count, 1);
     assert!(body_history
         .items
         .iter()
         .all(|item| item.hash != first_hash));
+}
+
+#[test]
+fn filters_commit_history_by_message_separately_from_global_query() {
+    let repo = init_repo();
+    run_git(&repo.path, &["config", "user.name", "Alice Example"]);
+    run_git(&repo.path, &["config", "user.email", "alice@example.com"]);
+    let alice_hash = commit_file(&repo.path, "alice.txt", "alice\n", "plain work");
+    run_git(&repo.path, &["config", "user.name", "TickGit Tests"]);
+    run_git(
+        &repo.path,
+        &["config", "user.email", "tickgit-tests@example.com"],
+    );
+    let body_hash = commit_file_with_body(
+        &repo.path,
+        "body.txt",
+        "body\n",
+        "Refactor internals",
+        "Includes a Release Note marker",
+    );
+
+    let global_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            query: Some("alice".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+    let message_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            message: Some("release note".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+    let and_history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            query: Some("alice".to_string()),
+            message: Some("release note".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(global_history.items.len(), 1);
+    assert_eq!(global_history.items[0].hash, alice_hash);
+    assert_eq!(global_history.total_count, 1);
+    assert_eq!(message_history.items.len(), 1);
+    assert_eq!(message_history.items[0].hash, body_hash);
+    assert_eq!(message_history.total_count, 1);
+    assert_eq!(and_history.items.len(), 0);
+    assert_eq!(and_history.total_count, 0);
 }
 
 #[test]
@@ -400,6 +463,7 @@ fn filters_commit_history_by_author_name_and_email_case_insensitively() {
 
     assert_eq!(name_history.items.len(), 1);
     assert_eq!(name_history.items[0].hash, alice_hash);
+    assert_eq!(name_history.total_count, 1);
 
     let email_history = get_commit_history(
         repo.path.to_string_lossy().as_ref(),
@@ -414,6 +478,7 @@ fn filters_commit_history_by_author_name_and_email_case_insensitively() {
 
     assert_eq!(email_history.items.len(), 1);
     assert_eq!(email_history.items[0].hash, bob_hash);
+    assert_eq!(email_history.total_count, 1);
 }
 
 #[test]
@@ -455,10 +520,12 @@ fn paginates_filtered_commit_history_after_metadata_filters() {
     );
     assert!(first_page.has_more);
     assert_eq!(first_page.next_skip, 2);
+    assert_eq!(first_page.total_count, 3);
     assert_eq!(second_page.items.len(), 1);
     assert_eq!(second_page.items[0].hash, first_hash);
     assert!(!second_page.has_more);
     assert_eq!(second_page.next_skip, 3);
+    assert_eq!(second_page.total_count, 3);
 }
 
 #[test]

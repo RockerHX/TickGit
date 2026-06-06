@@ -46,6 +46,7 @@ export type CommitHistoryPage = {
   items: CommitListItem[];
   nextSkip: number;
   hasMore: boolean;
+  totalCount: number;
   unpushedCount: number;
   safeUnpushedCount: number;
 };
@@ -54,6 +55,7 @@ export type CommitHistoryFilters = {
   query?: string | null;
   author?: string | null;
   filePath?: string | null;
+  message?: string | null;
 };
 
 export type CommitFileChange = {

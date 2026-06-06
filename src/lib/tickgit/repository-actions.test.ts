@@ -98,6 +98,7 @@ function historyPage(items: CommitListItem[]): CommitHistoryPage {
     items,
     nextSkip: items.length,
     hasMore: false,
+    totalCount: items.length,
     unpushedCount: 0,
     safeUnpushedCount: 0,
   };

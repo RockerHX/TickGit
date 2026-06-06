@@ -17,6 +17,7 @@ struct NormalizedCommitHistoryFilters {
     query: Option<String>,
     author: Option<String>,
     file_path: Option<String>,
+    message: Option<String>,
 }
 
 fn normalize_filter_value(value: Option<String>) -> Option<String> {
@@ -34,6 +35,7 @@ fn normalize_history_filters(
         query: normalize_filter_value(filters.query),
         author: normalize_filter_value(filters.author),
         file_path: normalize_filter_value(filters.file_path),
+        message: normalize_filter_value(filters.message),
     }
 }
 
@@ -43,7 +45,7 @@ impl NormalizedCommitHistoryFilters {
     }
 
     fn has_commit_metadata_filters(&self) -> bool {
-        self.query.is_some() || self.author.is_some()
+        self.query.is_some() || self.author.is_some() || self.message.is_some()
     }
 }
 
@@ -62,10 +64,31 @@ fn commit_record_matches_metadata(record: &str, filters: &NormalizedCommitHistor
     }
 
     if let Some(query) = filters.query.as_deref() {
+        let hash = fields[0];
+        let short_hash = fields[1];
+        let summary = fields[2];
+        let author_name = fields[3];
+        let author_email = fields[4];
+        let decorations = fields[6];
+        let body = fields[8];
+
+        if !contains_normalized(hash, query)
+            && !contains_normalized(short_hash, query)
+            && !contains_normalized(summary, query)
+            && !contains_normalized(body, query)
+            && !contains_normalized(author_name, query)
+            && !contains_normalized(author_email, query)
+            && !contains_normalized(decorations, query)
+        {
+            return false;
+        }
+    }
+
+    if let Some(message) = filters.message.as_deref() {
         let summary = fields[2];
         let body = fields[8];
 
-        if !contains_normalized(summary, query) && !contains_normalized(body, query) {
+        if !contains_normalized(summary, message) && !contains_normalized(body, message) {
             return false;
         }
     }
@@ -160,7 +183,7 @@ pub fn get_commit_history(
         _ => (HashSet::new(), HashSet::new(), None),
     };
 
-    let (items, item_count, has_more) = if filters.has_filters() {
+    let (items, item_count, has_more, total_count) = if filters.has_filters() {
         let output = git_trimmed(
             &repo_path,
             &[
@@ -181,6 +204,7 @@ pub fn get_commit_history(
                 matched_records.push(record);
             }
         }
+        let total_count = matched_records.len();
         let page_records: Vec<&str> = matched_records
             .iter()
             .skip(skip)
@@ -201,10 +225,13 @@ pub fn get_commit_history(
             unsafe_push_reason,
         );
         let item_count = items.len();
-        let has_more = skip + item_count < matched_records.len();
+        let has_more = skip + item_count < total_count;
 
-        (items, item_count, has_more)
+        (items, item_count, has_more, total_count)
     } else {
+        let total_count = git_trimmed(&repo_path, &["rev-list", "--count", "HEAD"])?
+            .parse::<usize>()
+            .unwrap_or(0);
         let output = git_trimmed(
             &repo_path,
             &[
@@ -224,15 +251,16 @@ pub fn get_commit_history(
         let items =
             parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
         let item_count = items.len();
-        let has_more = item_count == limit;
+        let has_more = skip + item_count < total_count;
 
-        (items, item_count, has_more)
+        (items, item_count, has_more, total_count)
     };
 
     Ok(CommitHistoryPage {
         items,
         next_skip: skip + item_count,
         has_more,
+        total_count,
         unpushed_count: unpushed.len(),
         safe_unpushed_count: safe_push_targets.len(),
     })

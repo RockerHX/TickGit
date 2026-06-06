@@ -28,14 +28,16 @@ describe("history filters", () => {
       query: "  fix ",
       author: " ",
       filePath: " src/app ",
+      message: " release note ",
     });
 
     expect(filters).toEqual({
       query: "fix",
       author: "",
       filePath: "src/app",
+      message: "release note",
     });
-    expect(getActiveHistoryFilterCount(filters)).toBe(2);
+    expect(getActiveHistoryFilterCount(filters)).toBe(3);
     expect(hasActiveHistoryFilters(filters)).toBe(true);
     expect(getActiveHistoryFilterCount(null)).toBe(0);
   });
@@ -43,14 +45,14 @@ describe("history filters", () => {
   it("compares normalized history filters", () => {
     expect(
       historyFiltersEqual(
-        { query: " fix ", author: "Ada", filePath: "" },
-        { query: "fix", author: "Ada", filePath: null },
+        { query: " fix ", author: "Ada", filePath: "", message: " body " },
+        { query: "fix", author: "Ada", filePath: null, message: "body" },
       ),
     ).toBe(true);
     expect(
       historyFiltersEqual(
         { query: "fix", author: "Ada" },
-        { query: "fix", author: "Bob" },
+        { query: "fix", author: "Ada", message: "docs" },
       ),
     ).toBe(false);
   });

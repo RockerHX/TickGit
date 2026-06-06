@@ -115,6 +115,7 @@ function historyPage(
     items,
     nextSkip: items.length,
     hasMore: false,
+    totalCount: items.length,
     unpushedCount: items.filter((item) => !item.isPushed).length,
     safeUnpushedCount: items.filter((item) => item.isSafePushTarget).length,
     ...overrides,
