@@ -136,7 +136,7 @@
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-emerald-400/45 bg-[#1f2328] text-emerald-200 shadow-sm shadow-black/35"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400/55 bg-[#0f172a] text-emerald-300 shadow-sm shadow-emerald-500/20"
                     title={translate($locale, "history.safeStepPush")}
                     aria-label={translate($locale, "history.safeStepPush")}
                   >
@@ -152,7 +152,7 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-rose-400/45 bg-[#1f2328] text-rose-200 shadow-sm shadow-black/35"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-400/55 bg-[#0f172a] text-rose-300 shadow-sm shadow-rose-500/20"
                     title={commit.pushBlockedReason ??
                       translate($locale, "history.unsafeStepPushFallback")}
                     aria-label={translate($locale, "history.unsafeStepPush")}
@@ -171,10 +171,10 @@
               {/if}
 
               <div
-                class={`flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 ${
                   selectedHash === commit.hash
-                    ? "border-[#539bf5]/40 bg-[#2f81f7]/20 text-[#cae8ff]"
-                    : "border-[#444c56] bg-[#373e47] text-slate-200"
+                    ? "border-[#60a5fa]/45 bg-[#2563eb]/35 text-[#dbeafe]"
+                    : "border-[#334155] bg-[#1e293b] text-slate-200"
                 }`}
               >
                 {getInitials(commit.authorName)}
@@ -217,29 +217,20 @@
                   </span>
                   {#if !commit.isPushed}
                     <span
-                      class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
+                      class={`h-2 w-2 rounded-full ${
+                        commit.isSafePushTarget
+                          ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
+                          : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
+                      }`}
                       title={translate($locale, "history.localCommit")}
-                    >
-                      <svg
-                        viewBox="0 0 16 16"
-                        class="h-3.5 w-3.5 fill-current"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
-                        ></path>
-                      </svg>
-                    </span>
+                      aria-label={translate($locale, "history.localCommit")}
+                    ></span>
                   {:else}
-                    <svg
-                      viewBox="0 0 16 16"
-                      class="h-3.5 w-3.5 fill-[#8b949e]"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
-                      ></path>
-                    </svg>
+                    <span
+                      class="h-2 w-2 rounded-full bg-slate-600"
+                      title={translate($locale, "history.pushedCommit")}
+                      aria-label={translate($locale, "history.pushedCommit")}
+                    ></span>
                   {/if}
                 </div>
               </div>

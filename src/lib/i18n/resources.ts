@@ -107,6 +107,7 @@ export const resources = {
     "history.unsafeStepPushFallback":
       "This commit cannot be step pushed safely",
     "history.localCommit": "Local commit",
+    "history.pushedCommit": "Pushed commit",
     "history.loading": "Loading history…",
     "history.loadFailedTitle": "Failed to load history",
     "commit.selectPrompt": "Select a commit to inspect its details",
@@ -380,6 +381,7 @@ export const resources = {
     "history.unsafeStepPush": "不能安全分步推送",
     "history.unsafeStepPushFallback": "当前 Commit 不能安全分步推送",
     "history.localCommit": "本地 Commit",
+    "history.pushedCommit": "已推送 Commit",
     "history.loading": "正在加载历史…",
     "history.loadFailedTitle": "加载历史失败",
     "commit.selectPrompt": "选择一个 Commit 查看详情",
