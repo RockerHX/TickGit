@@ -66,7 +66,23 @@ if [[ -z "${CURRENT_BRANCH}" ]]; then
   exit 1
 fi
 
-if git rev-parse --verify --quiet "${TAG}" >/dev/null; then
+if [[ "${CURRENT_BRANCH}" != "develop" ]]; then
+  echo "请在 develop 分支执行该脚本；真正的 Release 只由 main 分支 push 触发。" >&2
+  exit 1
+fi
+
+git fetch origin \
+  '+refs/heads/develop:refs/remotes/origin/develop' \
+  '+refs/tags/*:refs/tags/*' \
+  --force
+
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/develop)" ]]; then
+  echo "本地 develop 必须与 origin/develop 完全一致后才能执行版本脚本。" >&2
+  echo "请先推送代码并等待 origin/develop 最新 CI 通过，再执行该脚本。" >&2
+  exit 1
+fi
+
+if git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
   echo "Tag ${TAG} 已存在，请更换版本号。" >&2
   exit 1
 fi
@@ -100,6 +116,8 @@ const cargoLock = fs.readFileSync(cargoLockPath, "utf8").replace(
 );
 fs.writeFileSync(cargoLockPath, cargoLock);
 EOF
+
+pnpm exec prettier --write package.json src-tauri/tauri.conf.json
 
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
 git commit -m "Release ${TAG}"

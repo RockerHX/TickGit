@@ -2,6 +2,51 @@
 
 本文档记录 TickGit 发布与依赖维护规则，避免发布工程改动混入功能开发。
 
+## 标准发布流程
+
+发布流程固定为：`develop` 做代码检查，`main` 执行正式打包发布。
+
+### GitHub Actions 规则
+
+- `develop` 分支只跑 CI，不跑 Release。
+- `develop` 连续推送多次时，同一分支旧的 CI 会被取消，只保留最新一次推送对应的 CI。
+- `./scripts/release-version.sh` 生成的版本提交只修改版本文件，CI 会忽略这类版本提交。
+- tag push 不触发 Release。
+- Release 只由 `main` 分支 push 触发；没有 tag push 触发，也没有手动触发入口。触发后会读取 `main` 当前版本号，查找对应 tag，例如版本 `1.4.3` 对应 `v1.4.3`，并打包这个 tag 指向的提交。
+
+### 操作步骤
+
+1. 在 `develop` 完成功能/修复提交并推送。
+
+   ```bash
+   git switch develop
+   git push origin develop
+   ```
+
+2. 等 GitHub Actions 里 `develop` 最新一次 CI 通过。
+
+3. 确认本地 `develop` 与 `origin/develop` 一致后，仍然在 `develop` 上执行版本脚本。
+
+   ```bash
+   git pull --ff-only origin develop
+   ./scripts/release-version.sh 1.4.3
+   ```
+
+   这个脚本会先检查本地 `develop` 是否等于 `origin/develop`，然后创建 `Release v1.4.3` 提交和 `v1.4.3` tag，并自动推送 `develop` 和 tag。该步骤不会触发 CI，也不会触发 Release。
+
+4. 合并 `develop` 到 `main` 并推送。
+
+   ```bash
+   git switch main
+   git pull --ff-only origin main
+   git merge --no-ff develop
+   git push origin main
+   ```
+
+5. `main` push 会触发 Release workflow，自动打包并发布对应 tag。
+
+不要在 `main` 上执行 `./scripts/release-version.sh`。脚本已限制只能在 `develop` 上运行，避免 main 分支先推版本提交但 tag 尚未可见时导致 Release 跳过。
+
 ## 依赖升级策略
 
 - Tauri 2 相关依赖需要优先保持前端包与 Rust 依赖的 minor 族对齐，包括 `@tauri-apps/api`、`@tauri-apps/cli`、`@tauri-apps/plugin-*`、`tauri`、`tauri-build`、`tauri-plugin-*`。
