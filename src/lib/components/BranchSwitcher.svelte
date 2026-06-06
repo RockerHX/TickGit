@@ -16,6 +16,15 @@
 
   $: normalizedFilter = filterText.trim().toLowerCase();
   $: upstreamLabel = upstream ?? translate($locale, "branch.noUpstream");
+  $: disabledTitle =
+    disabledReason ?? translate($locale, "branch.pushDisabledFallback");
+  $: cardLabel = [
+    `${translate($locale, "branch.current")}: ${currentBranch ?? translate($locale, "branch.noneSelected")}`,
+    upstreamLabel,
+    disabled ? disabledTitle : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
   $: filteredBranches = branches.filter((branch) =>
     normalizedFilter.length === 0
       ? true
@@ -70,9 +79,8 @@
     }`}
     type="button"
     disabled={disabled || branches.length === 0}
-    title={disabled
-      ? translate($locale, "branch.pushDisabledFallback")
-      : undefined}
+    aria-label={cardLabel}
+    title={disabled ? disabledTitle : undefined}
     on:click|stopPropagation={toggleOpen}
   >
     <span
