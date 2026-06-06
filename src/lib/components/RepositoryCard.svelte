@@ -4,6 +4,8 @@
   import {
     formatRepositoryPath,
     repositoryStatusBadgeLabel,
+    repositoryStatusLabel,
+    repositoryStatusMessage,
     repositoryStatusTone,
   } from "$lib/tickgit/repositories";
   import type { RepositorySummary } from "$lib/types";
@@ -12,6 +14,22 @@
   export let open = false;
 
   const dispatch = createEventDispatcher<{ toggle: void }>();
+
+  $: displayPath = repository ? formatRepositoryPath(repository.path) : null;
+  $: statusLabel = repository
+    ? repositoryStatusLabel(repository.status, $locale)
+    : null;
+  $: unavailableMessage = repository
+    ? repositoryStatusMessage(repository, $locale)
+    : null;
+  $: cardLabel = repository
+    ? `${translate($locale, "repository.current")}: ${repository.name}. ${statusLabel}. ${displayPath}`
+    : translate($locale, "repository.select");
+  $: cardTitle = repository
+    ? unavailableMessage
+      ? `${repository.name} · ${displayPath} · ${unavailableMessage}`
+      : `${repository.name} · ${displayPath}`
+    : translate($locale, "repository.select");
 
   function toggle() {
     dispatch("toggle");
@@ -25,6 +43,10 @@
       : "border-white/[0.1] bg-[#0f172a]/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#60a5fa]/32 hover:bg-[#1e293b]/62 hover:shadow-[0_14px_34px_rgba(15,23,42,0.24)]"
   }`}
   type="button"
+  aria-expanded={open}
+  aria-haspopup="dialog"
+  aria-label={cardLabel}
+  title={cardTitle}
   on:click|stopPropagation={toggle}
 >
   <span
@@ -54,9 +76,7 @@
       {/if}
     </span>
     <span class="mt-1 block truncate text-[11px] text-slate-400">
-      {repository
-        ? formatRepositoryPath(repository.path)
-        : translate($locale, "repository.select")}
+      {displayPath ?? translate($locale, "repository.select")}
     </span>
   </span>
 
