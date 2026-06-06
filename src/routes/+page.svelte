@@ -200,6 +200,14 @@
       isPushing,
       stepPushState,
     }) && !syncingRemoteStatus;
+  $: canRunRepositoryManagementNow =
+    !managingRepositoryPath &&
+    canManageRepositories({
+      loadingRepository,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+    });
   $: canPushBranch = canPushCurrentBranch({
     branchStatus,
     switchingBranch,
@@ -336,15 +344,7 @@
   }
 
   function canRunRepositoryManagement() {
-    return (
-      !managingRepositoryPath &&
-      canManageRepositories({
-        loadingRepository,
-        switchingBranch,
-        isPushing,
-        stepPushState,
-      })
-    );
+    return canRunRepositoryManagementNow;
   }
 
   function currentBranchDisabledReason() {
@@ -1568,7 +1568,7 @@
           <RepositorySwitcher
             {repositories}
             currentPath={currentRepository?.path ?? null}
-            managementDisabled={!canRunRepositoryManagement()}
+            managementDisabled={!canRunRepositoryManagementNow}
             on:change={(event) => switchRepository(event.detail.path)}
             on:remove={(event) => removeRepositoryFromList(event.detail.path)}
             on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
@@ -1767,7 +1767,7 @@
             <button
               type="button"
               class="rounded-md border border-[#539bf5]/45 bg-[#347dff]/15 px-4 py-2 text-sm font-semibold text-[#cae8ff] transition hover:bg-[#347dff]/25 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canRunRepositoryManagement()}
+              disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
                 relocateRepositoryPath(currentRepository.path)}
@@ -1777,7 +1777,7 @@
             <button
               type="button"
               class="rounded-md border border-rose-400/35 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canRunRepositoryManagement()}
+              disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
                 removeRepositoryFromList(currentRepository.path)}
