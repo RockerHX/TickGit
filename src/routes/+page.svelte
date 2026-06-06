@@ -85,6 +85,10 @@
   } from "$lib/tickgit/push-events";
   import { startStepPushFromPlan } from "$lib/tickgit/step-push-plan";
   import {
+    HISTORY_PAGE_SIZE,
+    getPaginationState,
+  } from "$lib/tickgit/pagination";
+  import {
     EMPTY_WORKSPACE_STATUS,
     fetchWorkspaceSnapshot,
     getWorkspaceCommitFailureEffect,
@@ -113,7 +117,7 @@
     WorkspaceStatus,
   } from "$lib/types";
 
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = HISTORY_PAGE_SIZE;
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
   const HISTORY_FILTER_DEBOUNCE_MS = 300;
@@ -151,6 +155,8 @@
 
   let nextSkip = 0;
   let hasMore = false;
+  let historyTotalCount = 0;
+  let historyPageIndex = 0;
   let loadingHistory = false;
   let loadingRepository = true;
   let loadingFiles = false;
@@ -247,6 +253,7 @@
     commits = snapshot.commits;
     nextSkip = snapshot.nextSkip;
     hasMore = snapshot.hasMore;
+    historyTotalCount = snapshot.totalCount;
     selectedCommit = snapshot.selectedCommit;
     selectedCommitMeta = snapshot.commitMeta;
     commitFiles = snapshot.commitFiles;
@@ -323,6 +330,8 @@
     diffResult = EMPTY_DIFF_RESULT;
     nextSkip = 0;
     hasMore = false;
+    historyTotalCount = 0;
+    historyPageIndex = 0;
     loadingHistory = false;
     loadingFiles = false;
     loadingDiff = false;
@@ -451,6 +460,7 @@
     }
 
     historyFilters = nextFilters;
+    historyPageIndex = 0;
     scheduleHistoryFilterReload();
   }
 
@@ -460,6 +470,7 @@
     }
 
     historyFilters = { ...EMPTY_HISTORY_FILTERS };
+    historyPageIndex = 0;
     scheduleHistoryFilterReload();
   }
 
@@ -473,11 +484,12 @@
     commits = [];
     nextSkip = 0;
     hasMore = false;
+    historyTotalCount = 0;
     clearHistoryDetailState();
 
     historyFilterTimer = window.setTimeout(() => {
       historyFilterTimer = null;
-      void loadHistory(false);
+      void loadHistory();
     }, HISTORY_FILTER_DEBOUNCE_MS);
   }
 
@@ -499,6 +511,7 @@
     try {
       const bootstrapState = await loadBootstrapRepositoryState(api, {
         pageSize: PAGE_SIZE,
+        historySkip: historyPageIndex * PAGE_SIZE,
         keepSelection: false,
         previousSelectedHash: null,
         ignoreWhitespace: hideWhitespaceInDiff,
@@ -534,6 +547,7 @@
     try {
       await api.setCurrentRepository(path);
       await refreshRepositories();
+      historyPageIndex = 0;
       resetWorkspaceState();
 
       await loadCurrentRepositoryState();
@@ -558,6 +572,7 @@
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
       const repositoryState = await loadRepositoryStateSnapshot(api, path, {
         pageSize: PAGE_SIZE,
+        historySkip: historyPageIndex * PAGE_SIZE,
         keepSelection,
         previousSelectedHash: selectedCommit?.hash ?? null,
         ignoreWhitespace: hideWhitespaceInDiff,
@@ -625,6 +640,7 @@
 
     switchingBranch = true;
     loadingRepository = true;
+    historyPageIndex = 0;
 
     try {
       await api.checkoutBranch(repository.path, branch);
@@ -691,6 +707,7 @@
         repository.path,
         {
           pageSize: PAGE_SIZE,
+          historySkip: historyPageIndex * PAGE_SIZE,
           keepSelection: true,
           previousSelectedHash: selectedCommit?.hash ?? null,
           ignoreWhitespace: hideWhitespaceInDiff,
@@ -713,10 +730,15 @@
     }
   }
 
-  async function loadHistory(append: boolean) {
+  async function loadHistory(pageIndex = historyPageIndex) {
     const repository = currentRepository;
     const requestId = ++historyRequestId;
     const filters = normalizeHistoryFilters(historyFilters);
+    const targetPageIndex = getPaginationState(
+      historyTotalCount,
+      pageIndex,
+      PAGE_SIZE,
+    ).pageIndex;
 
     if (
       !repository ||
@@ -730,7 +752,7 @@
     try {
       const page = await api.getCommitHistory(
         repository.path,
-        append ? nextSkip : 0,
+        targetPageIndex * PAGE_SIZE,
         PAGE_SIZE,
         filters,
       );
@@ -739,17 +761,17 @@
         return;
       }
 
-      commits = append ? [...commits, ...page.items] : page.items;
+      historyPageIndex = targetPageIndex;
+      commits = page.items;
       nextSkip = page.nextSkip;
       hasMore = page.hasMore;
+      historyTotalCount = page.totalCount;
 
-      if (!append) {
-        const selected = page.items[0] ?? null;
-        if (selected) {
-          await selectCommit(selected, filters.filePath);
-        } else {
-          clearHistoryDetailState();
-        }
+      const selected = page.items[0] ?? null;
+      if (selected) {
+        await selectCommit(selected, filters.filePath);
+      } else {
+        clearHistoryDetailState();
       }
     } catch (error) {
       if (requestId === historyRequestId) {
@@ -764,6 +786,25 @@
         loadingHistory = false;
       }
     }
+  }
+
+  function changeHistoryPage(pageIndex: number) {
+    if (loadingHistory || loadingRepository) {
+      return;
+    }
+
+    const targetPageIndex = getPaginationState(
+      historyTotalCount,
+      pageIndex,
+      PAGE_SIZE,
+    ).pageIndex;
+
+    if (targetPageIndex === historyPageIndex) {
+      return;
+    }
+
+    historyPageIndex = targetPageIndex;
+    void loadHistory(targetPageIndex);
   }
 
   async function selectCommit(
@@ -1829,10 +1870,12 @@
         activeFilterCount={activeHistoryFilterCount}
         selectedHash={selectedCommit?.hash ?? null}
         loading={loadingHistory || loadingRepository}
-        {hasMore}
+        totalCount={historyTotalCount}
+        pageIndex={historyPageIndex}
+        pageSize={PAGE_SIZE}
         {branchStatus}
         on:select={(event) => selectCommit(event.detail.commit)}
-        on:loadMore={() => loadHistory(true)}
+        on:pageChange={(event) => changeHistoryPage(event.detail.pageIndex)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
         on:filterChange={(event) => setHistoryFilters(event.detail.filters)}

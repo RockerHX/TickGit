@@ -26,6 +26,7 @@ export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
 export type CommitHistoryLoadOptions = {
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
+  skip?: number;
 };
 
 export type TickGitPageApi = {
@@ -57,6 +58,7 @@ export type RepositorySnapshot = {
   commits: CommitListItem[];
   nextSkip: number;
   hasMore: boolean;
+  totalCount: number;
   selectedCommit: CommitListItem | null;
   commitMeta: CommitMeta | null;
   commitFiles: CommitFileChange[];
@@ -120,29 +122,21 @@ export async function fetchRepositorySnapshot(
   const branchStatus = await api.getBranchStatus(repoPath);
 
   let commits: CommitListItem[] = [];
-  let nextSkip = 0;
+  const skip = options.skip ?? 0;
+  let nextSkip = skip;
   let hasMore = false;
-  let expectedSafeUnpushedCount = 0;
+  let totalCount = 0;
 
-  do {
-    const page = await api.getCommitHistory(
-      repoPath,
-      nextSkip,
-      pageSize,
-      options.filters,
-    );
-    commits = [...commits, ...page.items];
-    nextSkip = page.nextSkip;
-    hasMore = page.hasMore;
-    expectedSafeUnpushedCount = page.safeUnpushedCount;
-  } while (
-    // 这里仍然只要求把全部安全 step-push 目标预加载出来；
-    // 历史现在按全量展示，但 step push / push to commit 仍只能作用于 first-parent 安全路径。
-    expectedSafeUnpushedCount > 0 &&
-    commits.filter((commit) => commit.isSafePushTarget).length <
-      expectedSafeUnpushedCount &&
-    hasMore
+  const page = await api.getCommitHistory(
+    repoPath,
+    skip,
+    pageSize,
+    options.filters,
   );
+  commits = page.items;
+  nextSkip = page.nextSkip;
+  hasMore = page.hasMore;
+  totalCount = page.totalCount;
 
   // 先稳定选中项，再去拉详情；这样刷新后才能正确保留旧选中，或在选中丢失时回退到首项。
   const selectedCommit = pickSelectedCommit(
@@ -157,6 +151,7 @@ export async function fetchRepositorySnapshot(
       commits,
       nextSkip,
       hasMore,
+      totalCount,
       selectedCommit: null,
       commitMeta: null,
       commitFiles: [],
@@ -178,6 +173,7 @@ export async function fetchRepositorySnapshot(
     commits,
     nextSkip,
     hasMore,
+    totalCount,
     selectedCommit,
     commitMeta: details.commitMeta,
     commitFiles: details.commitFiles,

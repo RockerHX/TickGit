@@ -8,35 +8,30 @@
   } from "$lib/types";
   import { formatRelativeDate, getInitials } from "$lib/utils";
   import { EMPTY_HISTORY_FILTERS } from "$lib/tickgit/history";
+  import {
+    HISTORY_PAGE_SIZE,
+    getPaginationState,
+  } from "$lib/tickgit/pagination";
 
   export let commits: CommitListItem[] = [];
   export let selectedHash: string | null = null;
   export let loading = false;
-  export let hasMore = false;
+  export let totalCount = 0;
+  export let pageIndex = 0;
+  export let pageSize = HISTORY_PAGE_SIZE;
   export let branchStatus: BranchStatus | null = null;
   export let filters: CommitHistoryFilters = EMPTY_HISTORY_FILTERS;
   export let activeFilterCount = 0;
 
   const dispatch = createEventDispatcher<{
     select: { commit: CommitListItem };
-    loadMore: void;
+    pageChange: { pageIndex: number };
     openMenu: { commit: CommitListItem; x: number; y: number };
     filterChange: { filters: CommitHistoryFilters };
     clearFilters: void;
   }>();
 
-  function handleScroll(event: Event) {
-    const target = event.currentTarget as HTMLDivElement;
-    const threshold = 180;
-    if (
-      target.scrollHeight - target.scrollTop - target.clientHeight <
-        threshold &&
-      hasMore &&
-      !loading
-    ) {
-      dispatch("loadMore");
-    }
-  }
+  $: pagination = getPaginationState(totalCount, pageIndex, pageSize);
 
   function openMenu(event: MouseEvent, commit: CommitListItem) {
     if (commit.isPushed || !branchStatus?.pushAvailable) {
@@ -53,9 +48,18 @@
         query: filters.query ?? "",
         author: filters.author ?? "",
         filePath: filters.filePath ?? "",
+        message: filters.message ?? "",
         [key]: value,
       },
     });
+  }
+
+  function changePage(nextPageIndex: number) {
+    if (loading) {
+      return;
+    }
+
+    dispatch("pageChange", { pageIndex: nextPageIndex });
   }
 </script>
 
@@ -118,7 +122,7 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto" on:scroll={handleScroll}>
+  <div class="min-h-0 flex-1 overflow-y-auto">
     {#if commits.length === 0 && !loading}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
@@ -268,6 +272,65 @@
     {#if loading}
       <div class="px-4 py-4 text-center text-xs text-slate-400">
         {translate($locale, "history.loading")}
+      </div>
+    {/if}
+  </div>
+
+  <div class="border-t border-[#1f2328] bg-[#24292f] px-4 py-3">
+    <div class="text-xs text-slate-400">
+      {translate($locale, "history.showingRange", {
+        start: pagination.showingStart,
+        end: pagination.showingEnd,
+        total: pagination.totalCount,
+      })}
+    </div>
+
+    {#if pagination.totalPages > 1}
+      <div class="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={translate($locale, "history.previousPage")}
+          disabled={!pagination.canPrevious || loading}
+          on:click={() => changePage(pagination.pageIndex - 1)}
+        >
+          ‹
+        </button>
+
+        {#each pagination.buttons as button}
+          {#if button.kind === "ellipsis"}
+            <span class="px-1 text-xs text-slate-500" aria-hidden="true">
+              {button.label}
+            </span>
+          {:else}
+            <button
+              type="button"
+              class={`h-8 min-w-8 rounded-md px-2 text-sm font-semibold transition ${
+                button.active
+                  ? "bg-[#347dff]/24 text-[#cae8ff] shadow-sm shadow-[#2f81f7]/20"
+                  : "bg-[#2d333b] text-slate-300 hover:bg-[#373e47] hover:text-slate-100"
+              }`}
+              aria-label={translate($locale, "history.pageLabel", {
+                page: button.pageIndex + 1,
+              })}
+              aria-current={button.active ? "page" : undefined}
+              disabled={button.active || loading}
+              on:click={() => changePage(button.pageIndex)}
+            >
+              {button.label}
+            </button>
+          {/if}
+        {/each}
+
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={translate($locale, "history.nextPage")}
+          disabled={!pagination.canNext || loading}
+          on:click={() => changePage(pagination.pageIndex + 1)}
+        >
+          ›
+        </button>
       </div>
     {/if}
   </div>

@@ -14,6 +14,7 @@ export type RepositoryActionsApi = TickGitPageApi & {
 
 export type LoadRepositoryStateOptions = {
   pageSize: number;
+  historySkip?: number;
   keepSelection: boolean;
   previousSelectedHash: string | null;
   ignoreWhitespace: boolean;
@@ -64,6 +65,7 @@ export async function loadRepositoryStateSnapshot(
       {
         filters: options.filters,
         preferredFilePathFilter: options.preferredFilePathFilter,
+        skip: options.historySkip,
       },
     ),
     api.listLocalBranches(repoPath),
