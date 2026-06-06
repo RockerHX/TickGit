@@ -15,6 +15,7 @@
   let container: HTMLDivElement | null = null;
 
   $: normalizedFilter = filterText.trim().toLowerCase();
+  $: upstreamLabel = upstream ?? translate($locale, "branch.noUpstream");
   $: filteredBranches = branches.filter((branch) =>
     normalizedFilter.length === 0
       ? true
@@ -92,6 +93,9 @@
     <span class="min-w-0 flex-1">
       <span class="block truncate text-[0.9rem] font-semibold text-[#f0f6fc]">
         {currentBranch ?? translate($locale, "branch.noneSelected")}
+      </span>
+      <span class="mt-0.5 block truncate text-[11px] text-slate-400">
+        {upstreamLabel}
       </span>
     </span>
 

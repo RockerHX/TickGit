@@ -1544,9 +1544,6 @@
             disabledReason={currentBranchDisabledReason()}
             on:change={(event) => switchBranch(event.detail.branch)}
           />
-          <div class="mt-0.5 truncate text-xs text-slate-400">
-            {branchStatus?.upstream ?? translate($locale, "branch.noUpstream")}
-          </div>
         </div>
 
         <div
