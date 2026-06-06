@@ -4,6 +4,7 @@ export const EMPTY_HISTORY_FILTERS: CommitHistoryFilters = {
   query: "",
   author: "",
   filePath: "",
+  message: "",
 };
 
 export function normalizeHistoryFilters(
@@ -13,6 +14,7 @@ export function normalizeHistoryFilters(
     query: filters?.query?.trim() ?? "",
     author: filters?.author?.trim() ?? "",
     filePath: filters?.filePath?.trim() ?? "",
+    message: filters?.message?.trim() ?? "",
   };
 }
 
@@ -21,9 +23,12 @@ export function getActiveHistoryFilterCount(
 ) {
   const normalized = normalizeHistoryFilters(filters);
 
-  return [normalized.query, normalized.author, normalized.filePath].filter(
-    Boolean,
-  ).length;
+  return [
+    normalized.query,
+    normalized.author,
+    normalized.filePath,
+    normalized.message,
+  ].filter(Boolean).length;
 }
 
 export function hasActiveHistoryFilters(
@@ -42,7 +47,8 @@ export function historyFiltersEqual(
   return (
     normalizedLeft.query === normalizedRight.query &&
     normalizedLeft.author === normalizedRight.author &&
-    normalizedLeft.filePath === normalizedRight.filePath
+    normalizedLeft.filePath === normalizedRight.filePath &&
+    normalizedLeft.message === normalizedRight.message
   );
 }
 

@@ -98,6 +98,7 @@ function historyPage(items: CommitListItem[]): CommitHistoryPage {
     items,
     nextSkip: items.length,
     hasMore: false,
+    totalCount: items.length,
     unpushedCount: 0,
     safeUnpushedCount: 0,
   };
@@ -242,6 +243,7 @@ describe("repository actions", () => {
 
     const state = await loadRepositoryStateSnapshot(api, "/repo-a", {
       pageSize: 50,
+      historySkip: 20,
       keepSelection: false,
       previousSelectedHash: null,
       ignoreWhitespace: false,
@@ -249,7 +251,7 @@ describe("repository actions", () => {
       preferredFilePathFilter: "src/matched",
     });
 
-    expect(getCommitHistory).toHaveBeenCalledWith("/repo-a", 0, 50, {
+    expect(getCommitHistory).toHaveBeenCalledWith("/repo-a", 20, 50, {
       query: "fix",
       author: "Ada",
       filePath: "src/matched",

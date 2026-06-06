@@ -72,6 +72,7 @@ pub struct CommitHistoryPage {
     pub items: Vec<CommitListItem>,
     pub next_skip: usize,
     pub has_more: bool,
+    pub total_count: usize,
     pub unpushed_count: usize,
     pub safe_unpushed_count: usize,
 }
@@ -82,6 +83,7 @@ pub struct CommitHistoryFilters {
     pub query: Option<String>,
     pub author: Option<String>,
     pub file_path: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

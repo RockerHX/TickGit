@@ -115,6 +115,7 @@ function historyPage(
     items,
     nextSkip: items.length,
     hasMore: false,
+    totalCount: items.length,
     unpushedCount: items.filter((item) => !item.isPushed).length,
     safeUnpushedCount: items.filter((item) => item.isSafePushTarget).length,
     ...overrides,
@@ -479,6 +480,7 @@ describe("page data", () => {
       commits: [],
       nextSkip: 0,
       hasMore: false,
+      totalCount: 0,
       selectedCommit: null,
       commitMeta: null,
       commitFiles: [],
@@ -490,25 +492,16 @@ describe("page data", () => {
     expect(getCommitFileDiff).not.toHaveBeenCalled();
   });
 
-  it("loads extra history pages until all safe step push commits are available", async () => {
-    const getCommitHistory = vi
-      .fn()
-      .mockResolvedValueOnce(
-        historyPage([commit("c5"), commit("c4")], {
-          nextSkip: 2,
-          hasMore: true,
-          unpushedCount: 4,
-          safeUnpushedCount: 4,
-        }),
-      )
-      .mockResolvedValueOnce(
-        historyPage([commit("c3"), commit("c2")], {
-          nextSkip: 4,
-          hasMore: true,
-          unpushedCount: 4,
-          safeUnpushedCount: 4,
-        }),
-      );
+  it("loads only the requested history page for repository snapshots", async () => {
+    const getCommitHistory = vi.fn().mockResolvedValue(
+      historyPage([commit("c3"), commit("c2")], {
+        nextSkip: 4,
+        hasMore: true,
+        totalCount: 8,
+        unpushedCount: 4,
+        safeUnpushedCount: 4,
+      }),
+    );
 
     const snapshot = await fetchRepositorySnapshot(
       createApiMock({
@@ -524,150 +517,46 @@ describe("page data", () => {
       2,
       false,
       null,
-    );
-
-    expect(getCommitHistory).toHaveBeenNthCalledWith(
-      1,
-      "/repo",
-      0,
-      2,
-      undefined,
-    );
-    expect(getCommitHistory).toHaveBeenNthCalledWith(
-      2,
-      "/repo",
-      2,
-      2,
-      undefined,
-    );
-    expect(snapshot.commits.map((item) => item.hash)).toEqual([
-      "c5",
-      "c4",
-      "c3",
-      "c2",
-    ]);
-  });
-
-  it("keeps paging when loaded commits include pushed items before all safe commits", async () => {
-    const getCommitHistory = vi
-      .fn()
-      .mockResolvedValueOnce(
-        historyPage([commit("pushed", true), commit("c2")], {
-          nextSkip: 2,
-          hasMore: true,
-          unpushedCount: 2,
-          safeUnpushedCount: 2,
-        }),
-      )
-      .mockResolvedValueOnce(
-        historyPage([commit("c1")], {
-          nextSkip: 3,
-          hasMore: false,
-        }),
-      );
-
-    const snapshot = await fetchRepositorySnapshot(
-      createApiMock({
-        getBranchStatus: vi
-          .fn()
-          .mockResolvedValue(
-            branchStatus({ aheadCount: 2, safeAheadCount: 2 }),
-          ),
-        getCommitHistory,
-        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
-      }),
-      "/repo",
-      2,
       false,
-      null,
-    );
-
-    expect(getCommitHistory).toHaveBeenCalledTimes(2);
-    expect(snapshot.commits.map((item) => item.hash)).toEqual([
-      "pushed",
-      "c2",
-      "c1",
-    ]);
-  });
-
-  it("stops paging when the first page already covers all safe commits", async () => {
-    const getCommitHistory = vi.fn().mockResolvedValue(
-      historyPage([commit("c3"), commit("c2"), commit("c1", true)], {
-        nextSkip: 3,
-        hasMore: true,
-      }),
-    );
-
-    await fetchRepositorySnapshot(
-      createApiMock({
-        getBranchStatus: vi
-          .fn()
-          .mockResolvedValue(
-            branchStatus({ aheadCount: 2, safeAheadCount: 2 }),
-          ),
-        getCommitHistory,
-        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
-      }),
-      "/repo",
-      50,
-      false,
-      null,
+      { skip: 2 },
     );
 
     expect(getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(getCommitHistory).toHaveBeenCalledWith("/repo", 2, 2, undefined);
+    expect(snapshot.commits.map((item) => item.hash)).toEqual(["c3", "c2"]);
+    expect(snapshot.nextSkip).toBe(4);
+    expect(snapshot.hasMore).toBe(true);
+    expect(snapshot.totalCount).toBe(8);
   });
 
-  it("stops paging when there are no unpushed commits", async () => {
+  it("keeps only the current page even when more safe commits exist", async () => {
     const getCommitHistory = vi.fn().mockResolvedValue(
-      historyPage([commit("c2", true), commit("c1", true)], {
+      historyPage([commit("pushed", true), commit("c2")], {
         nextSkip: 2,
         hasMore: true,
-      }),
-    );
-
-    await fetchRepositorySnapshot(
-      createApiMock({
-        getBranchStatus: vi
-          .fn()
-          .mockResolvedValue(branchStatus({ aheadCount: 0 })),
-        getCommitHistory,
-        getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
-      }),
-      "/repo",
-      50,
-      false,
-      null,
-    );
-
-    expect(getCommitHistory).toHaveBeenCalledTimes(1);
-  });
-
-  it("uses history safeUnpushedCount instead of branch status counts for paging", async () => {
-    const getCommitHistory = vi.fn().mockResolvedValue(
-      historyPage([commit("merge", false, false), commit("main")], {
-        nextSkip: 2,
-        hasMore: true,
+        totalCount: 3,
         unpushedCount: 2,
-        safeUnpushedCount: 1,
+        safeUnpushedCount: 2,
       }),
     );
 
-    await fetchRepositorySnapshot(
+    const snapshot = await fetchRepositorySnapshot(
       createApiMock({
         getBranchStatus: vi
           .fn()
           .mockResolvedValue(
-            branchStatus({ aheadCount: 4, safeAheadCount: 4 }),
+            branchStatus({ aheadCount: 2, safeAheadCount: 2 }),
           ),
         getCommitHistory,
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
       }),
       "/repo",
-      50,
+      2,
       false,
       null,
     );
 
     expect(getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(snapshot.commits.map((item) => item.hash)).toEqual(["pushed", "c2"]);
   });
 });

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { locale, translate, translateBranchDisabledReason } from "$lib/i18n";
+  import HistoryFilters from "$lib/components/HistoryFilters.svelte";
+  import MainViewTabs, {
+    type MainViewId,
+  } from "$lib/components/MainViewTabs.svelte";
   import type {
     BranchStatus,
     CommitHistoryFilters,
@@ -8,35 +12,32 @@
   } from "$lib/types";
   import { formatRelativeDate, getInitials } from "$lib/utils";
   import { EMPTY_HISTORY_FILTERS } from "$lib/tickgit/history";
+  import {
+    HISTORY_PAGE_SIZE,
+    getPaginationState,
+  } from "$lib/tickgit/pagination";
 
   export let commits: CommitListItem[] = [];
   export let selectedHash: string | null = null;
   export let loading = false;
-  export let hasMore = false;
+  export let totalCount = 0;
+  export let pageIndex = 0;
+  export let pageSize = HISTORY_PAGE_SIZE;
   export let branchStatus: BranchStatus | null = null;
   export let filters: CommitHistoryFilters = EMPTY_HISTORY_FILTERS;
   export let activeFilterCount = 0;
+  export let activeMainView: MainViewId = "history";
 
   const dispatch = createEventDispatcher<{
     select: { commit: CommitListItem };
-    loadMore: void;
+    pageChange: { pageIndex: number };
+    mainViewChange: { view: MainViewId };
     openMenu: { commit: CommitListItem; x: number; y: number };
     filterChange: { filters: CommitHistoryFilters };
     clearFilters: void;
   }>();
 
-  function handleScroll(event: Event) {
-    const target = event.currentTarget as HTMLDivElement;
-    const threshold = 180;
-    if (
-      target.scrollHeight - target.scrollTop - target.clientHeight <
-        threshold &&
-      hasMore &&
-      !loading
-    ) {
-      dispatch("loadMore");
-    }
-  }
+  $: pagination = getPaginationState(totalCount, pageIndex, pageSize);
 
   function openMenu(event: MouseEvent, commit: CommitListItem) {
     if (commit.isPushed || !branchStatus?.pushAvailable) {
@@ -47,21 +48,24 @@
     dispatch("openMenu", { commit, x: event.clientX, y: event.clientY });
   }
 
-  function updateFilter(key: keyof CommitHistoryFilters, value: string) {
-    dispatch("filterChange", {
-      filters: {
-        query: filters.query ?? "",
-        author: filters.author ?? "",
-        filePath: filters.filePath ?? "",
-        [key]: value,
-      },
-    });
+  function changePage(nextPageIndex: number) {
+    if (loading) {
+      return;
+    }
+
+    dispatch("pageChange", { pageIndex: nextPageIndex });
   }
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
-    <div class="flex items-center justify-between gap-3">
+    <MainViewTabs
+      active={activeMainView}
+      on:change={(event) =>
+        dispatch("mainViewChange", { view: event.detail.view })}
+    />
+
+    <div class="mt-3 flex items-center justify-between gap-3">
       <div class="text-sm font-semibold text-[#f0f6fc]">
         {translate($locale, "history.title")}
       </div>
@@ -92,33 +96,14 @@
         )}
       {/if}
     </div>
-    <div class="mt-3 space-y-2">
-      <input
-        class="h-8 w-full rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-        placeholder={translate($locale, "history.commitSearch")}
-        value={filters.query ?? ""}
-        on:input={(event) => updateFilter("query", event.currentTarget.value)}
-      />
-      <div class="grid grid-cols-2 gap-2">
-        <input
-          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder={translate($locale, "history.author")}
-          value={filters.author ?? ""}
-          on:input={(event) =>
-            updateFilter("author", event.currentTarget.value)}
-        />
-        <input
-          class="h-8 min-w-0 rounded-md border border-[#444c56] bg-[#24292f] px-3 text-xs text-[#f0f6fc] outline-none transition placeholder:text-slate-500 focus:border-[#539bf5]/70"
-          placeholder={translate($locale, "history.filePath")}
-          value={filters.filePath ?? ""}
-          on:input={(event) =>
-            updateFilter("filePath", event.currentTarget.value)}
-        />
-      </div>
-    </div>
+    <HistoryFilters
+      {filters}
+      on:filterChange={(event) =>
+        dispatch("filterChange", { filters: event.detail.filters })}
+    />
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto" on:scroll={handleScroll}>
+  <div class="min-h-0 flex-1 overflow-y-auto">
     {#if commits.length === 0 && !loading}
       <div
         class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
@@ -129,20 +114,20 @@
       </div>
     {/if}
 
-    <div>
+    <div class="space-y-2 p-2">
       {#each commits as commit (commit.hash)}
         <button
-          class={`group relative w-full border-b border-[#373e47] px-4 py-3 text-left transition ${
+          class={`group relative w-full overflow-hidden rounded-xl border px-3.5 py-3.5 text-left transition ${
             selectedHash === commit.hash
-              ? "bg-[#347dff]/14"
-              : "bg-transparent hover:bg-[#373e47]/45"
+              ? "border-[#3b82f6]/45 bg-gradient-to-r from-[#2563eb]/28 via-[#1d4ed8]/18 to-[#111827]/20 shadow-sm shadow-[#2563eb]/20"
+              : "border-transparent bg-transparent hover:border-[#334155]/80 hover:bg-white/[0.04]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           {#if selectedHash === commit.hash}
             <div
-              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#2f81f7]"
+              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#60a5fa] to-[#2563eb]"
             ></div>
           {/if}
 
@@ -151,7 +136,7 @@
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-emerald-400/45 bg-[#1f2328] text-emerald-200 shadow-sm shadow-black/35"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400/55 bg-[#0f172a] text-emerald-300 shadow-sm shadow-emerald-500/20"
                     title={translate($locale, "history.safeStepPush")}
                     aria-label={translate($locale, "history.safeStepPush")}
                   >
@@ -167,7 +152,7 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1 -top-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-rose-400/45 bg-[#1f2328] text-rose-200 shadow-sm shadow-black/35"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-400/55 bg-[#0f172a] text-rose-300 shadow-sm shadow-rose-500/20"
                     title={commit.pushBlockedReason ??
                       translate($locale, "history.unsafeStepPushFallback")}
                     aria-label={translate($locale, "history.unsafeStepPush")}
@@ -186,10 +171,10 @@
               {/if}
 
               <div
-                class={`flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 ${
                   selectedHash === commit.hash
-                    ? "border-[#539bf5]/40 bg-[#2f81f7]/20 text-[#cae8ff]"
-                    : "border-[#444c56] bg-[#373e47] text-slate-200"
+                    ? "border-[#60a5fa]/45 bg-[#2563eb]/35 text-[#dbeafe]"
+                    : "border-[#334155] bg-[#1e293b] text-slate-200"
                 }`}
               >
                 {getInitials(commit.authorName)}
@@ -201,7 +186,7 @@
                 <div class="min-w-0">
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
-                      class="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#f0f6fc]"
+                      class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
                     >
                       {commit.summary}
                     </div>
@@ -220,32 +205,32 @@
                   {/if}
                 </div>
 
-                <div class="mt-0.5 flex shrink-0 items-center gap-1.5">
+                <div class="mt-0.5 flex shrink-0 items-center gap-2">
+                  <span
+                    class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      selectedHash === commit.hash
+                        ? "bg-[#60a5fa]/20 text-[#bfdbfe]"
+                        : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
+                    }`}
+                  >
+                    {formatRelativeDate(commit.committedAt, $locale)}
+                  </span>
                   {#if !commit.isPushed}
                     <span
-                      class="flex h-7 w-7 items-center justify-center rounded-full bg-[#6e7681] text-[#f0f6fc]"
+                      class={`h-2 w-2 rounded-full ${
+                        commit.isSafePushTarget
+                          ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
+                          : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
+                      }`}
                       title={translate($locale, "history.localCommit")}
-                    >
-                      <svg
-                        viewBox="0 0 16 16"
-                        class="h-3.5 w-3.5 fill-current"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
-                        ></path>
-                      </svg>
-                    </span>
+                      aria-label={translate($locale, "history.localCommit")}
+                    ></span>
                   {:else}
-                    <svg
-                      viewBox="0 0 16 16"
-                      class="h-3.5 w-3.5 fill-[#8b949e]"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 0 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
-                      ></path>
-                    </svg>
+                    <span
+                      class="h-2 w-2 rounded-full bg-slate-600"
+                      title={translate($locale, "history.pushedCommit")}
+                      aria-label={translate($locale, "history.pushedCommit")}
+                    ></span>
                   {/if}
                 </div>
               </div>
@@ -254,8 +239,6 @@
                 class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-400"
               >
                 <span>{commit.authorName}</span>
-                <span>•</span>
-                <span>{formatRelativeDate(commit.committedAt, $locale)}</span>
                 <span>•</span>
                 <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
@@ -268,6 +251,65 @@
     {#if loading}
       <div class="px-4 py-4 text-center text-xs text-slate-400">
         {translate($locale, "history.loading")}
+      </div>
+    {/if}
+  </div>
+
+  <div class="border-t border-[#1f2328] bg-[#24292f] px-4 py-3">
+    <div class="text-xs text-slate-400">
+      {translate($locale, "history.showingRange", {
+        start: pagination.showingStart,
+        end: pagination.showingEnd,
+        total: pagination.totalCount,
+      })}
+    </div>
+
+    {#if pagination.totalPages > 1}
+      <div class="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={translate($locale, "history.previousPage")}
+          disabled={!pagination.canPrevious || loading}
+          on:click={() => changePage(pagination.pageIndex - 1)}
+        >
+          ‹
+        </button>
+
+        {#each pagination.buttons as button}
+          {#if button.kind === "ellipsis"}
+            <span class="px-1 text-xs text-slate-500" aria-hidden="true">
+              {button.label}
+            </span>
+          {:else}
+            <button
+              type="button"
+              class={`h-8 min-w-8 rounded-md px-2 text-sm font-semibold transition ${
+                button.active
+                  ? "bg-[#347dff]/24 text-[#cae8ff] shadow-sm shadow-[#2f81f7]/20"
+                  : "bg-[#2d333b] text-slate-300 hover:bg-[#373e47] hover:text-slate-100"
+              }`}
+              aria-label={translate($locale, "history.pageLabel", {
+                page: button.pageIndex + 1,
+              })}
+              aria-current={button.active ? "page" : undefined}
+              disabled={button.active || loading}
+              on:click={() => changePage(button.pageIndex)}
+            >
+              {button.label}
+            </button>
+          {/if}
+        {/each}
+
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={translate($locale, "history.nextPage")}
+          disabled={!pagination.canNext || loading}
+          on:click={() => changePage(pagination.pageIndex + 1)}
+        >
+          ›
+        </button>
       </div>
     {/if}
   </div>
