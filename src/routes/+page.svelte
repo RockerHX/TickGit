@@ -14,9 +14,11 @@
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
   import PushCard from "$lib/components/PushCard.svelte";
+  import RefreshButton from "$lib/components/RefreshButton.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
+  import SettingsButton from "$lib/components/SettingsButton.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
@@ -1620,50 +1622,13 @@
           on:push={pushCurrentBranch}
         />
 
-        <button
-          type="button"
-          class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border backdrop-blur transition ${
-            canRefreshRemoteStatus
-              ? "border-white/[0.08] bg-white/[0.045] text-slate-300 hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
-              : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-600 opacity-75"
-          }`}
-          disabled={!canRefreshRemoteStatus}
-          aria-label={syncingRemoteStatus
-            ? translate($locale, "common.refreshing")
-            : translate($locale, "common.refresh")}
-          title={syncingRemoteStatus
-            ? translate($locale, "common.refreshing")
-            : translate($locale, "common.refresh")}
-          on:click={fetchRemoteStatusManually}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class={`h-4.5 w-4.5 fill-current ${syncingRemoteStatus ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          >
-            <path
-              d="M1.705 8a6.5 6.5 0 0 1 11.39-4.273V1.75a.75.75 0 0 1 1.5 0V5.5a.75.75 0 0 1-.75.75h-3.75a.75.75 0 0 1 0-1.5h1.962A5 5 0 1 0 13 8a.75.75 0 0 1 1.5 0A6.5 6.5 0 1 1 1.705 8Z"
-            ></path>
-          </svg>
-        </button>
+        <RefreshButton
+          enabled={canRefreshRemoteStatus}
+          loading={syncingRemoteStatus}
+          on:refresh={fetchRemoteStatusManually}
+        />
 
-        <button
-          type="button"
-          class="mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-300 backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc]"
-          aria-label={translate($locale, "settings.title")}
-          title={translate($locale, "settings.title")}
-          on:click={() => (settingsOpen = true)}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class="h-4.5 w-4.5 fill-current"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 1.5a1.75 1.75 0 0 0-1.72 1.43l-.05.26a5.8 5.8 0 0 0-.9.37l-.22-.15a1.75 1.75 0 0 0-2.23.22l-.25.25a1.75 1.75 0 0 0-.22 2.23l.15.22c-.15.29-.27.59-.37.9l-.26.05a1.75 1.75 0 0 0 0 3.44l.26.05c.1.31.22.61.37.9l-.15.22a1.75 1.75 0 0 0 .22 2.23l.25.25a1.75 1.75 0 0 0 2.23.22l.22-.15c.29.15.59.27.9.37l.05.26a1.75 1.75 0 0 0 3.44 0l.05-.26c.31-.1.61-.22.9-.37l.22.15a1.75 1.75 0 0 0 2.23-.22l.25-.25a1.75 1.75 0 0 0 .22-2.23l-.15-.22c.15-.29.27-.59.37-.9l.26-.05a1.75 1.75 0 0 0 0-3.44l-.26-.05a5.8 5.8 0 0 0-.37-.9l.15-.22a1.75 1.75 0 0 0-.22-2.23l-.25-.25a1.75 1.75 0 0 0-2.23-.22l-.22.15a5.8 5.8 0 0 0-.9-.37l-.05-.26A1.75 1.75 0 0 0 8 1.5Zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"
-            ></path>
-          </svg>
-        </button>
+        <SettingsButton on:open={() => (settingsOpen = true)} />
       </div>
     </div>
 
