@@ -117,6 +117,12 @@
     <div class="space-y-2.5 p-3">
       {#each commits as commit (commit.hash)}
         {@const isSelected = selectedHash === commit.hash}
+        {@const pushStatusTitle = commit.isPushed
+          ? translate($locale, "history.pushedCommit")
+          : commit.isSafePushTarget
+            ? translate($locale, "history.safeStepPush")
+            : (commit.pushBlockedReason ??
+              translate($locale, "history.unsafeStepPushFallback"))}
         <button
           type="button"
           class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-[#60a5fa]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2d333b] ${
@@ -138,9 +144,9 @@
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400/55 bg-[#0f172a] text-emerald-300 shadow-sm shadow-emerald-500/20"
-                    title={translate($locale, "history.safeStepPush")}
-                    aria-label={translate($locale, "history.safeStepPush")}
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-[#0f172a] text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.32)] ring-2 ring-[#0f172a]"
+                    title={pushStatusTitle}
+                    aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -154,10 +160,9 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-400/55 bg-[#0f172a] text-rose-300 shadow-sm shadow-rose-500/20"
-                    title={commit.pushBlockedReason ??
-                      translate($locale, "history.unsafeStepPushFallback")}
-                    aria-label={translate($locale, "history.unsafeStepPush")}
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-[#0f172a] text-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.28)] ring-2 ring-[#0f172a]"
+                    title={pushStatusTitle}
+                    aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -173,10 +178,10 @@
               {/if}
 
               <div
-                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 ${
+                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 transition ${
                   isSelected
-                    ? "border-[#60a5fa]/45 bg-[#2563eb]/35 text-[#dbeafe]"
-                    : "border-[#334155] bg-[#1e293b] text-slate-200"
+                    ? "border-[#93c5fd]/60 bg-[#2563eb]/35 text-[#dbeafe]"
+                    : "border-[#334155] bg-[#1e293b] text-slate-200 group-hover:border-[#475569] group-hover:bg-[#243247]"
                 }`}
               >
                 {getInitials(commit.authorName)}
@@ -220,19 +225,19 @@
                   </span>
                   {#if !commit.isPushed}
                     <span
-                      class={`h-2 w-2 rounded-full ${
+                      class={`h-2.5 w-2.5 rounded-full ring-2 ring-[#0f172a]/90 ${
                         commit.isSafePushTarget
                           ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
                           : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
                       }`}
-                      title={translate($locale, "history.localCommit")}
-                      aria-label={translate($locale, "history.localCommit")}
+                      title={pushStatusTitle}
+                      aria-label={pushStatusTitle}
                     ></span>
                   {:else}
                     <span
-                      class="h-2 w-2 rounded-full bg-slate-600"
-                      title={translate($locale, "history.pushedCommit")}
-                      aria-label={translate($locale, "history.pushedCommit")}
+                      class="h-2.5 w-2.5 rounded-full bg-slate-600 ring-2 ring-[#0f172a]/90"
+                      title={pushStatusTitle}
+                      aria-label={pushStatusTitle}
                     ></span>
                   {/if}
                 </div>
