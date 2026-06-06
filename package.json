@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "check": "pnpm format:check && pnpm typecheck",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "prepare": "node scripts/setup-git-hooks.mjs",
+    "precommit": "node scripts/pre-commit.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "format": "prettier --write .",
