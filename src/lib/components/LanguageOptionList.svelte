@@ -28,8 +28,8 @@
       type="button"
       class={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
         $locale === option
-          ? "border-[#539bf5]/45 bg-[#347dff]/16 text-[#f0f6fc]"
-          : "border-white/[0.08] bg-white/[0.035] text-slate-300 hover:border-[#539bf5]/30 hover:bg-white/[0.06]"
+          ? "border-[#539bf5]/45 bg-[#347dff]/16 text-[#f0f6fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1b2027]"
+          : "border-white/[0.08] bg-white/[0.035] text-slate-300 hover:border-[#539bf5]/30 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1b2027]"
       }`}
       aria-pressed={$locale === option}
       on:click={() => chooseLocale(option)}

@@ -1628,7 +1628,10 @@
           on:refresh={fetchRemoteStatusManually}
         />
 
-        <SettingsButton on:open={() => (settingsOpen = true)} />
+        <SettingsButton
+          open={settingsOpen}
+          on:open={() => (settingsOpen = true)}
+        />
       </div>
     </div>
 
