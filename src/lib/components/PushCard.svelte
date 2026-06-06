@@ -11,6 +11,8 @@
 
   const dispatch = createEventDispatcher<{ push: void }>();
 
+  $: active = enabled || loading;
+
   function push() {
     if (!enabled) {
       return;
@@ -22,7 +24,7 @@
 
 <button
   class={`group mt-[18px] flex min-h-[60px] min-w-0 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left backdrop-blur-xl transition duration-200 ${
-    enabled
+    active
       ? "border-white/[0.1] bg-[#0f172a]/55 text-[#f8fafc] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#60a5fa]/32 hover:bg-[#1e293b]/62 hover:shadow-[0_14px_34px_rgba(15,23,42,0.24)]"
       : "cursor-not-allowed border-white/[0.06] bg-[#0f172a]/35 text-slate-500 opacity-70"
   }`}
@@ -34,7 +36,7 @@
 >
   <span
     class={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full border transition ${
-      enabled
+      active
         ? "border-[#93c5fd]/25 bg-[#2563eb]/20 text-[#dbeafe] shadow-[0_12px_26px_rgba(37,99,235,0.24)] group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.32)]"
         : "border-white/[0.06] bg-[#1f2937] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
     }`}
@@ -58,14 +60,14 @@
   <span class="min-w-0 flex-1">
     <span
       class={`block truncate text-[0.95rem] font-semibold ${
-        enabled ? "text-[#f8fafc]" : "text-slate-500"
+        active ? "text-[#f8fafc]" : "text-slate-500"
       }`}
     >
       {title}
     </span>
     <span
       class={`mt-1 block truncate text-[11px] ${
-        enabled ? "text-slate-400" : "text-slate-600"
+        active ? "text-slate-400" : "text-slate-600"
       }`}
     >
       {subtitle}
