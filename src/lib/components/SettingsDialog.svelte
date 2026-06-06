@@ -25,7 +25,17 @@
       close();
     }
   }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (!open || event.key !== "Escape") {
+      return;
+    }
+
+    close();
+  }
 </script>
+
+<svelte:window on:keydown={handleWindowKeydown} />
 
 {#if open}
   <div
@@ -38,6 +48,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-title"
+      aria-describedby="settings-description"
     >
       <div
         class="flex items-center justify-between border-b border-white/[0.06] px-5 py-4"
@@ -49,7 +60,7 @@
           >
             {translate($locale, "settings.title")}
           </h2>
-          <p class="mt-1 text-xs text-slate-400">
+          <p id="settings-description" class="mt-1 text-xs text-slate-400">
             {translate($locale, "settings.description")}
           </p>
         </div>
@@ -73,11 +84,16 @@
 
       <div class="px-5 py-5">
         <div
+          id="settings-language-title"
           class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
         >
           {translate($locale, "settings.language")}
         </div>
-        <div class="mt-3 grid gap-2">
+        <div
+          class="mt-3 grid gap-2"
+          role="group"
+          aria-labelledby="settings-language-title"
+        >
           {#each SUPPORTED_LOCALES as option}
             <button
               type="button"
@@ -86,6 +102,7 @@
                   ? "border-[#539bf5]/45 bg-[#347dff]/16 text-[#f0f6fc]"
                   : "border-white/[0.08] bg-white/[0.035] text-slate-300 hover:border-[#539bf5]/30 hover:bg-white/[0.06]"
               }`}
+              aria-pressed={$locale === option}
               on:click={() => chooseLocale(option)}
             >
               <span class="font-semibold">
