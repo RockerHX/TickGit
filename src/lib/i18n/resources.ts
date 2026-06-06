@@ -39,6 +39,11 @@ export const resources = {
     "repository.relocate": "Relocate",
     "repository.remove": "Remove",
     "repository.removeFromList": "Remove from list",
+    "repository.removeConfirmTitle": "Remove repository?",
+    "repository.removeConfirmDescription":
+      "TickGit will only remove this repository from the list. Local files will not be deleted.",
+    "repository.removeConfirmAction": "Remove",
+    "repository.removing": "Removing…",
     "repository.chooseDirectoryTitle": "Choose a new repository directory",
     "repository.removedTitle": "Repository removed",
     "repository.removedMessage":
@@ -301,6 +306,11 @@ export const resources = {
     "repository.relocate": "重新定位",
     "repository.remove": "移除",
     "repository.removeFromList": "从列表移除",
+    "repository.removeConfirmTitle": "移除仓库？",
+    "repository.removeConfirmDescription":
+      "TickGit 只会将该仓库从列表中移除，不会删除本地文件。",
+    "repository.removeConfirmAction": "移除",
+    "repository.removing": "移除中…",
     "repository.chooseDirectoryTitle": "选择新的仓库目录",
     "repository.removedTitle": "仓库已移除",
     "repository.removedMessage": "仅从 TickGit 列表移除，本地文件未删除。",

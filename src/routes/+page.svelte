@@ -10,6 +10,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
+  import ConfirmRepositoryRemoveDialog from "$lib/components/ConfirmRepositoryRemoveDialog.svelte";
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
@@ -165,6 +166,7 @@
   let isPushing = false;
   let switchingBranch = false;
   let managingRepositoryPath: string | null = null;
+  let repositoryPendingRemoval: RepositorySummary | null = null;
   let activeResizeTarget: "history" | null = null;
   let leftPaneWidth = 360;
   let settingsOpen = false;
@@ -329,6 +331,7 @@
     pushToCommitState = null;
     stepPushState = null;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
+    repositoryPendingRemoval = null;
     resetWorkspaceState();
   }
 
@@ -1002,15 +1005,36 @@
     return Array.isArray(selected) ? (selected[0] ?? null) : selected;
   }
 
-  async function removeRepositoryFromList(path: string) {
+  function requestRepositoryRemoval(path: string) {
     if (!canRunRepositoryManagement()) {
       return;
     }
 
-    managingRepositoryPath = path;
+    repositoryPendingRemoval =
+      repositories.find((repository) => repository.path === path) ??
+      (currentRepository?.path === path ? currentRepository : null);
+  }
+
+  function cancelRepositoryRemoval() {
+    if (managingRepositoryPath) {
+      return;
+    }
+
+    repositoryPendingRemoval = null;
+  }
+
+  async function confirmRepositoryRemoval() {
+    const repository = repositoryPendingRemoval;
+
+    if (!repository || !canRunRepositoryManagement()) {
+      return;
+    }
+
+    managingRepositoryPath = repository.path;
 
     try {
-      await api.removeRepository(path);
+      await api.removeRepository(repository.path);
+      repositoryPendingRemoval = null;
       await refreshRepositories();
       await loadCurrentRepositoryState();
       notify(
@@ -1522,6 +1546,12 @@
   on:confirm={confirmStepPushPlan}
   on:cancel={closeStepPushPlanDialog}
 />
+<ConfirmRepositoryRemoveDialog
+  repository={repositoryPendingRemoval}
+  loading={Boolean(managingRepositoryPath)}
+  on:confirm={confirmRepositoryRemoval}
+  on:cancel={cancelRepositoryRemoval}
+/>
 
 <SettingsDialog open={settingsOpen} on:close={() => (settingsOpen = false)} />
 
@@ -1570,7 +1600,7 @@
             currentPath={currentRepository?.path ?? null}
             managementDisabled={!canRunRepositoryManagementNow}
             on:change={(event) => switchRepository(event.detail.path)}
-            on:remove={(event) => removeRepositoryFromList(event.detail.path)}
+            on:remove={(event) => requestRepositoryRemoval(event.detail.path)}
             on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
           />
         </div>
@@ -1780,7 +1810,7 @@
               disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
-                removeRepositoryFromList(currentRepository.path)}
+                requestRepositoryRemoval(currentRepository.path)}
             >
               {translate($locale, "repository.removeFromList")}
             </button>
