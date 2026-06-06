@@ -1,21 +1,13 @@
 name: Release
-run-name: Release · ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
+run-name: Release · ${{ github.ref_name }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag_name:
-        description: Release tag to build, for example v1.4.1
-        required: true
-        type: string
   push:
     branches:
       - main
-    tags:
-      - "v*"
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_type == 'tag' && github.ref_name || github.sha }}
+  group: release-${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: false
 
 permissions:
@@ -46,7 +38,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
         run: |
           set -euo pipefail
 
@@ -99,47 +90,7 @@ jobs:
 
           fetch_release_refs
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            TAG_NAME="${INPUT_TAG_NAME}"
-            require_release_tag
-
-            if ! git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
-              echo "Release tag ${TAG_NAME} is not reachable from origin/main." >&2
-              exit 1
-            fi
-          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG_NAME="${GITHUB_REF_NAME}"
-            require_release_tag
-
-            MAX_ATTEMPTS=12
-            SLEEP_SECONDS=5
-            TAG_IS_MAIN_HEAD=0
-
-            # tag push 只处理“tag 正好打在当前 main HEAD”这种发布。
-            # 如果先在 develop 打 tag，再 no-ff 合并到 main，tag commit 会成为 main 的祖先但不是 HEAD；
-            # 这种情况由后续 main push 事件补发，避免 tag 事件和 main 事件重复打包。
-            for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
-              fetch_release_refs
-
-              if [[ "$(git rev-parse origin/main)" == "${TAG_SHA}" ]]; then
-                TAG_IS_MAIN_HEAD=1
-                break
-              fi
-
-              if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
-                echo "${TAG_NAME} is not the current origin/main HEAD yet; retrying in ${SLEEP_SECONDS}s (${attempt}/${MAX_ATTEMPTS})..."
-                sleep "${SLEEP_SECONDS}"
-              fi
-            done
-
-            if [[ "${TAG_IS_MAIN_HEAD}" -ne 1 ]]; then
-              skip_release "Skipped release build because ${TAG_NAME} is not the current origin/main HEAD. If it is merged into main, the main push event will publish it."
-            fi
-
-            if release_exists; then
-              skip_release "Skipped release build because GitHub Release ${TAG_NAME} already exists."
-            fi
-          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
+          if [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
             PACKAGE_VERSION="$(node -p "require('./package.json').version")"
             TAG_NAME="v${PACKAGE_VERSION}"
 

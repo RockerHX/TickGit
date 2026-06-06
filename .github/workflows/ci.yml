@@ -8,9 +8,18 @@ on:
   push:
     branches:
       - develop
+    paths-ignore:
+      - "package.json"
+      - "src-tauri/tauri.conf.json"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
