@@ -114,13 +114,14 @@
       </div>
     {/if}
 
-    <div class="space-y-2 p-2">
+    <div class="space-y-2.5 p-3">
       {#each commits as commit (commit.hash)}
         <button
-          class={`group relative w-full overflow-hidden rounded-xl border px-3.5 py-3.5 text-left transition ${
+          type="button"
+          class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm transition ${
             selectedHash === commit.hash
               ? "border-[#3b82f6]/45 bg-gradient-to-r from-[#2563eb]/28 via-[#1d4ed8]/18 to-[#111827]/20 shadow-sm shadow-[#2563eb]/20"
-              : "border-transparent bg-transparent hover:border-[#334155]/80 hover:bg-white/[0.04]"
+              : "border-[#334155]/25 bg-[#0f172a]/18 shadow-black/10 hover:border-[#334155]/80 hover:bg-white/[0.04]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
@@ -187,6 +188,7 @@
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
                       class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
+                      title={commit.summary}
                     >
                       {commit.summary}
                     </div>
