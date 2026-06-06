@@ -117,6 +117,7 @@
     <div class="space-y-2.5 p-3">
       {#each commits as commit (commit.hash)}
         {@const isSelected = selectedHash === commit.hash}
+        {@const relativeTime = formatRelativeDate(commit.committedAt, $locale)}
         {@const pushStatusTitle = commit.isPushed
           ? translate($locale, "history.pushedCommit")
           : commit.isSafePushTarget
@@ -190,7 +191,7 @@
 
             <div class="min-w-0 flex-1">
               <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
                       class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
@@ -200,10 +201,12 @@
                     </div>
                   </div>
                   {#if commit.tags.length > 0}
-                    <div class="mt-1 flex flex-wrap items-center gap-1">
+                    <div
+                      class="mt-1 flex max-w-full flex-wrap items-center gap-1 overflow-hidden"
+                    >
                       {#each commit.tags as tag}
                         <span
-                          class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
+                          class="max-w-[10rem] truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
                           title={tag}
                         >
                           {tag}
@@ -221,7 +224,7 @@
                         : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
                     }`}
                   >
-                    {formatRelativeDate(commit.committedAt, $locale)}
+                    {relativeTime}
                   </span>
                   {#if !commit.isPushed}
                     <span
@@ -246,7 +249,11 @@
               <div
                 class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-400"
               >
-                <span>{commit.authorName}</span>
+                <span class="min-w-0 max-w-[9rem] truncate">
+                  {commit.authorName}
+                </span>
+                <span>•</span>
+                <span>{relativeTime}</span>
                 <span>•</span>
                 <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
