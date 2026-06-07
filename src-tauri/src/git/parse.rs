@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn applies_commit_file_numstat_to_matching_files() {
         let output = b"M\0src/main.rs\0R100\0old\tname.txt\0new\tname.txt\0";
-        let numstat = b"3\t1\tsrc/main.rs\02\t0\t\0old\tname.txt\0new\tname.txt\0";
+        let numstat = b"3\t1\tsrc/main.rs\0\x32\t0\t\0old\tname.txt\0new\tname.txt\0";
         let mut files = parse_commit_files(output);
 
         apply_commit_file_numstat(&mut files, numstat);

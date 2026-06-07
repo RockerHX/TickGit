@@ -7,15 +7,15 @@
   $: fileName = file.path.split("/").pop()?.toLocaleLowerCase() ?? file.path;
   $: language =
     file.language ??
-    (fileName === "package.json" || fileName.endsWith(".json")
-      ? "json"
-      : fileName.endsWith(".yaml") || fileName.endsWith(".yml")
-        ? "yaml"
-        : fileName.endsWith(".lock") ||
-            fileName === "package-lock.json" ||
-            fileName === "pnpm-lock.yaml" ||
-            fileName === "bun.lockb"
-          ? "lock"
+    (fileName.endsWith(".lock") ||
+    fileName === "package-lock.json" ||
+    fileName === "pnpm-lock.yaml" ||
+    fileName === "bun.lockb"
+      ? "lock"
+      : fileName === "package.json" || fileName.endsWith(".json")
+        ? "json"
+        : fileName.endsWith(".yaml") || fileName.endsWith(".yml")
+          ? "yaml"
           : null);
   $: label =
     language === "json"
