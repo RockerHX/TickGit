@@ -93,6 +93,12 @@ pub struct CommitFileChange {
     pub path: String,
     pub previous_path: Option<String>,
     pub display_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub additions: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deletions: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -63,6 +63,9 @@ export type CommitFileChange = {
   path: string;
   previousPath: string | null;
   displayPath: string;
+  additions?: number;
+  deletions?: number;
+  language?: string | null;
 };
 
 export type CommitFileDiffResult = {

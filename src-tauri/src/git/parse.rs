@@ -1,8 +1,15 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::models::{CommitFileChange, CommitListItem};
 
 use super::UNSAFE_PUSH_TARGET_MESSAGE;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct CommitFileNumstat {
+    path: String,
+    additions: Option<usize>,
+    deletions: Option<usize>,
+}
 
 pub(super) fn parse_ahead_behind(counts: &str) -> (usize, usize) {
     let mut parts = counts.split_whitespace();
@@ -106,6 +113,9 @@ pub(super) fn parse_commit_files(output: &[u8]) -> Vec<CommitFileChange> {
 
             files.push(CommitFileChange {
                 display_path: format!("{previous_path} -> {path}"),
+                language: infer_file_language(&path),
+                additions: None,
+                deletions: None,
                 previous_path: Some(previous_path),
                 path,
                 status,
@@ -117,6 +127,9 @@ pub(super) fn parse_commit_files(output: &[u8]) -> Vec<CommitFileChange> {
                 .unwrap_or_default();
             files.push(CommitFileChange {
                 display_path: path.clone(),
+                language: infer_file_language(&path),
+                additions: None,
+                deletions: None,
                 previous_path: None,
                 path,
                 status,
@@ -125,6 +138,88 @@ pub(super) fn parse_commit_files(output: &[u8]) -> Vec<CommitFileChange> {
     }
 
     files
+}
+
+fn infer_file_language(path: &str) -> Option<String> {
+    let file_name = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+    let extension = file_name.rsplit_once('.').map(|(_, value)| value);
+
+    if file_name == "package.json" {
+        return Some("json".to_string());
+    }
+
+    if file_name.ends_with(".lock")
+        || matches!(
+            file_name.as_str(),
+            "package-lock.json" | "pnpm-lock.yaml" | "bun.lockb"
+        )
+    {
+        return Some("lock".to_string());
+    }
+
+    match extension {
+        Some("json") => Some("json".to_string()),
+        Some("yaml" | "yml") => Some("yaml".to_string()),
+        _ => None,
+    }
+}
+
+fn parse_numstat_counts(additions: &str, deletions: &str) -> (Option<usize>, Option<usize>) {
+    match (additions.parse::<usize>(), deletions.parse::<usize>()) {
+        (Ok(additions), Ok(deletions)) => (Some(additions), Some(deletions)),
+        _ => (None, None),
+    }
+}
+
+pub(super) fn parse_commit_file_numstat(output: &[u8]) -> Vec<CommitFileNumstat> {
+    let mut stats = Vec::new();
+    let mut parts = output
+        .split(|byte| *byte == b'\0')
+        .filter(|part| !part.is_empty());
+
+    while let Some(stat_bytes) = parts.next() {
+        let stat = String::from_utf8_lossy(stat_bytes);
+        let mut fields = stat.splitn(3, '\t');
+        let additions = fields.next().unwrap_or_default();
+        let deletions = fields.next().unwrap_or_default();
+        let path_field = fields.next().unwrap_or_default();
+        let path = if path_field.is_empty() {
+            let _previous_path = parts.next();
+            parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default()
+        } else {
+            path_field.to_string()
+        };
+
+        if path.is_empty() {
+            continue;
+        }
+
+        let (additions, deletions) = parse_numstat_counts(additions, deletions);
+        stats.push(CommitFileNumstat {
+            path,
+            additions,
+            deletions,
+        });
+    }
+
+    stats
+}
+
+pub(super) fn apply_commit_file_numstat(files: &mut [CommitFileChange], output: &[u8]) {
+    let stats_by_path = parse_commit_file_numstat(output)
+        .into_iter()
+        .map(|stats| (stats.path.clone(), stats))
+        .collect::<HashMap<_, _>>();
+
+    for file in files {
+        if let Some(stats) = stats_by_path.get(&file.path) {
+            file.additions = stats.additions;
+            file.deletions = stats.deletions;
+        }
+    }
 }
 
 pub(super) fn parse_shortstat(output: &str) -> (usize, usize) {
@@ -156,7 +251,10 @@ pub(super) fn parse_shortstat(output: &str) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_ahead_behind, parse_commit_files, parse_commit_history, parse_shortstat};
+    use super::{
+        apply_commit_file_numstat, parse_ahead_behind, parse_commit_file_numstat,
+        parse_commit_files, parse_commit_history, parse_shortstat,
+    };
     use std::collections::HashSet;
 
     #[test]
@@ -206,6 +304,18 @@ mod tests {
     }
 
     #[test]
+    fn infers_commit_file_language() {
+        let output = b"M\0package.json\0M\0config.yaml\0M\0pnpm-lock.yaml\0M\0src/main.rs\0";
+
+        let files = parse_commit_files(output);
+
+        assert_eq!(files[0].language.as_deref(), Some("json"));
+        assert_eq!(files[1].language.as_deref(), Some("yaml"));
+        assert_eq!(files[2].language.as_deref(), Some("lock"));
+        assert_eq!(files[3].language, None);
+    }
+
+    #[test]
     fn parses_commit_files_with_tabs_in_paths() {
         let output = b"R100\0old\tname.txt\0new\tname.txt\0";
 
@@ -216,6 +326,48 @@ mod tests {
         assert_eq!(files[0].previous_path.as_deref(), Some("old\tname.txt"));
         assert_eq!(files[0].path, "new\tname.txt");
         assert_eq!(files[0].display_path, "old\tname.txt -> new\tname.txt");
+    }
+
+    #[test]
+    fn parses_commit_file_numstat() {
+        let output = b"3\t1\tsrc/main.rs\0-\t-\tassets/logo.png\0";
+
+        let stats = parse_commit_file_numstat(output);
+
+        assert_eq!(stats.len(), 2);
+        assert_eq!(stats[0].path, "src/main.rs");
+        assert_eq!(stats[0].additions, Some(3));
+        assert_eq!(stats[0].deletions, Some(1));
+        assert_eq!(stats[1].path, "assets/logo.png");
+        assert_eq!(stats[1].additions, None);
+        assert_eq!(stats[1].deletions, None);
+    }
+
+    #[test]
+    fn parses_commit_file_numstat_for_renames_with_tabs_in_paths() {
+        let output = b"2\t0\t\0old\tname.txt\0new\tname.txt\0";
+
+        let stats = parse_commit_file_numstat(output);
+
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].path, "new\tname.txt");
+        assert_eq!(stats[0].additions, Some(2));
+        assert_eq!(stats[0].deletions, Some(0));
+    }
+
+    #[test]
+    fn applies_commit_file_numstat_to_matching_files() {
+        let output = b"M\0src/main.rs\0R100\0old\tname.txt\0new\tname.txt\0";
+        let numstat = b"3\t1\tsrc/main.rs\02\t0\t\0old\tname.txt\0new\tname.txt\0";
+        let mut files = parse_commit_files(output);
+
+        apply_commit_file_numstat(&mut files, numstat);
+
+        assert_eq!(files[0].additions, Some(3));
+        assert_eq!(files[0].deletions, Some(1));
+        assert_eq!(files[1].path, "new\tname.txt");
+        assert_eq!(files[1].additions, Some(2));
+        assert_eq!(files[1].deletions, Some(0));
     }
 
     #[test]
