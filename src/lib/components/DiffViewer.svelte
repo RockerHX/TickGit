@@ -48,6 +48,9 @@
     hideWhitespaceChange: { value: boolean };
   }>();
 
+  const emptyStateClasses =
+    "m-4 rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-10 text-center text-sm text-slate-500";
+
   let openControl: "mode" | "settings" | "more" | null = null;
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
   let splitRows: SplitDiffRow[] = [];
@@ -191,11 +194,11 @@
   ></button>
 {/if}
 
-<div class="flex min-h-0 flex-1 flex-col bg-[#2b3036]">
+<div class="flex min-h-0 flex-1 flex-col bg-[#111827]">
   <div
-    class="relative flex items-center justify-between gap-3 border-b border-[#1f2328] bg-[#2d333b] px-4 py-3 text-sm"
+    class="relative flex items-center justify-between gap-3 border-b border-white/10 bg-[#151e2b] px-4 py-3 text-sm"
   >
-    <div class="flex min-w-0 items-center gap-3">
+    <div class="flex min-w-0 flex-1 items-center gap-3">
       {#if fileIcon}
         <FileTypeIcon file={fileIcon} />
       {/if}
@@ -352,15 +355,13 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#2b3036]">
+  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#111827]">
     {#if viewerState === "loading"}
-      <div class="px-4 py-4 text-sm text-slate-400">
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.loading")}
       </div>
     {:else if viewerState === "no-file"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.noFile")}
       </div>
     {:else if viewerState === "image"}
@@ -368,19 +369,19 @@
         <div class="grid gap-4 p-4 xl:grid-cols-2">
           {#each [{ kind: "old", url: diffResult.oldImageDataUrl }, { kind: "new", url: diffResult.newImageDataUrl }] as panel}
             <div
-              class="min-w-0 overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b]"
+              class="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#18202d]/80"
             >
               <div
-                class="border-b border-[#373e47] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+                class="border-b border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
               >
                 {imagePanelLabel(panel.kind as "old" | "new")}
               </div>
               {#if panel.url}
                 <div
-                  class="flex min-h-64 items-center justify-center bg-[#24292f] p-4"
+                  class="flex min-h-64 items-center justify-center bg-[#0f1724] p-4"
                 >
                   <img
-                    class="max-h-[52vh] max-w-full rounded border border-[#373e47] bg-white/5 object-contain"
+                    class="max-h-[52vh] max-w-full rounded-lg border border-white/10 bg-white/5 object-contain"
                     src={panel.url}
                     alt={`${imagePanelLabel(panel.kind as "old" | "new")} ${selectedFilePath ?? "image"}`}
                   />
@@ -398,22 +399,16 @@
           {/each}
         </div>
       {:else}
-        <div
-          class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-        >
+        <div class={emptyStateClasses}>
           {translate($locale, "diff.imageUnavailable")}
         </div>
       {/if}
     {:else if viewerState === "binary"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.binaryUnavailable")}
       </div>
     {:else if viewerState === "too-large"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         <div>{translate($locale, "diff.largeSkipped")}</div>
         <div class="mt-2 text-xs text-slate-500">
           {#if diffResult.byteCount > 0}
@@ -427,21 +422,15 @@
         </div>
       </div>
     {:else if viewerState === "only-whitespace"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.onlyWhitespace")}
       </div>
     {:else if viewerState === "no-content"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.noContent")}
       </div>
     {:else if viewerState === "parse-error"}
-      <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2d333b] px-4 py-10 text-center text-sm text-slate-500"
-      >
+      <div class={emptyStateClasses}>
         {translate($locale, "diff.parseError")}
       </div>
     {:else if mode === "split"}
