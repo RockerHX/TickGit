@@ -155,6 +155,7 @@
           <div class="min-w-0 flex-1">
             <div
               class="truncate text-xl font-semibold leading-7 tracking-[-0.01em] text-slate-50"
+              title={commit.summary}
             >
               {commit.summary}
             </div>
@@ -216,18 +217,21 @@
         <div
           class="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 text-[13px] text-slate-100"
         >
-          <div class="flex min-w-0 items-center gap-2.5">
+          <div class="flex min-w-0 flex-1 items-center gap-2.5">
             <div
               class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[10px] font-semibold tracking-wide text-sky-100"
             >
               {getInitials(commit.authorName)}
             </div>
-            <div class="min-w-0">
+            <div
+              class="min-w-0 flex-1"
+              title={`${commit.authorName} <${commit.authorEmail}>`}
+            >
               <div class="flex min-w-0 items-center gap-1.5">
-                <span class="truncate font-medium text-slate-100">
+                <span class="min-w-0 truncate font-medium text-slate-100">
                   {commit.authorName}
                 </span>
-                <span class="truncate text-slate-400">
+                <span class="min-w-0 truncate text-slate-400">
                   &lt;{commit.authorEmail}&gt;
                 </span>
               </div>
@@ -235,7 +239,7 @@
           </div>
 
           <div
-            class="flex min-w-0 flex-wrap items-center justify-end gap-2 text-[12px]"
+            class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-[12px]"
           >
             <button
               type="button"
@@ -311,7 +315,9 @@
         {/if}
       </div>
     {:else}
-      <div class="text-sm text-slate-500">
+      <div
+        class="rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-5 text-sm text-slate-400"
+      >
         {translate($locale, "commit.selectPrompt")}
       </div>
     {/if}
