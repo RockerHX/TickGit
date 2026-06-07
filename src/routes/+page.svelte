@@ -1831,7 +1831,7 @@
         {/if}
       </div>
     </section>
-  {:else if activeMainView === "history"}
+  {:else}
     <section
       class="grid min-h-0 flex-1 bg-[#2b3036]"
       style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
@@ -1845,11 +1845,9 @@
         totalCount={historyTotalCount}
         pageIndex={historyPageIndex}
         pageSize={PAGE_SIZE}
-        {activeMainView}
         {branchStatus}
         on:select={(event) => selectCommit(event.detail.commit)}
         on:pageChange={(event) => changeHistoryPage(event.detail.pageIndex)}
-        on:mainViewChange={(event) => switchMainView(event.detail.view)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
         on:filterChange={(event) => setHistoryFilters(event.detail.filters)}
@@ -1874,38 +1872,6 @@
         {hideWhitespaceInDiff}
         {branchStatus}
         on:selectFile={(event) => loadDiff(event.detail.path)}
-        on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
-        on:hideWhitespaceChange={(event) =>
-          setHideWhitespaceInDiff(event.detail.value)}
-      />
-    </section>
-  {:else}
-    <section class="min-h-0 flex-1 bg-[#2b3036]">
-      <WorkspaceChangesPanel
-        status={workspaceStatus}
-        selectedSection={selectedWorkspaceSection}
-        selectedFilePath={selectedWorkspaceFilePath}
-        diffResult={workspaceDiffResult}
-        {loadingWorkspace}
-        loadingDiff={loadingWorkspaceDiff}
-        {diffViewMode}
-        {hideWhitespaceInDiff}
-        workspaceActionsDisabled={!canRunWorkspaceAction()}
-        {workspaceActionFileKey}
-        commitMessage={workspaceCommitMessage}
-        commitDisabled={!canCommitWorkspaceChanges()}
-        {committingWorkspace}
-        {activeMainView}
-        on:selectFile={(event) =>
-          loadWorkspaceDiff(event.detail.section, event.detail.path)}
-        on:mainViewChange={(event) => switchMainView(event.detail.view)}
-        on:stageFile={(event) =>
-          stageWorkspaceFile(event.detail.section, event.detail.path)}
-        on:unstageFile={(event) =>
-          unstageWorkspaceFile(event.detail.section, event.detail.path)}
-        on:commitMessageChange={(event) =>
-          (workspaceCommitMessage = event.detail.value)}
-        on:commit={commitWorkspaceChanges}
         on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
         on:hideWhitespaceChange={(event) =>
           setHideWhitespaceInDiff(event.detail.value)}

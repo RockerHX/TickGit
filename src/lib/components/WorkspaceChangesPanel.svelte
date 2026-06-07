@@ -3,9 +3,6 @@
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
-  import MainViewTabs, {
-    type MainViewId,
-  } from "$lib/components/MainViewTabs.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import {
     DEFAULT_FILES_PANE_WIDTH,
@@ -40,7 +37,6 @@
   export let commitMessage = "";
   export let commitDisabled = false;
   export let committingWorkspace = false;
-  export let activeMainView: MainViewId = "changes";
 
   const WORKSPACE_GROUPS: Array<{
     titleKey: "workspace.stagedChanges" | "workspace.unstagedChanges";
@@ -56,7 +52,6 @@
     unstageFile: { section: WorkspaceChangeSection; path: string };
     commitMessageChange: { value: string };
     commit: void;
-    mainViewChange: { view: MainViewId };
     diffModeChange: { mode: "unified" | "split" };
     hideWhitespaceChange: { value: boolean };
   }>();
@@ -187,13 +182,7 @@
 >
   <div class="flex min-h-0 flex-col bg-[#2d333b]">
     <div class="border-b border-[#1f2328] px-4 py-3">
-      <MainViewTabs
-        active={activeMainView}
-        on:change={(event) =>
-          dispatch("mainViewChange", { view: event.detail.view })}
-      />
-
-      <div class="mt-3 flex items-center justify-between gap-3">
+      <div class="flex items-center justify-between gap-3">
         <div>
           <div class="text-sm font-semibold text-[#f0f6fc]">
             {translate($locale, "workspace.title")}
