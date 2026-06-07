@@ -1,7 +1,16 @@
+<script lang="ts" context="module">
+  import type { FileTypeIconFile } from "$lib/components/FileTypeIcon.svelte";
+
+  export type DiffViewerSelectedFile = FileTypeIconFile & {
+    displayPath?: string;
+  };
+</script>
+
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
+  import FileTypeIcon from "$lib/components/FileTypeIcon.svelte";
   import {
     buildHunkCopyText,
     getDiffViewerState,
@@ -18,6 +27,7 @@
 
   export let title = "Diff";
   export let selectedFilePath: string | null = null;
+  export let selectedFile: DiffViewerSelectedFile | null = null;
   export let diffResult: CommitFileDiffResult = {
     text: "",
     isBinary: false,
@@ -48,6 +58,18 @@
   $: diffText = diffResult.text;
   $: parsedDiff = parseUnifiedDiff(diffText);
   $: splitRows = getSplitDiffRowsForMode(parsedDiff, mode);
+  $: displayFilePath =
+    selectedFile?.displayPath ??
+    selectedFilePath ??
+    title ??
+    translate($locale, "diff.title");
+  $: fileIcon =
+    selectedFile ??
+    (selectedFilePath
+      ? ({
+          path: selectedFilePath,
+        } satisfies DiffViewerSelectedFile)
+      : null);
   $: viewerState = getDiffViewerState({
     selectedFilePath,
     loadingDiff,
@@ -167,8 +189,16 @@
   <div
     class="relative flex items-center justify-between gap-3 border-b border-[#1f2328] bg-[#2d333b] px-4 py-3 text-sm"
   >
-    <div class="truncate font-semibold text-[#f0f6fc]">
-      {selectedFilePath ?? title ?? translate($locale, "diff.title")}
+    <div class="flex min-w-0 items-center gap-3">
+      {#if fileIcon}
+        <FileTypeIcon file={fileIcon} />
+      {/if}
+      <div
+        class="min-w-0 truncate font-semibold text-[#f0f6fc]"
+        title={displayFilePath}
+      >
+        {displayFilePath}
+      </div>
     </div>
     <div class="flex items-center gap-2">
       <div

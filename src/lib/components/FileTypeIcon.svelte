@@ -1,10 +1,18 @@
+<script lang="ts" context="module">
+  export type FileTypeIconFile = {
+    path: string;
+    status?: string;
+    language?: string | null;
+  };
+</script>
+
 <script lang="ts">
   import { statusTone } from "$lib/utils";
-  import type { CommitFileChange } from "$lib/types";
 
-  export let file: CommitFileChange;
+  export let file: FileTypeIconFile;
 
   $: fileName = file.path.split("/").pop()?.toLocaleLowerCase() ?? file.path;
+  $: status = file.status ?? "·";
   $: language =
     file.language ??
     (fileName.endsWith(".lock") ||
@@ -24,7 +32,7 @@
         ? "YAML"
         : language === "lock"
           ? "LOCK"
-          : file.status;
+          : status;
   $: tone =
     language === "json"
       ? "border-sky-300/25 bg-sky-400/10 text-sky-100"
@@ -32,7 +40,7 @@
         ? "border-violet-300/25 bg-violet-400/10 text-violet-100"
         : language === "lock"
           ? "border-amber-300/25 bg-amber-400/10 text-amber-100"
-          : statusTone(file.status);
+          : statusTone(status);
 </script>
 
 <span

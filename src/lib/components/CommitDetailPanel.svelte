@@ -49,6 +49,9 @@
     copiedCommitHash = null;
   }
 
+  $: selectedFile =
+    files.find((file) => file.path === selectedFilePath) ?? null;
+
   function clampFilesPaneWidth(value: number) {
     if (!panelElement) {
       return Math.min(
@@ -446,6 +449,7 @@
     <DiffViewer
       title={translate($locale, "diff.title")}
       {selectedFilePath}
+      {selectedFile}
       {diffResult}
       {loadingDiff}
       mode={diffViewMode}
