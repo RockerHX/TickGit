@@ -6,15 +6,12 @@ import type {
   CommitFileDiffResult,
   CommitHistoryFilters,
   CommitHistoryPage,
-  CommitCreated,
   PushToCommitJobStarted,
   PushToCommitRequest,
   RepositorySummary,
   StepPushJobStarted,
   StepPushPlan,
   StepPushRequest,
-  WorkspaceChangeSection,
-  WorkspaceStatus,
 } from "$lib/types";
 
 export const api = {
@@ -67,28 +64,6 @@ export const api = {
       previousPath: previousPath ?? null,
       ignoreWhitespace,
     }),
-  getWorkspaceStatus: (repoPath: string) =>
-    invoke<WorkspaceStatus>("get_workspace_status", { repoPath }),
-  getWorkspaceFileDiff: (
-    repoPath: string,
-    section: WorkspaceChangeSection,
-    filePath: string,
-    ignoreWhitespace = false,
-    previousPath?: string | null,
-  ) =>
-    invoke<CommitFileDiffResult>("get_workspace_file_diff", {
-      repoPath,
-      section,
-      filePath,
-      previousPath: previousPath ?? null,
-      ignoreWhitespace,
-    }),
-  stageWorkspaceFile: (repoPath: string, filePath: string) =>
-    invoke<void>("stage_workspace_file", { repoPath, filePath }),
-  unstageWorkspaceFile: (repoPath: string, filePath: string) =>
-    invoke<void>("unstage_workspace_file", { repoPath, filePath }),
-  createCommit: (repoPath: string, message: string) =>
-    invoke<CommitCreated>("create_commit", { repoPath, message }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>
     invoke<PushToCommitJobStarted>("start_push_current_branch", {
       repoPath,
