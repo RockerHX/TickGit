@@ -48,7 +48,7 @@
     hideWhitespaceChange: { value: boolean };
   }>();
 
-  let optionsOpen = false;
+  let openControl: "mode" | "settings" | "more" | null = null;
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
   let splitRows: SplitDiffRow[] = [];
   let copiedHunkIndex: number | null = null;
@@ -107,12 +107,12 @@
     return value === null ? "" : String(value);
   }
 
-  function toggleOptions() {
-    optionsOpen = !optionsOpen;
+  function toggleControl(control: "mode" | "settings" | "more") {
+    openControl = openControl === control ? null : control;
   }
 
   function setMode(nextMode: "unified" | "split") {
-    optionsOpen = false;
+    openControl = null;
     dispatch("modeChange", { mode: nextMode });
   }
 
@@ -121,7 +121,7 @@
   }
 
   function closeOptions() {
-    optionsOpen = false;
+    openControl = null;
   }
 
   function formatDiffSize(value: number) {
@@ -177,7 +177,7 @@
   });
 </script>
 
-{#if optionsOpen}
+{#if openControl}
   <button
     class="fixed inset-0 z-20 cursor-default bg-transparent"
     aria-label={translate($locale, "diff.options")}
@@ -200,20 +200,40 @@
         {displayFilePath}
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <div
-        class="hidden text-[11px] uppercase tracking-[0.18em] text-slate-500 sm:block"
-      >
-        {mode === "split"
-          ? translate($locale, "diff.mode.split")
-          : translate($locale, "diff.mode.unified")}
-      </div>
+    <div class="relative flex shrink-0 items-center gap-1.5">
       <button
         type="button"
-        class="inline-flex h-8 items-center gap-1 rounded-md border border-[#444c56] bg-[#373e47] px-2.5 text-xs font-medium text-[#f0f6fc] transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
+        class="inline-flex h-8 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15"
+        aria-label={translate($locale, "diff.display")}
+        aria-expanded={openControl === "mode"}
+        on:click={() => toggleControl("mode")}
+      >
+        <span>
+          {mode === "split"
+            ? translate($locale, "diff.mode.split")
+            : translate($locale, "diff.mode.unified")}
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          class="h-3 w-3 fill-current text-sky-200"
+          aria-hidden="true"
+        >
+          <path
+            d="M12.78 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.03a.75.75 0 1 1 1.06-1.06L8 9.69l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+          ></path>
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+          openControl === "settings"
+            ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
+            : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100"
+        }`}
         aria-label={translate($locale, "diff.options")}
-        aria-expanded={optionsOpen}
-        on:click={toggleOptions}
+        aria-expanded={openControl === "settings"}
+        on:click={() => toggleControl("settings")}
       >
         <svg
           viewBox="0 0 16 16"
@@ -224,31 +244,44 @@
             d="M6.5.75a.75.75 0 0 1 .75.75v.69c.367.07.718.193 1.047.36l.488-.488a.75.75 0 0 1 1.06 0l1.09 1.09a.75.75 0 0 1 0 1.06l-.488.488c.167.329.29.68.36 1.047h.69a.75.75 0 0 1 .75.75v1.54a.75.75 0 0 1-.75.75h-.69a4.457 4.457 0 0 1-.36 1.047l.488.488a.75.75 0 0 1 0 1.06l-1.09 1.09a.75.75 0 0 1-1.06 0l-.488-.488a4.457 4.457 0 0 1-1.047.36v.69a.75.75 0 0 1-.75.75H4.96a.75.75 0 0 1-.75-.75v-.69a4.457 4.457 0 0 1-1.047-.36l-.488.488a.75.75 0 0 1-1.06 0l-1.09-1.09a.75.75 0 0 1 0-1.06l.488-.488a4.457 4.457 0 0 1-.36-1.047h-.69a.75.75 0 0 1-.75-.75V6.5a.75.75 0 0 1 .75-.75h.69c.07-.367.193-.718.36-1.047l-.488-.488a.75.75 0 0 1 0-1.06l1.09-1.09a.75.75 0 0 1 1.06 0l.488.488c.329-.167.68-.29 1.047-.36V1.5a.75.75 0 0 1 .75-.75Zm-.77 4.5a2.75 2.75 0 1 0 0 5.5 2.75 2.75 0 0 0 0-5.5Z"
           ></path>
         </svg>
+      </button>
+
+      <button
+        type="button"
+        class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+          openControl === "more"
+            ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
+            : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100"
+        }`}
+        aria-label={translate($locale, "diff.options")}
+        aria-expanded={openControl === "more"}
+        on:click={() => toggleControl("more")}
+      >
         <svg
           viewBox="0 0 16 16"
-          class="h-3 w-3 fill-current text-slate-300"
+          class="h-4 w-4 fill-current"
           aria-hidden="true"
         >
           <path
-            d="M12.78 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.03a.75.75 0 1 1 1.06-1.06L8 9.69l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+            d="M2 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm4.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM11 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z"
           ></path>
         </svg>
       </button>
-      {#if optionsOpen}
+
+      {#if openControl}
         <div
-          class="absolute right-4 top-[calc(100%-4px)] z-30 w-[240px] overflow-hidden rounded-md border border-[#444c56] bg-[#2d333b] p-3 shadow-lg shadow-black/35"
+          class="absolute right-0 top-[calc(100%+8px)] z-30 w-[240px] overflow-hidden rounded-xl border border-white/10 bg-[#151e2b] p-3 shadow-2xl shadow-black/35"
         >
           <div
             class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
           >
-            {translate($locale, "diff.options")}
+            {openControl === "mode"
+              ? translate($locale, "diff.display")
+              : translate($locale, "diff.options")}
           </div>
 
-          <div class="mt-3">
-            <div class="mb-2 text-xs font-medium text-slate-300">
-              {translate($locale, "diff.display")}
-            </div>
-            <div class="grid grid-cols-2 gap-2">
+          {#if openControl === "mode"}
+            <div class="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 class={`rounded-md border px-3 py-2 text-xs font-medium transition ${
@@ -272,27 +305,42 @@
                 Split
               </button>
             </div>
-          </div>
-
-          <label
-            class="mt-4 flex cursor-pointer items-start gap-3 rounded-md border border-[#444c56] bg-[#373e47]/55 px-3 py-2.5 transition hover:border-[#539bf5]/35"
-          >
-            <input
-              type="checkbox"
-              class="mt-0.5 h-4 w-4 rounded border-[#6e7681] bg-[#24292f] text-[#347dff]"
-              checked={hideWhitespaceInDiff}
-              on:change={(event) =>
-                setHideWhitespace(event.currentTarget.checked)}
-            />
-            <div class="min-w-0">
-              <div class="text-xs font-medium text-[#f0f6fc]">
-                {translate($locale, "diff.hideWhitespace")}
+          {:else if openControl === "settings"}
+            <label
+              class="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 transition hover:border-sky-300/35"
+            >
+              <input
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 rounded border-[#6e7681] bg-[#24292f] text-[#347dff]"
+                checked={hideWhitespaceInDiff}
+                on:change={(event) =>
+                  setHideWhitespace(event.currentTarget.checked)}
+              />
+              <div class="min-w-0">
+                <div class="text-xs font-medium text-[#f0f6fc]">
+                  {translate($locale, "diff.hideWhitespace")}
+                </div>
+                <div class="mt-1 text-[11px] leading-4 text-slate-400">
+                  {translate($locale, "diff.hideWhitespaceDescription")}
+                </div>
               </div>
-              <div class="mt-1 text-[11px] leading-4 text-slate-400">
-                {translate($locale, "diff.hideWhitespaceDescription")}
+            </label>
+          {:else}
+            <div class="mt-3 space-y-2 text-xs text-slate-300">
+              {#if diffResult.byteCount > 0}
+                <div class="rounded-lg bg-white/[0.04] px-3 py-2">
+                  {translate($locale, "diff.patchSize", {
+                    size: formatDiffSize(diffResult.byteCount),
+                  })}
+                </div>
+              {/if}
+              <div class="rounded-lg bg-white/[0.04] px-3 py-2">
+                {translate($locale, "diff.changedLines", {
+                  count: diffResult.lineCount,
+                })}
               </div>
             </div>
-          </label>
+          {/if}
         </div>
       {/if}
     </div>
