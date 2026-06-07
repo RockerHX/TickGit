@@ -114,20 +114,29 @@
       </div>
     {/if}
 
-    <div class="space-y-2 p-2">
+    <div class="space-y-2.5 p-3">
       {#each commits as commit (commit.hash)}
+        {@const isSelected = selectedHash === commit.hash}
+        {@const relativeTime = formatRelativeDate(commit.committedAt, $locale)}
+        {@const pushStatusTitle = commit.isPushed
+          ? translate($locale, "history.pushedCommit")
+          : commit.isSafePushTarget
+            ? translate($locale, "history.safeStepPush")
+            : (commit.pushBlockedReason ??
+              translate($locale, "history.unsafeStepPushFallback"))}
         <button
-          class={`group relative w-full overflow-hidden rounded-xl border px-3.5 py-3.5 text-left transition ${
-            selectedHash === commit.hash
-              ? "border-[#3b82f6]/45 bg-gradient-to-r from-[#2563eb]/28 via-[#1d4ed8]/18 to-[#111827]/20 shadow-sm shadow-[#2563eb]/20"
-              : "border-transparent bg-transparent hover:border-[#334155]/80 hover:bg-white/[0.04]"
+          type="button"
+          class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-[#60a5fa]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2d333b] ${
+            isSelected
+              ? "border-[#60a5fa]/60 bg-gradient-to-r from-[#2563eb]/36 via-[#1d4ed8]/24 to-[#0f172a]/28 shadow-[0_14px_34px_rgba(37,99,235,0.2)]"
+              : "border-[#334155]/25 bg-[#0f172a]/18 shadow-black/10 hover:border-[#3b82f6]/30 hover:bg-[#1e293b]/42 hover:shadow-[0_10px_26px_rgba(15,23,42,0.24)]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
-          {#if selectedHash === commit.hash}
+          {#if isSelected}
             <div
-              class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#60a5fa] to-[#2563eb]"
+              class="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-gradient-to-b from-[#93c5fd] via-[#60a5fa] to-[#2563eb] shadow-[0_0_18px_rgba(96,165,250,0.6)]"
             ></div>
           {/if}
 
@@ -136,9 +145,9 @@
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400/55 bg-[#0f172a] text-emerald-300 shadow-sm shadow-emerald-500/20"
-                    title={translate($locale, "history.safeStepPush")}
-                    aria-label={translate($locale, "history.safeStepPush")}
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-[#0f172a] text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.32)] ring-2 ring-[#0f172a]"
+                    title={pushStatusTitle}
+                    aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -152,10 +161,9 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-400/55 bg-[#0f172a] text-rose-300 shadow-sm shadow-rose-500/20"
-                    title={commit.pushBlockedReason ??
-                      translate($locale, "history.unsafeStepPushFallback")}
-                    aria-label={translate($locale, "history.unsafeStepPush")}
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-[#0f172a] text-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.28)] ring-2 ring-[#0f172a]"
+                    title={pushStatusTitle}
+                    aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -171,10 +179,10 @@
               {/if}
 
               <div
-                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 ${
-                  selectedHash === commit.hash
-                    ? "border-[#60a5fa]/45 bg-[#2563eb]/35 text-[#dbeafe]"
-                    : "border-[#334155] bg-[#1e293b] text-slate-200"
+                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 transition ${
+                  isSelected
+                    ? "border-[#93c5fd]/60 bg-[#2563eb]/35 text-[#dbeafe]"
+                    : "border-[#334155] bg-[#1e293b] text-slate-200 group-hover:border-[#475569] group-hover:bg-[#243247]"
                 }`}
               >
                 {getInitials(commit.authorName)}
@@ -183,19 +191,22 @@
 
             <div class="min-w-0 flex-1">
               <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
                       class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
+                      title={commit.summary}
                     >
                       {commit.summary}
                     </div>
                   </div>
                   {#if commit.tags.length > 0}
-                    <div class="mt-1 flex flex-wrap items-center gap-1">
+                    <div
+                      class="mt-1 flex max-w-full flex-wrap items-center gap-1 overflow-hidden"
+                    >
                       {#each commit.tags as tag}
                         <span
-                          class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
+                          class="max-w-[10rem] truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
                           title={tag}
                         >
                           {tag}
@@ -208,28 +219,28 @@
                 <div class="mt-0.5 flex shrink-0 items-center gap-2">
                   <span
                     class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      selectedHash === commit.hash
+                      isSelected
                         ? "bg-[#60a5fa]/20 text-[#bfdbfe]"
                         : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
                     }`}
                   >
-                    {formatRelativeDate(commit.committedAt, $locale)}
+                    {relativeTime}
                   </span>
                   {#if !commit.isPushed}
                     <span
-                      class={`h-2 w-2 rounded-full ${
+                      class={`h-2.5 w-2.5 rounded-full ring-2 ring-[#0f172a]/90 ${
                         commit.isSafePushTarget
                           ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
                           : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
                       }`}
-                      title={translate($locale, "history.localCommit")}
-                      aria-label={translate($locale, "history.localCommit")}
+                      title={pushStatusTitle}
+                      aria-label={pushStatusTitle}
                     ></span>
                   {:else}
                     <span
-                      class="h-2 w-2 rounded-full bg-slate-600"
-                      title={translate($locale, "history.pushedCommit")}
-                      aria-label={translate($locale, "history.pushedCommit")}
+                      class="h-2.5 w-2.5 rounded-full bg-slate-600 ring-2 ring-[#0f172a]/90"
+                      title={pushStatusTitle}
+                      aria-label={pushStatusTitle}
                     ></span>
                   {/if}
                 </div>
@@ -238,7 +249,11 @@
               <div
                 class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-400"
               >
-                <span>{commit.authorName}</span>
+                <span class="min-w-0 max-w-[9rem] truncate">
+                  {commit.authorName}
+                </span>
+                <span>•</span>
+                <span>{relativeTime}</span>
                 <span>•</span>
                 <span class="font-mono text-slate-300">{commit.shortHash}</span>
               </div>
