@@ -84,9 +84,9 @@
   function lineToneClasses(type: DiffLine["type"]) {
     switch (type) {
       case "add":
-        return "bg-emerald-500/12 text-emerald-100";
+        return "bg-emerald-500/[0.08] text-emerald-100";
       case "delete":
-        return "bg-rose-500/12 text-rose-100";
+        return "bg-rose-500/[0.08] text-rose-100";
       default:
         return "text-slate-300";
     }
@@ -95,11 +95,11 @@
   function lineNumberToneClasses(type: DiffLine["type"]) {
     switch (type) {
       case "add":
-        return "bg-emerald-500/18 text-emerald-300";
+        return "bg-emerald-500/[0.12] text-emerald-300";
       case "delete":
-        return "bg-rose-500/18 text-rose-300";
+        return "bg-rose-500/[0.12] text-rose-300";
       default:
-        return "text-slate-500";
+        return "bg-[#0f1724] text-slate-500";
     }
   }
 
@@ -449,7 +449,7 @@
         {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
           {#if row.kind === "hunk"}
             <div
-              class="flex items-center justify-between gap-3 border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+              class="flex items-center justify-between gap-3 border-y border-slate-500/10 bg-[#172033] px-4 py-2 font-mono text-[12px] text-sky-200"
             >
               <span class="min-w-0 truncate">{row.header}</span>
               <button
@@ -489,21 +489,21 @@
             </div>
           {:else}
             <div
-              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b border-[#373e47]/70"
+              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b border-slate-700/45"
             >
               {#each [row.left, row.right] as line, sideIndex}
                 <div
                   class={`grid min-w-0 grid-cols-[4rem_4rem_minmax(0,1fr)] ${
-                    sideIndex === 0 ? "border-r border-[#373e47]/70" : ""
+                    sideIndex === 0 ? "border-r border-slate-700/60" : ""
                   } ${line ? lineToneClasses(line.type) : ""}`}
                 >
                   <div
-                    class={`border-r border-[#373e47]/60 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "text-slate-600"}`}
+                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-[#0f1724] text-slate-600"}`}
                   >
                     {line ? formatLineNumber(line.oldLineNumber) : ""}
                   </div>
                   <div
-                    class={`border-r border-[#373e47]/60 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "text-slate-600"}`}
+                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-[#0f1724] text-slate-600"}`}
                   >
                     {line ? formatLineNumber(line.newLineNumber) : ""}
                   </div>
@@ -529,7 +529,7 @@
       <div>
         {#each parsedDiff.hunks as hunk, hunkIndex}
           <div
-            class="flex items-center justify-between gap-3 border-b border-[#373e47]/70 bg-sky-500/10 px-4 py-1.5 font-mono text-[12px] text-sky-200"
+            class="flex items-center justify-between gap-3 border-y border-slate-500/10 bg-[#172033] px-4 py-2 font-mono text-[12px] text-sky-200"
           >
             <span class="min-w-0 truncate">{hunk.header}</span>
             <button
@@ -569,15 +569,15 @@
           </div>
           {#each hunk.lines as line}
             <div
-              class={`grid grid-cols-[4rem_4rem_minmax(0,1fr)] border-b border-[#373e47]/70 ${lineToneClasses(line.type)}`}
+              class={`grid grid-cols-[4rem_4rem_minmax(0,1fr)] border-b border-slate-700/45 ${lineToneClasses(line.type)}`}
             >
               <div
-                class={`border-r border-[#373e47]/60 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
+                class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
               >
                 {formatLineNumber(line.oldLineNumber)}
               </div>
               <div
-                class={`border-r border-[#373e47]/60 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
+                class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
               >
                 {formatLineNumber(line.newLineNumber)}
               </div>
