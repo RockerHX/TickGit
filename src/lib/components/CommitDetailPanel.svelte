@@ -3,6 +3,7 @@
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
+  import FileTypeIcon from "$lib/components/FileTypeIcon.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import {
     DEFAULT_FILES_PANE_WIDTH,
@@ -18,7 +19,7 @@
     CommitListItem,
     CommitMeta,
   } from "$lib/types";
-  import { formatAbsoluteDate, getInitials, statusTone } from "$lib/utils";
+  import { formatAbsoluteDate, getInitials } from "$lib/utils";
 
   export let commit: CommitListItem | null = null;
   export let commitMeta: CommitMeta | null = null;
@@ -327,48 +328,56 @@
     class="grid min-h-0 flex-1"
     style={`grid-template-columns: minmax(${MIN_FILES_PANE_WIDTH}px, ${filesPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,1fr);`}
   >
-    <div class="flex min-h-0 flex-col bg-[#2d333b]">
+    <div class="flex min-h-0 flex-col bg-[#111827]">
       <div
-        class="flex items-center justify-between gap-3 border-b border-[#1f2328] px-4 py-3"
+        class="flex items-center justify-between gap-3 border-b border-white/10 bg-[#151e2b] px-4 py-3"
       >
-        <div class="text-sm font-semibold text-[#f0f6fc]">
+        <div class="text-sm font-semibold text-slate-50">
           {translate($locale, "commit.changedFiles")}
         </div>
-        <div class="text-xs font-medium text-slate-400">{files.length}</div>
+        <div
+          class="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-0.5 text-xs font-semibold text-slate-300"
+        >
+          {files.length}
+        </div>
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto bg-[#2d333b]">
+      <div class="min-h-0 flex-1 overflow-y-auto bg-[#111827]">
         {#if loadingFiles}
-          <div class="px-4 py-4 text-sm text-slate-400">
+          <div
+            class="m-4 rounded-xl border border-white/10 bg-[#18202d]/80 px-4 py-5 text-sm text-slate-400"
+          >
             {translate($locale, "commit.loadingFiles")}
           </div>
         {:else if files.length === 0}
           <div
-            class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-8 text-center text-sm text-slate-500"
+            class="m-4 rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-8 text-center text-sm text-slate-500"
           >
             {translate($locale, "commit.noFileChanges")}
           </div>
         {:else}
-          <div>
+          <div class="space-y-2 p-3">
             {#each files as file (file.path + file.status)}
               <div
-                class={`flex items-center gap-2 border-b border-[#373e47] px-4 py-2.5 transition ${
+                class={`relative flex items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 transition ${
                   selectedFilePath === file.path
-                    ? "bg-[#347dff]/12"
-                    : "bg-transparent hover:bg-[#373e47]/45"
+                    ? "border-sky-300/25 bg-sky-400/15 shadow-[0_14px_30px_rgba(59,130,246,0.14)]"
+                    : "border-white/10 bg-[#18202d]/70 hover:border-sky-300/20 hover:bg-white/[0.06]"
                 }`}
               >
+                {#if selectedFilePath === file.path}
+                  <span
+                    class="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-sky-300"
+                    aria-hidden="true"
+                  ></span>
+                {/if}
                 <button
                   type="button"
                   class="min-w-0 flex-1 text-left"
                   title={file.displayPath}
                   on:click={() => dispatch("selectFile", { path: file.path })}
                 >
-                  <div class="flex items-center gap-3">
-                    <span
-                      class={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold uppercase ${statusTone(file.status)}`}
-                    >
-                      {file.status}
-                    </span>
+                  <div class="flex min-w-0 items-center gap-3">
+                    <FileTypeIcon {file} />
                     <span
                       class="min-w-0 flex-1 truncate text-[13px] leading-5 text-slate-200"
                     >
