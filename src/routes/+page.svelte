@@ -1872,6 +1872,7 @@
         {diffResult}
         {diffViewMode}
         {hideWhitespaceInDiff}
+        {branchStatus}
         on:selectFile={(event) => loadDiff(event.detail.path)}
         on:diffModeChange={(event) => (diffViewMode = event.detail.mode)}
         on:hideWhitespaceChange={(event) =>

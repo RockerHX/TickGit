@@ -15,6 +15,7 @@
   } from "$lib/tickgit/layout";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
   import type {
+    BranchStatus,
     CommitFileChange,
     CommitFileDiffResult,
     CommitListItem,
@@ -31,6 +32,7 @@
   export let loadingDiff = false;
   export let diffViewMode: "unified" | "split" = "unified";
   export let hideWhitespaceInDiff = false;
+  export let branchStatus: BranchStatus | null = null;
 
   const dispatch = createEventDispatcher<{
     selectFile: { path: string };
@@ -452,7 +454,11 @@
         on:hideWhitespaceChange={(event) =>
           dispatch("hideWhitespaceChange", event.detail)}
       />
-      <CommitMessagePanel {commit} {commitMeta} />
+      <CommitMessagePanel
+        {commit}
+        {commitMeta}
+        behindCount={branchStatus?.behindCount ?? 0}
+      />
     </div>
   </div>
 </div>
