@@ -146,6 +146,12 @@
       : translate($locale, "diff.imageAfter");
   }
 
+  function copyHunkLabel(hunkIndex: number) {
+    return copiedHunkIndex === hunkIndex
+      ? translate($locale, "diff.copiedHunk")
+      : translate($locale, "diff.copyHunk");
+  }
+
   async function copyHunk(hunkIndex: number) {
     const hunk = parsedDiff.hunks[hunkIndex];
 
@@ -448,18 +454,37 @@
               <span class="min-w-0 truncate">{row.header}</span>
               <button
                 type="button"
-                class="rounded border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
-                title={copiedHunkIndex === row.hunkIndex
-                  ? translate($locale, "diff.copiedHunk")
-                  : translate($locale, "diff.copyHunk")}
-                aria-label={copiedHunkIndex === row.hunkIndex
-                  ? translate($locale, "diff.copiedHunk")
-                  : translate($locale, "diff.copyHunk")}
+                class="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-300/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+                title={copyHunkLabel(row.hunkIndex)}
+                aria-label={copyHunkLabel(row.hunkIndex)}
                 on:click={() => copyHunk(row.hunkIndex)}
               >
-                {copiedHunkIndex === row.hunkIndex
-                  ? translate($locale, "common.copied")
-                  : translate($locale, "diff.copyHunk")}
+                {#if copiedHunkIndex === row.hunkIndex}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-3.5 w-3.5 fill-current text-emerald-300"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                    ></path>
+                  </svg>
+                  {translate($locale, "common.copied")}
+                {:else}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-3.5 w-3.5 fill-current"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                    ></path>
+                    <path
+                      d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                    ></path>
+                  </svg>
+                  {translate($locale, "diff.copyHunk")}
+                {/if}
               </button>
             </div>
           {:else}
@@ -509,18 +534,37 @@
             <span class="min-w-0 truncate">{hunk.header}</span>
             <button
               type="button"
-              class="rounded border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
-              title={copiedHunkIndex === hunkIndex
-                ? "已复制 Diff Hunk"
-                : "复制 Diff Hunk"}
-              aria-label={copiedHunkIndex === hunkIndex
-                ? "已复制 Diff Hunk"
-                : "复制 Diff Hunk"}
+              class="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-300/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+              title={copyHunkLabel(hunkIndex)}
+              aria-label={copyHunkLabel(hunkIndex)}
               on:click={() => copyHunk(hunkIndex)}
             >
-              {copiedHunkIndex === hunkIndex
-                ? translate($locale, "common.copied")
-                : translate($locale, "diff.copyHunk")}
+              {#if copiedHunkIndex === hunkIndex}
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3.5 w-3.5 fill-current text-emerald-300"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                  ></path>
+                </svg>
+                {translate($locale, "common.copied")}
+              {:else}
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3.5 w-3.5 fill-current"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                  ></path>
+                  <path
+                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                  ></path>
+                </svg>
+                {translate($locale, "diff.copyHunk")}
+              {/if}
             </button>
           </div>
           {#each hunk.lines as line}
