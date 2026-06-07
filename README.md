@@ -14,12 +14,9 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 已推送 / 未推送 Commit 区分
 - 历史默认展示完整 Commit 历史，并标记可安全分步推送的 Commit
 - Commit 详情、文件列表、结构化文本 Diff 查看（Unified / Split）
-- 工作区变更视图，显示 staged / unstaged / untracked 文件
-- 工作区文件 Diff、文件级 stage / unstage
-- Commit message 输入并提交已 staged 变更
 - 常规 `git push`
-- 右键“提交到当前 Commit”
-- 右键“分步提交 Commit”与实时进度事件
+- 右键“推送到这个 Commit”
+- 右键“分步推送到 Commit”与实时进度事件
 
 ## 文档与规范
 
@@ -47,12 +44,11 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 未推送 Commit 的判断基于当前分支的 **upstream**
 - 顶部 Push 计数显示的是相对 upstream 的 **全量未推送 Commit 数**
 - “分步推送 / Push to Commit” 的可操作目标只来自 **first-parent 安全路径**
-- 分步提交任务为 **单任务、不可取消**
+- 分步推送任务为 **单任务、不可取消**
 - 当前不内置 `git pull` / `merge` / `rebase`，远端已有更新时只禁用推送并提示用户使用 GitHub Desktop 或 SourceTree 同步
+- 当前不内置 `git commit` / `stage` / `unstage`，不提供工作区 Changes 视图；需要整理工作区或创建提交时，请使用外部 Git 工具
 - 从 TickGit 移除仓库只删除列表记录，不删除本地仓库文件
 - 仓库路径失效时会保留列表项，并提供重新定位或移除入口
-- 工作区提交只提交 **staged** 内容，未暂存文件会保留在工作区
-- 工作区暂存粒度为 **整文件**，暂不支持 hunk / 行级暂存、discard changes、冲突解决
 - Diff 当前为 **结构化文本展示**，支持 **Unified / Split** 与 **Hide Whitespace Changes**，对图片、二进制和超大 Diff 做保护性降级，暂不做语法高亮和图片专用 Diff
 
 ## 关于拉取和同步
@@ -60,6 +56,8 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 TickGit 的核心目标是让“当前分支的安全推送”和“按 Commit 分步推送”更简单可控，不替代完整 Git 客户端。
 
 当远端分支已经有新提交，或本地与远端出现分叉时，TickGit 会禁用推送，避免产生不安全的 non-fast-forward 操作。此时请先使用 GitHub Desktop、SourceTree 或命令行完成拉取、合并、变基和冲突处理，再回到 TickGit 刷新状态后继续推送。
+
+如果需要暂存文件、取消暂存或创建本地 Git commit，也请使用外部 Git 工具；TickGit 只负责读取历史与执行安全推送。
 
 ## 分步推送如何理解
 
@@ -148,8 +146,8 @@ cargo check --manifest-path src-tauri/Cargo.toml
 ├── src-tauri/            # Rust / Tauri 后端
 │   └── src/
 │       ├── commands.rs   # Tauri command 入口
-│       ├── git/          # Git 命令执行、解析、历史、Diff、推送与工作区能力
-│       ├── jobs.rs       # 分步提交后台任务与事件
+│       ├── git/          # Git 命令执行、解析、历史、Diff 与安全推送能力
+│       ├── jobs.rs       # 分步推送后台任务与事件
 │       ├── repo_store.rs # 仓库持久化
 │       ├── models.rs     # DTO / 数据模型
 │       └── error.rs      # 统一错误类型
