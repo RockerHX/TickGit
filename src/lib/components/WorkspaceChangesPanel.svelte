@@ -68,6 +68,13 @@
   let filePathCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: totalChanges = status.staged.length + status.unstaged.length;
+  $: selectedFile =
+    selectedSection === "staged"
+      ? (status.staged.find((file) => file.path === selectedFilePath) ?? null)
+      : selectedSection === "unstaged"
+        ? (status.unstaged.find((file) => file.path === selectedFilePath) ??
+          null)
+        : null;
 
   function clampFilesPaneWidth(value: number) {
     if (!panelElement) {
@@ -357,6 +364,7 @@
   <DiffViewer
     title={translate($locale, "diff.workspaceTitle")}
     {selectedFilePath}
+    {selectedFile}
     {diffResult}
     {loadingDiff}
     mode={diffViewMode}

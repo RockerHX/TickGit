@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
+  import CommitMessagePanel from "$lib/components/CommitMessagePanel.svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
   import FileTypeIcon from "$lib/components/FileTypeIcon.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
@@ -14,6 +15,7 @@
   } from "$lib/tickgit/layout";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
   import type {
+    BranchStatus,
     CommitFileChange,
     CommitFileDiffResult,
     CommitListItem,
@@ -30,6 +32,7 @@
   export let loadingDiff = false;
   export let diffViewMode: "unified" | "split" = "unified";
   export let hideWhitespaceInDiff = false;
+  export let branchStatus: BranchStatus | null = null;
 
   const dispatch = createEventDispatcher<{
     selectFile: { path: string };
@@ -48,6 +51,9 @@
   $: if (commit && copiedCommitHash !== commit.hash) {
     copiedCommitHash = null;
   }
+
+  $: selectedFile =
+    files.find((file) => file.path === selectedFilePath) ?? null;
 
   function clampFilesPaneWidth(value: number) {
     if (!panelElement) {
@@ -204,14 +210,6 @@
                 {tag}
               </span>
             {/each}
-          </div>
-        {/if}
-
-        {#if commitMeta?.body}
-          <div
-            class="mt-2 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200"
-          >
-            {commitMeta.body}
           </div>
         {/if}
 
@@ -443,16 +441,24 @@
       on:mousedown={(event) => startFilesPaneResize(event.detail)}
     />
 
-    <DiffViewer
-      title={translate($locale, "diff.title")}
-      {selectedFilePath}
-      {diffResult}
-      {loadingDiff}
-      mode={diffViewMode}
-      {hideWhitespaceInDiff}
-      on:modeChange={(event) => dispatch("diffModeChange", event.detail)}
-      on:hideWhitespaceChange={(event) =>
-        dispatch("hideWhitespaceChange", event.detail)}
-    />
+    <div class="flex min-h-0 min-w-0 flex-col">
+      <DiffViewer
+        title={translate($locale, "diff.title")}
+        {selectedFilePath}
+        {selectedFile}
+        {diffResult}
+        {loadingDiff}
+        mode={diffViewMode}
+        {hideWhitespaceInDiff}
+        on:modeChange={(event) => dispatch("diffModeChange", event.detail)}
+        on:hideWhitespaceChange={(event) =>
+          dispatch("hideWhitespaceChange", event.detail)}
+      />
+      <CommitMessagePanel
+        {commit}
+        {commitMeta}
+        behindCount={branchStatus?.behindCount ?? 0}
+      />
+    </div>
   </div>
 </div>
