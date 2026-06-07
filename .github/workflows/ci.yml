@@ -13,6 +13,7 @@ on:
       - "src-tauri/tauri.conf.json"
       - "src-tauri/Cargo.toml"
       - "src-tauri/Cargo.lock"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: read

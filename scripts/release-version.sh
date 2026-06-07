@@ -95,6 +95,7 @@ const packagePath = "package.json";
 const tauriPath = "src-tauri/tauri.conf.json";
 const cargoPath = "src-tauri/Cargo.toml";
 const cargoLockPath = "src-tauri/Cargo.lock";
+const releaseWorkflowPath = ".github/workflows/release.yml";
 
 const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 packageJson.version = version;
@@ -115,11 +116,23 @@ const cargoLock = fs.readFileSync(cargoLockPath, "utf8").replace(
   `$1"${version}"`,
 );
 fs.writeFileSync(cargoLockPath, cargoLock);
+
+const releaseWorkflowSource = fs.readFileSync(releaseWorkflowPath, "utf8");
+const releaseWorkflow = releaseWorkflowSource.replace(
+  /^run-name: Release v[0-9]+\.[0-9]+\.[0-9]+$/m,
+  `run-name: Release v${version}`,
+);
+if (releaseWorkflow === releaseWorkflowSource) {
+  throw new Error(
+    `${releaseWorkflowPath} is missing a literal "run-name: Release vX.Y.Z" line.`,
+  );
+}
+fs.writeFileSync(releaseWorkflowPath, releaseWorkflow);
 EOF
 
 pnpm exec prettier --write package.json src-tauri/tauri.conf.json
 
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock .github/workflows/release.yml
 git commit -m "Release ${TAG}"
 git tag "${TAG}"
 git push origin "${CURRENT_BRANCH}"

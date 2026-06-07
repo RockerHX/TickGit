@@ -10,7 +10,7 @@
 
 - `develop` 分支只跑 CI，不跑 Release。
 - `develop` 连续推送多次时，同一分支旧的 CI 会被取消，只保留最新一次推送对应的 CI。
-- `./scripts/release-version.sh` 生成的版本提交只修改版本文件，CI 会忽略这类版本提交。
+- `./scripts/release-version.sh` 生成的版本提交只修改版本文件和 Release workflow 运行名称，CI 会忽略这类版本提交。
 - tag push 不触发 Release。
 - Release 只由 `main` 分支 push 触发；没有 tag push 触发，也没有手动触发入口。触发后会读取 `main` 当前版本号，查找对应 tag，例如版本 `1.4.3` 对应 `v1.4.3`，并打包这个 tag 指向的提交。
 
@@ -32,7 +32,7 @@
    ./scripts/release-version.sh 1.4.3
    ```
 
-   这个脚本会先检查本地 `develop` 是否等于 `origin/develop`，然后创建 `Release v1.4.3` 提交和 `v1.4.3` tag，并自动推送 `develop` 和 tag。该步骤不会触发 CI，也不会触发 Release。
+   这个脚本会先检查本地 `develop` 是否等于 `origin/develop`，同步 Release workflow 运行名称为 `Release v1.4.3`，然后创建 `Release v1.4.3` 提交和 `v1.4.3` tag，并自动推送 `develop` 和 tag。该步骤不会触发 CI，也不会触发 Release。
 
 4. 将 `develop` 快进到 `main` 并推送。
 
@@ -43,9 +43,9 @@
    git push origin main
    ```
 
-5. `main` push 会触发 Release workflow。因为 main 的 HEAD 是 `Release vX.Y.Z` 版本提交，workflow 列表标题会显示对应版本，并自动打包发布对应 tag。
+5. `main` push 会触发 Release workflow。workflow 列表标题会显示版本脚本写入的 `Release vX.Y.Z`，并自动打包发布对应 tag。
 
-不要在 `main` 上执行 `./scripts/release-version.sh`。脚本已限制只能在 `develop` 上运行。合并到 main 时使用 fast-forward，避免 main 产生额外 merge commit，让 Release workflow 标题和打包目标都对应版本提交。
+不要在 `main` 上执行 `./scripts/release-version.sh`。脚本已限制只能在 `develop` 上运行。合并到 main 时使用 fast-forward，避免 main 产生额外 merge commit，让 Release workflow 打包目标对应版本提交。
 
 ## 依赖升级策略
 
