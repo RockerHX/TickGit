@@ -144,51 +144,74 @@
   class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2b3036]"
   bind:this={panelElement}
 >
-  <div class="border-b border-[#1f2328] bg-[#2d333b] px-5 py-3">
+  <div
+    class="border-b border-[#1f2328]/80 bg-[#111827] px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.28)]"
+  >
     {#if commit}
-      <div class="min-w-0">
-        <div class="flex items-start gap-3">
+      <div
+        class="min-w-0 rounded-xl border border-white/10 bg-[#18202d]/80 p-4 shadow-[0_18px_42px_rgba(8,13,24,0.22)]"
+      >
+        <div class="flex items-start justify-between gap-4">
           <div class="min-w-0 flex-1">
-            <div class="truncate text-[1.15rem] font-semibold text-[#f0f6fc]">
+            <div
+              class="truncate text-xl font-semibold leading-7 tracking-[-0.01em] text-slate-50"
+            >
               {commit.summary}
             </div>
-            {#if commit.tags.length > 0}
-              <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                {#each commit.tags as tag}
-                  <span
-                    class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200"
-                    title={tag}
-                  >
-                    {tag}
-                  </span>
-                {/each}
-              </div>
-            {/if}
-            {#if commitMeta?.body}
-              <div
-                class="mt-1 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200"
-              >
-                {commitMeta.body}
-              </div>
-            {/if}
           </div>
-          {#if !commit.isPushed}
-            <span
-              class="mt-0.5 flex shrink-0 items-center text-[#f0f6fc]"
-              title={translate($locale, "commit.local")}
+          <span
+            class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400"
+            aria-hidden="true"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              class="h-4 w-4 fill-current"
+              aria-hidden="true"
             >
-              <svg
-                viewBox="0 0 16 16"
-                class="h-4 w-4 fill-current"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
-                ></path>
-              </svg>
-            </span>
-          {/if}
+              <path
+                d="M3.22 9.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1-1.06 1.06L8 5.81 4.28 9.53a.75.75 0 0 1-1.06 0Z"
+              ></path>
+            </svg>
+          </span>
         </div>
+
+        {#if commit.tags.length > 0 || !commit.isPushed}
+          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+            {#if !commit.isPushed}
+              <span
+                class="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-200"
+                title={translate($locale, "commit.local")}
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3.5 w-3.5 fill-current"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M8 12.75a.75.75 0 0 1-.75-.75V6.81L5.53 8.53a.75.75 0 1 1-1.06-1.06l3-3a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06L8.75 6.81V12a.75.75 0 0 1-.75.75Z"
+                  ></path>
+                </svg>
+                {translate($locale, "commit.local")}
+              </span>
+            {/if}
+            {#each commit.tags as tag}
+              <span
+                class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200"
+                title={tag}
+              >
+                {tag}
+              </span>
+            {/each}
+          </div>
+        {/if}
+
+        {#if commitMeta?.body}
+          <div
+            class="mt-2 whitespace-pre-wrap text-[0.95rem] leading-6 text-slate-200"
+          >
+            {commitMeta.body}
+          </div>
+        {/if}
 
         <div class="mt-3 flex items-center gap-2 text-[13px] text-[#f0f6fc]">
           <div
