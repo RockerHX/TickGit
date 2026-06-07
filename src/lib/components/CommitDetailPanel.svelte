@@ -289,23 +289,20 @@
 
         {#if commitMeta}
           <div
-            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"
+            class="mt-3 flex flex-wrap items-center gap-2 text-[13px] font-medium"
           >
-            <svg
-              viewBox="0 0 16 16"
-              class="h-4 w-4 shrink-0 fill-[#f0f6fc]"
-              aria-hidden="true"
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-emerald-300"
             >
-              <path
-                d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5Z"
-              ></path>
-            </svg>
-            <span class="font-medium text-emerald-300">
+              <span class="font-mono text-sm leading-none">+</span>
               {translate($locale, "commit.addedLines", {
                 count: commitMeta.additions,
               })}
             </span>
-            <span class="font-medium text-rose-300">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/10 px-3 py-1 text-rose-300"
+            >
+              <span class="font-mono text-sm leading-none">-</span>
               {translate($locale, "commit.removedLines", {
                 count: commitMeta.deletions,
               })}
