@@ -24,7 +24,6 @@
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
-  import WorkspaceChangesPanel from "$lib/components/WorkspaceChangesPanel.svelte";
   import { api } from "$lib/tauri/api";
   import {
     listenPushToCommitFailed,
@@ -55,13 +54,11 @@
     canLoadDiff,
     canLoadHistory,
     canPushCurrentBranch,
-    canCreateWorkspaceCommit,
     canRefreshBlockedBranchStatus,
     canRefreshCurrentRepositoryOnFocus,
     canStartStepPush,
     canStartTargetCommitPush,
     canSwitchBranch,
-    canWriteWorkspace,
     isBranchSwitcherDisabled,
     isContextMenuDisabled,
     isRepositoryAvailable,
@@ -89,14 +86,6 @@
     getPaginationState,
   } from "$lib/tickgit/pagination";
   import {
-    EMPTY_WORKSPACE_STATUS,
-    fetchWorkspaceSnapshot,
-    getWorkspaceCommitFailureEffect,
-    getWorkspaceCommitSuccessEffect,
-    workspaceFileKey,
-    type WorkspaceSelection,
-  } from "$lib/tickgit/workspace";
-  import {
     MAX_LEFT_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
     RESIZE_DIVIDER_LINE_WIDTH,
@@ -113,8 +102,6 @@
     StepPushPlan,
     StepPushUiState,
     ToastItem,
-    WorkspaceChangeSection,
-    WorkspaceStatus,
   } from "$lib/types";
 
   const PAGE_SIZE = HISTORY_PAGE_SIZE;
@@ -139,12 +126,6 @@
   let diffResult: CommitFileDiffResult = EMPTY_DIFF_RESULT;
   let diffViewMode: "unified" | "split" = "unified";
   let hideWhitespaceInDiff = false;
-  let activeMainView: "history" | "changes" = "history";
-
-  let workspaceStatus: WorkspaceStatus = EMPTY_WORKSPACE_STATUS;
-  let selectedWorkspaceSection: WorkspaceChangeSection | null = null;
-  let selectedWorkspaceFilePath: string | null = null;
-  let workspaceDiffResult: CommitFileDiffResult = EMPTY_DIFF_RESULT;
 
   let nextSkip = 0;
   let hasMore = false;
@@ -154,12 +135,7 @@
   let loadingRepository = true;
   let loadingFiles = false;
   let loadingDiff = false;
-  let loadingWorkspace = false;
-  let loadingWorkspaceDiff = false;
   let syncingRemoteStatus = false;
-  let workspaceActionFileKey: string | null = null;
-  let workspaceCommitMessage = "";
-  let committingWorkspace = false;
 
   let dragActive = false;
   let isPushing = false;
@@ -254,64 +230,6 @@
     diffResult = snapshot.diffResult;
   }
 
-  function currentWorkspaceSelection(): WorkspaceSelection | null {
-    if (!selectedWorkspaceSection || !selectedWorkspaceFilePath) {
-      return null;
-    }
-
-    return {
-      section: selectedWorkspaceSection,
-      path: selectedWorkspaceFilePath,
-    };
-  }
-
-  function resetWorkspaceState() {
-    workspaceStatus = EMPTY_WORKSPACE_STATUS;
-    selectedWorkspaceSection = null;
-    selectedWorkspaceFilePath = null;
-    workspaceDiffResult = EMPTY_DIFF_RESULT;
-    workspaceActionFileKey = null;
-    workspaceCommitMessage = "";
-    committingWorkspace = false;
-  }
-
-  function applyWorkspaceSnapshot(
-    snapshot: Awaited<ReturnType<typeof fetchWorkspaceSnapshot>>,
-  ) {
-    workspaceStatus = snapshot.status;
-    selectedWorkspaceSection = snapshot.selectedSection;
-    selectedWorkspaceFilePath = snapshot.selectedFilePath;
-    workspaceDiffResult = snapshot.diffResult;
-  }
-
-  function canRunWorkspaceAction() {
-    return canWriteWorkspace({
-      currentRepository,
-      loadingRepository,
-      loadingWorkspace,
-      switchingBranch,
-      isPushing,
-      stepPushState,
-      workspaceActionFileKey,
-      committingWorkspace,
-    });
-  }
-
-  function canCommitWorkspaceChanges() {
-    return canCreateWorkspaceCommit({
-      currentRepository,
-      loadingRepository,
-      loadingWorkspace,
-      switchingBranch,
-      isPushing,
-      stepPushState,
-      workspaceActionFileKey,
-      committingWorkspace,
-      commitMessage: workspaceCommitMessage,
-      stagedCount: workspaceStatus.staged.length,
-    });
-  }
-
   function clearRepositoryData() {
     branchStatus = null;
     localBranches = [];
@@ -334,7 +252,6 @@
     stepPushState = null;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
     repositoryPendingRemoval = null;
-    resetWorkspaceState();
   }
 
   function clearHistoryDetailState() {
@@ -417,10 +334,6 @@
     }
 
     await loadRepositoryState(currentRepository.path, keepSelection);
-
-    if (activeMainView === "changes") {
-      await loadWorkspaceState(currentRepository.path, keepSelection);
-    }
   }
 
   function notifyRemoteRefreshError(state: RepositoryStateResult) {
@@ -486,18 +399,6 @@
     }, HISTORY_FILTER_DEBOUNCE_MS);
   }
 
-  async function switchMainView(view: "history" | "changes") {
-    activeMainView = view;
-
-    if (
-      view === "changes" &&
-      currentRepository &&
-      isRepositoryAvailable(currentRepository)
-    ) {
-      await loadWorkspaceState(currentRepository.path, true);
-    }
-  }
-
   async function bootstrap() {
     loadingRepository = true;
 
@@ -541,7 +442,6 @@
       await api.setCurrentRepository(path);
       await refreshRepositories();
       historyPageIndex = 0;
-      resetWorkspaceState();
 
       await loadCurrentRepositoryState();
     } catch (error) {
@@ -587,30 +487,6 @@
     }
   }
 
-  async function loadWorkspaceState(path: string, keepSelection = false) {
-    loadingWorkspace = true;
-
-    try {
-      const snapshot = await fetchWorkspaceSnapshot(
-        api,
-        path,
-        keepSelection,
-        currentWorkspaceSelection(),
-        hideWhitespaceInDiff,
-      );
-      applyWorkspaceSnapshot(snapshot);
-    } catch (error) {
-      resetWorkspaceState();
-      notify(
-        translate($locale, "workspace.readFailedTitle"),
-        getErrorMessage(error, $locale),
-        "error",
-      );
-    } finally {
-      loadingWorkspace = false;
-    }
-  }
-
   async function switchBranch(branch: string) {
     const repository = currentRepository;
 
@@ -638,9 +514,6 @@
     try {
       await api.checkoutBranch(repository.path, branch);
       await loadRepositoryState(repository.path);
-      if (activeMainView === "changes") {
-        await loadWorkspaceState(repository.path);
-      }
       notify(
         translate($locale, "branch.switchedTitle"),
         translate($locale, "branch.switchedMessage", { branch }),
@@ -882,149 +755,6 @@
     }
   }
 
-  async function loadWorkspaceDiff(
-    section: WorkspaceChangeSection,
-    filePath: string,
-  ) {
-    const repository = currentRepository;
-
-    if (!repository) {
-      return;
-    }
-
-    loadingWorkspaceDiff = true;
-    selectedWorkspaceSection = section;
-    selectedWorkspaceFilePath = filePath;
-
-    try {
-      const selectedFile = [
-        ...workspaceStatus.staged,
-        ...workspaceStatus.unstaged,
-      ].find((file) => file.section === section && file.path === filePath);
-      workspaceDiffResult = await api.getWorkspaceFileDiff(
-        repository.path,
-        section,
-        filePath,
-        hideWhitespaceInDiff,
-        selectedFile?.previousPath ?? null,
-      );
-    } catch (error) {
-      workspaceDiffResult = EMPTY_DIFF_RESULT;
-      notify(
-        translate($locale, "workspace.readDiffFailedTitle"),
-        getErrorMessage(error, $locale),
-        "error",
-      );
-    } finally {
-      loadingWorkspaceDiff = false;
-    }
-  }
-
-  async function stageWorkspaceFile(
-    section: WorkspaceChangeSection,
-    filePath: string,
-  ) {
-    const repository = currentRepository;
-
-    if (!repository || !canRunWorkspaceAction()) {
-      return;
-    }
-
-    workspaceActionFileKey = workspaceFileKey({ section, path: filePath });
-
-    try {
-      await api.stageWorkspaceFile(repository.path, filePath);
-      await loadWorkspaceState(repository.path, true);
-      notify(
-        translate($locale, "workspace.fileStagedTitle"),
-        filePath,
-        "success",
-      );
-    } catch (error) {
-      notify(
-        translate($locale, "workspace.stageFailedTitle"),
-        getErrorMessage(error, $locale),
-        "error",
-      );
-    } finally {
-      workspaceActionFileKey = null;
-    }
-  }
-
-  async function unstageWorkspaceFile(
-    section: WorkspaceChangeSection,
-    filePath: string,
-  ) {
-    const repository = currentRepository;
-
-    if (!repository || !canRunWorkspaceAction()) {
-      return;
-    }
-
-    workspaceActionFileKey = workspaceFileKey({ section, path: filePath });
-
-    try {
-      await api.unstageWorkspaceFile(repository.path, filePath);
-      await loadWorkspaceState(repository.path, true);
-      notify(
-        translate($locale, "workspace.fileUnstagedTitle"),
-        filePath,
-        "success",
-      );
-    } catch (error) {
-      notify(
-        translate($locale, "workspace.unstageFailedTitle"),
-        getErrorMessage(error, $locale),
-        "error",
-      );
-    } finally {
-      workspaceActionFileKey = null;
-    }
-  }
-
-  async function commitWorkspaceChanges() {
-    const repository = currentRepository;
-
-    if (!repository || !canCommitWorkspaceChanges()) {
-      return;
-    }
-
-    committingWorkspace = true;
-
-    try {
-      const created = await api.createCommit(
-        repository.path,
-        workspaceCommitMessage,
-      );
-      const effect = getWorkspaceCommitSuccessEffect();
-      workspaceCommitMessage = effect.nextCommitMessage;
-
-      if (effect.refreshWorkspace) {
-        await loadWorkspaceState(repository.path);
-      }
-
-      if (effect.refreshRepository) {
-        await loadRepositoryState(repository.path);
-      }
-
-      notify(
-        translate($locale, "workspace.commitSuccessTitle"),
-        `${created.shortHash} ${created.summary}`,
-        "success",
-      );
-    } catch (error) {
-      const effect = getWorkspaceCommitFailureEffect(workspaceCommitMessage);
-      workspaceCommitMessage = effect.nextCommitMessage;
-      notify(
-        translate($locale, "workspace.commitFailedTitle"),
-        getErrorMessage(error, $locale),
-        "error",
-      );
-    } finally {
-      committingWorkspace = false;
-    }
-  }
-
   async function chooseRepositoryDirectory() {
     const selected = await openDialog({
       title: translate($locale, "repository.chooseDirectoryTitle"),
@@ -1163,16 +893,6 @@
     hideWhitespaceInDiff = value;
 
     if (!currentRepository) {
-      return;
-    }
-
-    if (activeMainView === "changes") {
-      if (selectedWorkspaceSection && selectedWorkspaceFilePath) {
-        await loadWorkspaceDiff(
-          selectedWorkspaceSection,
-          selectedWorkspaceFilePath,
-        );
-      }
       return;
     }
 
