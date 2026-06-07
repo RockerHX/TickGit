@@ -4,7 +4,6 @@ mod history;
 mod parse;
 mod push;
 mod repository;
-mod workspace;
 
 pub use diff::get_commit_file_diff;
 pub use history::{get_commit_files, get_commit_history, get_commit_meta};
@@ -15,10 +14,6 @@ pub use push::{
 pub use repository::{
     checkout_branch, get_branch_status, list_local_branches, refresh_remote_tracking,
     resolve_repository_path, validate_current_branch,
-};
-pub use workspace::{
-    create_commit, get_workspace_file_diff, get_workspace_status, stage_workspace_file,
-    unstage_workspace_file,
 };
 
 const REMOTE_NAME: &str = "origin";
