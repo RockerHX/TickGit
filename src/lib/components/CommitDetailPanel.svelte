@@ -385,9 +385,18 @@
                     </span>
                   </div>
                 </button>
+                {#if typeof file.additions === "number" && typeof file.deletions === "number"}
+                  <div
+                    class="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold tabular-nums"
+                    aria-label={`+${file.additions} -${file.deletions}`}
+                  >
+                    <span class="text-emerald-300">+{file.additions}</span>
+                    <span class="text-rose-300">-{file.deletions}</span>
+                  </div>
+                {/if}
                 <button
                   type="button"
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#444c56] bg-[#373e47] text-slate-200 transition hover:border-[#539bf5]/50 hover:bg-[#347dff]/15"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-transparent bg-white/[0.04] text-slate-300 transition hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400/35"
                   title={copiedFilePath === file.path
                     ? translate($locale, "file.copiedPath")
                     : translate($locale, "file.copyPath")}
