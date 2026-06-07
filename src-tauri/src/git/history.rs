@@ -7,7 +7,10 @@ use crate::{
 
 use super::{
     command::{git_output_bytes, git_text, git_trimmed},
-    parse::{parse_commit_files, parse_commit_history, parse_shortstat, parse_unpushed_hashes},
+    parse::{
+        apply_commit_file_numstat, parse_commit_files, parse_commit_history, parse_shortstat,
+        parse_unpushed_hashes,
+    },
     push::safe_unpushed_hashes,
     repository::{branch_status_for_path, resolve_repository_path},
 };
@@ -286,7 +289,20 @@ fn commit_files_for_resolved_path(
             hash,
         ],
     )?;
-    Ok(parse_commit_files(&output))
+    let mut files = parse_commit_files(&output);
+    let numstat_output = git_output_bytes(
+        repo_path,
+        &[
+            "show",
+            "--find-renames",
+            "--numstat",
+            "-z",
+            "--format=",
+            hash,
+        ],
+    )?;
+    apply_commit_file_numstat(&mut files, &numstat_output);
+    Ok(files)
 }
 
 pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
