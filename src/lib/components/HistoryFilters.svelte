@@ -96,10 +96,10 @@
   });
 </script>
 
-<div class="mt-2.5 space-y-1.5">
+<div class="mt-2 space-y-1.5">
   <div class="relative">
     <span
-      class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-tg-text-muted"
+      class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-tg-text-muted"
       aria-hidden="true"
     >
       <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
@@ -110,14 +110,14 @@
     </span>
     <input
       bind:this={searchInput}
-      class="h-9 w-full rounded-tg-control border border-tg-border-strong bg-tg-bg-panel px-9 pr-14 text-[13px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
+      class="h-8 w-full rounded-md border border-tg-border-strong bg-tg-bg-panel px-8 pr-12 text-[12px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
       placeholder={translate($locale, "history.commitSearch")}
       aria-label={translate($locale, "history.commitSearch")}
       value={filters.query ?? ""}
       on:input={(event) => updateFilter("query", event.currentTarget.value)}
     />
     <span
-      class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-tg-border-strong bg-tg-bg-card px-1.5 py-0.5 text-[9px] font-semibold text-tg-text-secondary/80"
+      class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 rounded border border-tg-border-strong bg-tg-bg-card px-1.5 py-0.5 text-[8px] font-semibold text-tg-text-secondary/80"
       aria-label={translate($locale, "history.searchShortcut")}
     >
       ⌘K
@@ -128,7 +128,7 @@
     {#each filterButtons as filter}
       <button
         type="button"
-        class={`flex h-8 items-center justify-center gap-1 rounded-lg border px-1.5 text-[11px] font-semibold transition ${
+        class={`flex h-7 items-center justify-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold transition ${
           isActive(filter.key) || expandedFilter === filter.key
             ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
             : "border-tg-border-strong bg-tg-bg-panel text-tg-text-secondary hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
@@ -138,12 +138,36 @@
         aria-pressed={isActive(filter.key)}
         on:click={() => toggleFilter(filter.key)}
       >
-        {#if filter.key === "filePath"}
-          <span aria-hidden="true">▱</span>
+        {#if filter.key === "author"}
+          <svg
+            viewBox="0 0 16 16"
+            class="h-3.5 w-3.5 shrink-0 fill-current"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 8.25a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm0-1.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-5.75 7a5.75 5.75 0 0 1 11.5 0 .75.75 0 0 1-1.5 0 4.25 4.25 0 0 0-8.5 0 .75.75 0 0 1-1.5 0Z"
+            ></path>
+          </svg>
+        {:else if filter.key === "filePath"}
+          <svg
+            viewBox="0 0 16 16"
+            class="h-3.5 w-3.5 shrink-0 fill-current"
+            aria-hidden="true"
+          >
+            <path
+              d="M3.75 2.25A2.25 2.25 0 0 0 1.5 4.5v7A2.25 2.25 0 0 0 3.75 13.75h8.5a2.25 2.25 0 0 0 2.25-2.25v-5A2.25 2.25 0 0 0 12.25 4.25H8.63L7.42 2.86a1.75 1.75 0 0 0-1.32-.61H3.75Zm0 1.5H6.1c.07 0 .14.03.18.08l1.43 1.64c.14.17.35.27.57.27h3.97c.41 0 .75.34.75.75v5c0 .41-.34.75-.75.75h-8.5A.75.75 0 0 1 3 11.5v-7c0-.41.34-.75.75-.75Z"
+            ></path>
+          </svg>
         {:else if filter.key === "message"}
-          <span aria-hidden="true">▢</span>
-        {:else}
-          <span aria-hidden="true">♙</span>
+          <svg
+            viewBox="0 0 16 16"
+            class="h-3.5 w-3.5 shrink-0 fill-current"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.75 2.5A2.25 2.25 0 0 0 .5 4.75v4.5a2.25 2.25 0 0 0 2.25 2.25h1.38l2.34 2.06a.75.75 0 0 0 1.25-.56V11.5h5.53a2.25 2.25 0 0 0 2.25-2.25v-4.5a2.25 2.25 0 0 0-2.25-2.25H2.75Zm0 1.5h10.5c.41 0 .75.34.75.75v4.5c0 .41-.34.75-.75.75H6.97a.75.75 0 0 0-.75.75v.6L4.9 10.18a.75.75 0 0 0-.5-.18H2.75A.75.75 0 0 1 2 9.25v-4.5c0-.41.34-.75.75-.75Z"
+            ></path>
+          </svg>
         {/if}
         <span>{translate($locale, filter.labelKey)}</span>
       </button>
@@ -151,7 +175,7 @@
 
     <button
       type="button"
-      class={`flex h-8 w-9 items-center justify-center rounded-lg border text-tg-text-secondary transition ${
+      class={`flex h-7 w-8 items-center justify-center rounded-md border text-tg-text-secondary transition ${
         expandedFilter === "all"
           ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
           : "border-tg-border-strong bg-tg-bg-panel hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
@@ -169,7 +193,7 @@
         aria-hidden="true"
       >
         <path
-          d="M2.25 4a.75.75 0 0 1 .75-.75h10a.75.75 0 0 1 0 1.5H3A.75.75 0 0 1 2.25 4Zm2 4a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H5A.75.75 0 0 1 4.25 8Zm2 4a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5H7A.75.75 0 0 1 6.25 12Z"
+          d="M3.25 3.5a2 2 0 0 1 3.87-.75h5.13a.75.75 0 0 1 0 1.5H7.12a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0Zm3.63 4.5a2 2 0 0 1 3.87-.75h.5a.75.75 0 0 1 0 1.5h-.5a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0ZM2.75 7.25h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5Zm.5 5.25a2 2 0 0 1 3.87-.75h5.13a.75.75 0 0 1 0 1.5H7.12a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0Z"
         ></path>
       </svg>
     </button>
@@ -178,7 +202,7 @@
   {#if expandedFilter}
     <div
       id="history-expanded-filters"
-      class="space-y-1.5 rounded-tg-control border border-tg-border-strong bg-tg-bg-panel p-1.5"
+      class="space-y-1.5 rounded-md border border-tg-border-strong bg-tg-bg-panel p-1.5"
     >
       {#each filterButtons as filter}
         {#if shouldShowInput(filter.key)}
@@ -189,7 +213,7 @@
               {translate($locale, filter.labelKey)}
             </span>
             <input
-              class="h-8 w-full rounded-md border border-tg-border-strong bg-tg-bg-app px-2.5 text-[11px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70"
+              class="h-7 w-full rounded-md border border-tg-border-strong bg-tg-bg-app px-2 text-[10px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70"
               placeholder={translate($locale, filter.placeholderKey)}
               value={filterValue(filter.key)}
               on:input={(event) =>
