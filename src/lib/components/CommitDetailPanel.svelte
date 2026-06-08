@@ -172,14 +172,14 @@
             </div>
             {#if commitHeaderCollapsed}
               <div
-                class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400"
+                class="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400"
               >
-                <span class="leading-5">
+                <span class="min-w-0 truncate leading-5">
                   {formatAbsoluteDate(commit.committedAt, $locale)}
                 </span>
                 {#if commitMeta}
                   <span
-                    class="flex items-center gap-1.5 font-mono text-[12px] font-semibold tabular-nums"
+                    class="flex shrink-0 items-center gap-1.5 font-mono text-[12px] font-semibold tabular-nums"
                     aria-label={`+${commitMeta.additions} -${commitMeta.deletions}`}
                   >
                     <span class="text-emerald-300">+{commitMeta.additions}</span
