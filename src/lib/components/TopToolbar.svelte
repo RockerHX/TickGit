@@ -40,9 +40,33 @@
 <div
   class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_42%)] px-6 pb-3 pt-2"
 >
+  <div class="relative mb-2 flex h-8 items-center justify-center">
+    <div class="absolute left-0 flex items-center gap-2" aria-hidden="true">
+      <span class="h-3 w-3 rounded-full bg-rose-400/80 shadow-sm"></span>
+      <span class="h-3 w-3 rounded-full bg-amber-300/80 shadow-sm"></span>
+      <span class="h-3 w-3 rounded-full bg-emerald-400/80 shadow-sm"></span>
+    </div>
+
+    <div
+      class="pointer-events-none flex items-center gap-2 rounded-full border border-tg-border-soft bg-tg-bg-card/55 px-3 py-1 text-xs font-semibold tracking-[0.12em] text-tg-text-primary shadow-[0_10px_26px_rgba(15,23,42,0.22)]"
+    >
+      <span
+        class="flex h-5 w-5 items-center justify-center rounded-full bg-tg-blue/20 text-sky-100"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+          <path
+            d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
+          ></path>
+        </svg>
+      </span>
+      <span>{translate($locale, "app.title")}</span>
+    </div>
+  </div>
+
   <div
-    class="grid items-start gap-3"
-    style="grid-template-columns: minmax(300px, 1fr) 10px minmax(200px, 0.72fr) 10px 270px 56px 56px;"
+    class="grid min-w-0 items-start gap-3"
+    style="grid-template-columns: minmax(240px, 1fr) 10px minmax(180px, 0.72fr) 10px minmax(220px, 270px) 56px 56px;"
   >
     <div class="min-w-0">
       <div
