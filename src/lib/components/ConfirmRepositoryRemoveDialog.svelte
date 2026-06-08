@@ -50,49 +50,51 @@
 
 {#if repository}
   <div
-    class="fixed inset-0 z-40 flex items-center justify-center bg-[#0d1117]/70 px-4 backdrop-blur-sm"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-tg-bg-app/75 px-4 backdrop-blur-sm"
     role="presentation"
     on:click={handleBackdropClick}
   >
     <div
-      class="w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2027] shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
+      class="tg-panel w-full max-w-md overflow-hidden rounded-2xl shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="remove-repository-title"
       aria-describedby="remove-repository-description"
     >
-      <div class="border-b border-white/[0.06] px-5 py-4">
+      <div class="border-b border-tg-border-soft px-5 py-4">
         <h2
           id="remove-repository-title"
-          class="text-base font-semibold text-[#f0f6fc]"
+          class="text-base font-semibold text-tg-text-primary"
         >
           {translate($locale, "repository.removeConfirmTitle")}
         </h2>
         <p
           id="remove-repository-description"
-          class="mt-1 text-xs leading-5 text-slate-400"
+          class="mt-1 text-xs leading-5 text-tg-text-secondary/80"
         >
           {translate($locale, "repository.removeConfirmDescription")}
         </p>
       </div>
 
       <div class="px-5 py-4">
-        <div class="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3">
-          <div class="truncate text-sm font-semibold text-[#f0f6fc]">
+        <div class="tg-card p-3">
+          <div class="truncate text-sm font-semibold text-tg-text-primary">
             {repository.name}
           </div>
-          <div class="mt-1 truncate font-mono text-xs text-slate-400">
+          <div
+            class="mt-1 truncate font-mono text-xs text-tg-text-secondary/80"
+          >
             {displayPath}
           </div>
         </div>
       </div>
 
       <div
-        class="flex justify-end gap-2 border-t border-white/[0.06] px-5 py-4"
+        class="flex justify-end gap-2 border-t border-tg-border-soft px-5 py-4"
       >
         <button
           type="button"
-          class="rounded-md border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm font-semibold text-slate-300 transition hover:border-[#6e7681] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          class="tg-control tg-focus-ring px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           disabled={loading}
           on:click={cancel}
         >

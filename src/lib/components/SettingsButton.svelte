@@ -13,10 +13,8 @@
 
 <button
   type="button"
-  class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border text-slate-300 backdrop-blur transition hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#10151c] ${
-    open
-      ? "border-[#539bf5]/40 bg-[#347dff]/12 text-[#f0f6fc]"
-      : "border-white/[0.08] bg-white/[0.04]"
+  class={`tg-control tg-focus-ring mt-[18px] flex min-h-[56px] w-full items-center justify-center ${
+    open ? "border-tg-blue-soft/40 bg-tg-blue/12 text-tg-text-primary" : ""
   }`}
   aria-label={translate($locale, "settings.title")}
   aria-haspopup="dialog"
