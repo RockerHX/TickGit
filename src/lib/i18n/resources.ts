@@ -23,6 +23,10 @@ export const resources = {
     "settings.title": "Settings",
     "settings.description": "Configure TickGit preferences.",
     "settings.language": "Language",
+    "settings.commitInfo": "Commit info",
+    "settings.commitInfoDefaultCollapsed": "Collapse commit info by default",
+    "settings.commitInfoDefaultCollapsedDescription":
+      "Newly selected commits open with the compact header when this is enabled.",
     "settings.close": "Close settings",
     "repository.current": "Current Repository",
     "repository.select": "Select repository",
@@ -277,6 +281,10 @@ export const resources = {
     "settings.title": "设置",
     "settings.description": "配置 TickGit 偏好设置。",
     "settings.language": "语言",
+    "settings.commitInfo": "Commit 信息",
+    "settings.commitInfoDefaultCollapsed": "默认折叠 Commit 信息",
+    "settings.commitInfoDefaultCollapsedDescription":
+      "开启后，新选择的 Commit 会默认显示紧凑头部。",
     "settings.close": "关闭设置",
     "repository.current": "当前仓库",
     "repository.select": "选择仓库",

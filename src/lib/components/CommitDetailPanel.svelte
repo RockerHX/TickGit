@@ -13,6 +13,7 @@
     RESIZE_DIVIDER_LINE_WIDTH,
   } from "$lib/tickgit/layout";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
+  import { commitInfoDefaultCollapsed } from "$lib/tickgit/preferences";
   import type {
     BranchStatus,
     CommitFileChange,
@@ -51,7 +52,7 @@
 
   $: if (commit?.hash !== previousCommitHash) {
     previousCommitHash = commit?.hash ?? null;
-    commitHeaderCollapsed = false;
+    commitHeaderCollapsed = $commitInfoDefaultCollapsed;
     copiedCommitHash = null;
   }
 
