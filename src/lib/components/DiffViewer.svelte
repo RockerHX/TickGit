@@ -49,7 +49,7 @@
   }>();
 
   const emptyStateClasses =
-    "m-4 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-4 py-10 text-center text-sm text-tg-text-muted";
+    "m-3 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-3 py-8 text-center text-xs text-tg-text-muted";
 
   let openControl: "mode" | "settings" | "more" | null = null;
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
@@ -206,9 +206,9 @@
 
 <div class="flex min-h-0 flex-1 flex-col bg-tg-bg-panel">
   <div
-    class="relative flex items-center justify-between gap-2.5 border-b border-tg-border-soft bg-tg-bg-card px-3 py-2 text-[13px]"
+    class="relative flex items-center justify-between gap-2 border-b border-tg-border-soft bg-tg-bg-card px-2.5 py-1.5 text-[12px]"
   >
-    <div class="flex min-w-0 flex-1 items-center gap-2.5">
+    <div class="flex min-w-0 flex-1 items-center gap-2">
       {#if fileIcon}
         <FileTypeIcon file={fileIcon} />
       {/if}
@@ -219,10 +219,10 @@
         {displayFilePath}
       </div>
     </div>
-    <div class="relative flex shrink-0 items-center gap-1.5">
+    <div class="relative flex shrink-0 items-center gap-1">
       <button
         type="button"
-        class="tg-focus-ring inline-flex h-7 items-center gap-1 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-2.5 text-[11px] font-semibold text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
+        class="tg-focus-ring inline-flex h-6 items-center gap-1 rounded-lg border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-2 text-[10px] font-semibold text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
         aria-label={translate($locale, "diff.display")}
         aria-controls="diff-control-popover"
         aria-expanded={openControl === "mode"}
@@ -248,7 +248,7 @@
 
       <button
         type="button"
-        class={`inline-flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+        class={`inline-flex h-6 w-6 items-center justify-center rounded-lg border transition ${
           openControl === "settings"
             ? "border-tg-blue-soft/45 bg-tg-blue-soft/15 text-sky-100"
             : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
@@ -262,7 +262,7 @@
       >
         <svg
           viewBox="0 0 16 16"
-          class="h-3.5 w-3.5 fill-current"
+          class="h-3 w-3 fill-current"
           aria-hidden="true"
         >
           <path
@@ -273,7 +273,7 @@
 
       <button
         type="button"
-        class={`inline-flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+        class={`inline-flex h-6 w-6 items-center justify-center rounded-lg border transition ${
           openControl === "more"
             ? "border-tg-blue-soft/45 bg-tg-blue-soft/15 text-sky-100"
             : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
@@ -287,7 +287,7 @@
       >
         <svg
           viewBox="0 0 16 16"
-          class="h-3.5 w-3.5 fill-current"
+          class="h-3 w-3 fill-current"
           aria-hidden="true"
         >
           <path
@@ -299,14 +299,14 @@
       {#if openControl}
         <div
           id="diff-control-popover"
-          class="tg-panel absolute right-0 top-[calc(100%+6px)] z-30 w-[220px] overflow-hidden rounded-xl p-2.5 shadow-2xl shadow-black/35"
+          class="tg-panel absolute right-0 top-[calc(100%+6px)] z-30 w-[210px] overflow-hidden rounded-xl p-2 shadow-2xl shadow-black/35"
           role="group"
           aria-label={openControl === "mode"
             ? translate($locale, "diff.display")
             : translate($locale, "diff.options")}
         >
           <div
-            class="text-[11px] font-semibold uppercase tracking-[0.16em] text-tg-text-secondary/80"
+            class="text-[10px] font-semibold uppercase tracking-[0.16em] text-tg-text-secondary/80"
           >
             {openControl === "mode"
               ? translate($locale, "diff.display")
@@ -314,10 +314,10 @@
           </div>
 
           {#if openControl === "mode"}
-            <div class="mt-2.5 grid grid-cols-2 gap-1.5">
+            <div class="mt-2 grid grid-cols-2 gap-1">
               <button
                 type="button"
-                class={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition ${
+                class={`rounded-md border px-2 py-1 text-[10px] font-medium transition ${
                   mode === "unified"
                     ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
                     : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
@@ -329,7 +329,7 @@
               </button>
               <button
                 type="button"
-                class={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition ${
+                class={`rounded-md border px-2 py-1 text-[10px] font-medium transition ${
                   mode === "split"
                     ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
                     : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
@@ -342,36 +342,36 @@
             </div>
           {:else if openControl === "settings"}
             <label
-              class="mt-2.5 flex cursor-pointer items-start gap-2.5 rounded-lg border border-tg-border-soft bg-white/[0.04] px-2.5 py-2 transition hover:border-tg-blue-soft/35"
+              class="mt-2 flex cursor-pointer items-start gap-2 rounded-lg border border-tg-border-soft bg-white/[0.04] px-2 py-1.5 transition hover:border-tg-blue-soft/35"
             >
               <input
                 type="checkbox"
-                class="mt-0.5 h-3.5 w-3.5 rounded border-tg-border-strong bg-tg-bg-card text-tg-blue"
+                class="mt-0.5 h-3 w-3 rounded border-tg-border-strong bg-tg-bg-card text-tg-blue"
                 checked={hideWhitespaceInDiff}
                 on:change={(event) =>
                   setHideWhitespace(event.currentTarget.checked)}
               />
               <div class="min-w-0">
-                <div class="text-[11px] font-medium text-tg-text-primary">
+                <div class="text-[10px] font-medium text-tg-text-primary">
                   {translate($locale, "diff.hideWhitespace")}
                 </div>
                 <div
-                  class="mt-0.5 text-[10px] leading-4 text-tg-text-secondary/80"
+                  class="mt-0.5 text-[9px] leading-4 text-tg-text-secondary/80"
                 >
                   {translate($locale, "diff.hideWhitespaceDescription")}
                 </div>
               </div>
             </label>
           {:else}
-            <div class="mt-2.5 space-y-1.5 text-[11px] text-tg-text-secondary">
+            <div class="mt-2 space-y-1 text-[10px] text-tg-text-secondary">
               {#if diffResult.byteCount > 0}
-                <div class="rounded-lg bg-white/[0.04] px-2.5 py-1.5">
+                <div class="rounded-lg bg-white/[0.04] px-2 py-1">
                   {translate($locale, "diff.patchSize", {
                     size: formatDiffSize(diffResult.byteCount),
                   })}
                 </div>
               {/if}
-              <div class="rounded-lg bg-white/[0.04] px-2.5 py-1.5">
+              <div class="rounded-lg bg-white/[0.04] px-2 py-1">
                 {translate($locale, "diff.changedLines", {
                   count: diffResult.lineCount,
                 })}
@@ -464,12 +464,12 @@
         {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
           {#if row.kind === "hunk"}
             <div
-              class="flex items-center justify-between gap-2.5 border-y border-tg-border-soft bg-tg-bg-elevated px-3 py-1.5 font-mono text-[11px] text-sky-100"
+              class="flex items-center justify-between gap-2 border-y border-tg-border-soft bg-tg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-sky-100"
             >
               <span class="min-w-0 truncate">{row.header}</span>
               <button
                 type="button"
-                class="tg-focus-ring inline-flex h-6.5 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-2 text-[10px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
+                class="tg-focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-1.5 text-[9px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
                 title={copyHunkLabel(row.hunkIndex)}
                 aria-label={copyHunkLabel(row.hunkIndex)}
                 on:click={() => copyHunk(row.hunkIndex)}
@@ -477,7 +477,7 @@
                 {#if copiedHunkIndex === row.hunkIndex}
                   <svg
                     viewBox="0 0 16 16"
-                    class="h-3 w-3 fill-current text-emerald-300"
+                    class="h-2.5 w-2.5 fill-current text-emerald-300"
                     aria-hidden="true"
                   >
                     <path
@@ -488,7 +488,7 @@
                 {:else}
                   <svg
                     viewBox="0 0 16 16"
-                    class="h-3 w-3 fill-current"
+                    class="h-2.5 w-2.5 fill-current"
                     aria-hidden="true"
                   >
                     <path
@@ -508,28 +508,28 @@
             >
               {#each [row.left, row.right] as line, sideIndex}
                 <div
-                  class={`grid min-w-0 grid-cols-[4rem_4rem_minmax(0,1fr)] ${
+                  class={`grid min-w-0 grid-cols-[3rem_3rem_minmax(0,1fr)] ${
                     sideIndex === 0 ? "border-r border-slate-700/60" : ""
                   } ${line ? lineToneClasses(line.type) : ""}`}
                 >
                   <div
-                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
+                    class={`border-r border-slate-700/55 px-1.5 py-0 text-right font-mono text-[10px] leading-5 ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
                   >
                     {line ? formatLineNumber(line.oldLineNumber) : ""}
                   </div>
                   <div
-                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
+                    class={`border-r border-slate-700/55 px-1.5 py-0 text-right font-mono text-[10px] leading-5 ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
                   >
                     {line ? formatLineNumber(line.newLineNumber) : ""}
                   </div>
                   <div
-                    class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
+                    class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
                   >
                     <span class="block whitespace-pre-wrap break-all">
                       {@html line ? highlightedLineContent(line.content) : " "}
                     </span>
                     {#if line?.noTrailingNewLine}
-                      <div class="text-[11px] italic text-amber-200">
+                      <div class="text-[10px] italic text-amber-200">
                         {translate($locale, "diff.noNewlineAtEnd")}
                       </div>
                     {/if}
@@ -544,12 +544,12 @@
       <div>
         {#each parsedDiff.hunks as hunk, hunkIndex}
           <div
-            class="flex items-center justify-between gap-2.5 border-y border-tg-border-soft bg-tg-bg-elevated px-3 py-1.5 font-mono text-[11px] text-sky-100"
+            class="flex items-center justify-between gap-2 border-y border-tg-border-soft bg-tg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-sky-100"
           >
             <span class="min-w-0 truncate">{hunk.header}</span>
             <button
               type="button"
-              class="tg-focus-ring inline-flex h-6.5 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-2 text-[10px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
+              class="tg-focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-1.5 text-[9px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
               title={copyHunkLabel(hunkIndex)}
               aria-label={copyHunkLabel(hunkIndex)}
               on:click={() => copyHunk(hunkIndex)}
@@ -557,7 +557,7 @@
               {#if copiedHunkIndex === hunkIndex}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3 w-3 fill-current text-emerald-300"
+                  class="h-2.5 w-2.5 fill-current text-emerald-300"
                   aria-hidden="true"
                 >
                   <path
@@ -568,7 +568,7 @@
               {:else}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3 w-3 fill-current"
+                  class="h-2.5 w-2.5 fill-current"
                   aria-hidden="true"
                 >
                   <path
@@ -584,26 +584,26 @@
           </div>
           {#each hunk.lines as line}
             <div
-              class={`grid grid-cols-[4rem_4rem_minmax(0,1fr)] border-b border-slate-700/45 ${lineToneClasses(line.type)}`}
+              class={`grid grid-cols-[3rem_3rem_minmax(0,1fr)] border-b border-slate-700/45 ${lineToneClasses(line.type)}`}
             >
               <div
-                class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
+                class={`border-r border-slate-700/55 px-1.5 py-0 text-right font-mono text-[10px] leading-5 ${lineNumberToneClasses(line.type)}`}
               >
                 {formatLineNumber(line.oldLineNumber)}
               </div>
               <div
-                class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${lineNumberToneClasses(line.type)}`}
+                class={`border-r border-slate-700/55 px-1.5 py-0 text-right font-mono text-[10px] leading-5 ${lineNumberToneClasses(line.type)}`}
               >
                 {formatLineNumber(line.newLineNumber)}
               </div>
               <div
-                class="overflow-x-hidden px-3 py-0.5 font-mono text-[12px] leading-6"
+                class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
               >
                 <span class="block whitespace-pre-wrap break-all">
                   {@html highlightedLineContent(line.content)}
                 </span>
                 {#if line.noTrailingNewLine}
-                  <div class="text-[11px] italic text-amber-200">
+                  <div class="text-[10px] italic text-amber-200">
                     {translate($locale, "diff.noNewlineAtEnd")}
                   </div>
                 {/if}

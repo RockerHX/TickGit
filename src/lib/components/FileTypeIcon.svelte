@@ -44,7 +44,7 @@
 </script>
 
 <span
-  class={`inline-flex h-6.5 min-w-6.5 shrink-0 items-center justify-center rounded-md border px-1.5 text-[9px] font-semibold uppercase ${tone}`}
+  class={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border px-1.5 text-[8px] font-semibold uppercase ${tone}`}
   aria-hidden="true"
 >
   {label}

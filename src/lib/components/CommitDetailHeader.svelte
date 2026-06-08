@@ -16,25 +16,25 @@
 </script>
 
 {#if commit}
-  <div class="tg-card min-w-0 p-2.5 shadow-[0_10px_26px_rgba(8,13,24,0.16)]">
-    <div class="flex items-start justify-between gap-2.5">
+  <div class="tg-card min-w-0 p-2 shadow-[0_8px_22px_rgba(8,13,24,0.14)]">
+    <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
         <div
-          class="truncate text-[16px] font-semibold leading-5 tracking-[-0.01em] text-tg-text-primary"
+          class="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-tg-text-primary"
           title={commit.summary}
         >
           {commit.summary}
         </div>
         {#if collapsed}
           <div
-            class="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-tg-text-secondary/80"
+            class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-tg-text-secondary/80"
           >
             <span class="min-w-0 truncate leading-5">
               {formatAbsoluteDate(commit.committedAt, $locale)}
             </span>
             {#if commitMeta}
               <span
-                class="flex shrink-0 items-center gap-1.5 font-mono text-[12px] font-semibold tabular-nums"
+                class="flex shrink-0 items-center gap-1 font-mono text-[11px] font-semibold tabular-nums"
                 aria-label={`+${commitMeta.additions} -${commitMeta.deletions}`}
               >
                 <span class="text-emerald-300">+{commitMeta.additions}</span>
@@ -46,7 +46,7 @@
       </div>
       <button
         type="button"
-        class="tg-control tg-focus-ring inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center"
+        class="tg-control tg-focus-ring inline-flex h-6 w-6 shrink-0 items-center justify-center"
         aria-label={collapsed
           ? translate($locale, "commit.expandInfo")
           : translate($locale, "commit.collapseInfo")}
@@ -55,7 +55,7 @@
       >
         <svg
           viewBox="0 0 16 16"
-          class={`h-3 w-3 fill-current transition-transform ${collapsed ? "rotate-180" : ""}`}
+          class={`h-2.5 w-2.5 fill-current transition-transform ${collapsed ? "rotate-180" : ""}`}
           aria-hidden="true"
         >
           <path
@@ -66,10 +66,10 @@
     </div>
 
     {#if !collapsed && (commit.tags.length > 0 || !commit.isPushed)}
-      <div class="mt-1 flex flex-wrap items-center gap-1.5">
+      <div class="mt-1 flex flex-wrap items-center gap-1">
         {#if !commit.isPushed}
           <span
-            class="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-1.5 py-0.5 text-[9px] font-medium text-sky-200"
+            class="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-1.5 py-0 text-[8px] font-medium text-sky-200"
             title={translate($locale, "commit.local")}
           >
             <svg
@@ -86,7 +86,7 @@
         {/if}
         {#each commit.tags as tag}
           <span
-            class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-200"
+            class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0 text-[8px] font-medium text-amber-200"
             title={tag}
           >
             {tag}
@@ -97,11 +97,11 @@
 
     {#if !collapsed}
       <div
-        class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-tg-text-primary"
+        class="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-tg-text-primary"
       >
-        <div class="flex min-w-0 flex-1 items-center gap-2">
+        <div class="flex min-w-0 flex-1 items-center gap-1.5">
           <div
-            class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[8px] font-semibold tracking-wide text-sky-100"
+            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[8px] font-semibold tracking-wide text-sky-100"
           >
             {getInitials(commit.authorName)}
           </div>
@@ -121,11 +121,11 @@
         </div>
 
         <div
-          class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 text-[10px]"
+          class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 text-[9px]"
         >
           <button
             type="button"
-            class="tg-focus-ring inline-flex h-6.5 max-w-full shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-2 font-mono font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
+            class="tg-focus-ring inline-flex h-6 max-w-full shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-1.5 font-mono font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
             title={commit.hash}
             aria-label={copiedCommitHash === commit.hash
               ? translate($locale, "commit.copiedHash")
@@ -167,21 +167,21 @@
               </svg>
             {/if}
           </button>
-          <span class="text-right leading-5 text-tg-text-secondary/80">
+          <span class="text-right leading-4 text-tg-text-secondary/80">
             {formatAbsoluteDate(commit.committedAt, $locale)}
           </span>
         </div>
       </div>
 
-      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+      <div class="mt-1.5 flex flex-wrap items-center gap-1">
         {#if commitMeta}
           <span
-            class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300 tabular-nums"
+            class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-1.5 py-0 font-mono text-[10px] font-semibold text-emerald-300 tabular-nums"
           >
             +{commitMeta.additions}
           </span>
           <span
-            class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-rose-300 tabular-nums"
+            class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-1.5 py-0 font-mono text-[10px] font-semibold text-rose-300 tabular-nums"
           >
             -{commitMeta.deletions}
           </span>

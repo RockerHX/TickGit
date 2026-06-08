@@ -156,35 +156,35 @@
   bind:this={panelElement}
 >
   <div
-    class="border-b border-tg-border-soft bg-tg-bg-panel px-3 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.2)]"
-  >
-    <CommitDetailHeader
-      {commit}
-      {commitMeta}
-      collapsed={commitHeaderCollapsed}
-      {copiedCommitHash}
-      on:toggleCollapsed={() =>
-        (commitHeaderCollapsed = !commitHeaderCollapsed)}
-      on:copyHash={(event) => copyCommitHash(event.detail.hash)}
-    >
-      {#if commit && !commitHeaderCollapsed}
-        <CommitMessagePanel {commit} body={commitBody} {branchStatus} />
-      {/if}
-    </CommitDetailHeader>
-  </div>
-
-  <div
     class="grid min-h-0 flex-1"
     style={`grid-template-columns: minmax(${MIN_FILES_PANE_WIDTH}px, ${filesPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,1fr);`}
   >
-    <ChangedFilesPanel
-      {files}
-      {selectedFilePath}
-      {loadingFiles}
-      {copiedFilePath}
-      on:selectFile={(event) => dispatch("selectFile", event.detail)}
-      on:copyPath={(event) => copyFilePath(event.detail.path)}
-    />
+    <div class="flex min-h-0 min-w-0 flex-col bg-tg-bg-panel">
+      <div class="shrink-0 border-b border-tg-border-soft px-2.5 py-2">
+        <CommitDetailHeader
+          {commit}
+          {commitMeta}
+          collapsed={commitHeaderCollapsed}
+          {copiedCommitHash}
+          on:toggleCollapsed={() =>
+            (commitHeaderCollapsed = !commitHeaderCollapsed)}
+          on:copyHash={(event) => copyCommitHash(event.detail.hash)}
+        >
+          {#if commit && !commitHeaderCollapsed}
+            <CommitMessagePanel {commit} body={commitBody} {branchStatus} />
+          {/if}
+        </CommitDetailHeader>
+      </div>
+
+      <ChangedFilesPanel
+        {files}
+        {selectedFilePath}
+        {loadingFiles}
+        {copiedFilePath}
+        on:selectFile={(event) => dispatch("selectFile", event.detail)}
+        on:copyPath={(event) => copyFilePath(event.detail.path)}
+      />
+    </div>
 
     <ResizeHandle
       active={isResizingFilesPane}
