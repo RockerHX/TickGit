@@ -72,19 +72,21 @@ body {
     linear-gradient(135deg, var(--tg-bg-app), var(--tg-bg-app-alt));
 }
 
-button,
-input,
-select {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  button,
+  select {
+    letter-spacing: 0;
+  }
 }
 
 * {
   box-sizing: border-box;
-}
-
-button,
-select {
-  letter-spacing: 0;
 }
 
 ::-webkit-scrollbar {
