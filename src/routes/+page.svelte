@@ -8,22 +8,18 @@
   } from "$lib/i18n";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import BranchSwitcher from "$lib/components/BranchSwitcher.svelte";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
   import ConfirmRepositoryRemoveDialog from "$lib/components/ConfirmRepositoryRemoveDialog.svelte";
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
-  import PushCard from "$lib/components/PushCard.svelte";
-  import RefreshButton from "$lib/components/RefreshButton.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
-  import RepositorySwitcher from "$lib/components/RepositorySwitcher.svelte";
-  import SettingsButton from "$lib/components/SettingsButton.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import StepPushPlanDialog from "$lib/components/StepPushPlanDialog.svelte";
   import StepPushOverlay from "$lib/components/StepPushOverlay.svelte";
   import ToastViewport from "$lib/components/ToastViewport.svelte";
+  import TopToolbar from "$lib/components/TopToolbar.svelte";
   import { api } from "$lib/tauri/api";
   import {
     listenPushToCommitFailed,
@@ -1336,88 +1332,40 @@
   <header
     class="shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
   >
-    <div
-      class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_42%)] px-6 pb-3 pt-2"
-    >
-      <div
-        class="grid items-start gap-3"
-        style="grid-template-columns: minmax(300px, 1fr) 10px minmax(200px, 0.72fr) 10px 270px 56px 56px;"
-      >
-        <div class="min-w-0">
-          <div
-            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
-          >
-            {translate($locale, "repository.current")}
-          </div>
-          <RepositorySwitcher
-            {repositories}
-            currentPath={currentRepository?.path ?? null}
-            managementDisabled={!canRunRepositoryManagementNow}
-            on:change={(event) => switchRepository(event.detail.path)}
-            on:remove={(event) => requestRepositoryRemoval(event.detail.path)}
-            on:relocate={(event) => relocateRepositoryPath(event.detail.path)}
-          />
-        </div>
-
-        <div
-          class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
-          aria-hidden="true"
-        >
-          <span class="text-xs">›</span>
-        </div>
-
-        <div class="min-w-0">
-          <div
-            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
-          >
-            {translate($locale, "branch.current")}
-          </div>
-          <BranchSwitcher
-            branches={localBranches}
-            currentBranch={branchStatus?.branch ?? null}
-            upstream={branchStatus?.upstream ?? null}
-            disabled={isBranchSwitcherDisabled({
-              currentRepository,
-              loadingRepository: loadingRepository || syncingRemoteStatus,
-              switchingBranch,
-              isPushing,
-              stepPushState,
-            })}
-            disabledReason={currentBranchDisabledReason()}
-            on:change={(event) => switchBranch(event.detail.branch)}
-          />
-        </div>
-
-        <div
-          class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
-          aria-hidden="true"
-        >
-          <span class="text-xs">›</span>
-        </div>
-
-        <PushCard
-          title={pushCardTitle}
-          subtitle={pushCardSubtitle}
-          aheadCount={pushCardAheadCount}
-          enabled={canPushBranch}
-          loading={isPushing}
-          blockedReason={pushCardBlockedReason}
-          ariaLabel={pushCardAriaLabel}
-          on:push={pushCurrentBranch}
-        />
-
-        <RefreshButton
-          enabled={canRefreshRemoteStatus}
-          loading={syncingRemoteStatus}
-          on:refresh={fetchRemoteStatusManually}
-        />
-
-        <SettingsButton
-          open={settingsOpen}
-          on:open={() => (settingsOpen = true)}
-        />
-      </div>
-    </div>
+    <TopToolbar
+      {repositories}
+      {currentRepository}
+      repositoryManagementDisabled={!canRunRepositoryManagementNow}
+      {localBranches}
+      {branchStatus}
+      branchDisabled={isBranchSwitcherDisabled({
+        currentRepository,
+        loadingRepository: loadingRepository || syncingRemoteStatus,
+        switchingBranch,
+        isPushing,
+        stepPushState,
+      })}
+      branchDisabledReason={currentBranchDisabledReason()}
+      pushTitle={pushCardTitle}
+      pushSubtitle={pushCardSubtitle}
+      pushAheadCount={pushCardAheadCount}
+      pushEnabled={canPushBranch}
+      pushLoading={isPushing}
+      pushBlockedReason={pushCardBlockedReason}
+      pushAriaLabel={pushCardAriaLabel}
+      refreshEnabled={canRefreshRemoteStatus}
+      refreshLoading={syncingRemoteStatus}
+      {settingsOpen}
+      on:repositoryChange={(event) => switchRepository(event.detail.path)}
+      on:repositoryRemove={(event) =>
+        requestRepositoryRemoval(event.detail.path)}
+      on:repositoryRelocate={(event) =>
+        relocateRepositoryPath(event.detail.path)}
+      on:branchChange={(event) => switchBranch(event.detail.branch)}
+      on:push={pushCurrentBranch}
+      on:refresh={fetchRemoteStatusManually}
+      on:openSettings={() => (settingsOpen = true)}
+    />
 
     {#if branchStatus && !branchStatus.pushAvailable}
       {#if branchStatus.behindCount > 0}

@@ -1,6 +1,6 @@
 [package]
 name = "tickgit"
-version = "1.6.0"
+version = "1.6.1"
 description = "TickGit desktop app"
 authors = ["rockerhx"]
 edition = "2021"

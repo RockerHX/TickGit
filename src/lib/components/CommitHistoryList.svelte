@@ -53,15 +53,15 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-tg-bg-panel">
-  <div class="border-b border-tg-border-soft px-4 py-3">
-    <div class="flex items-center justify-between gap-3">
-      <div class="text-sm font-semibold text-tg-text-primary">
+  <div class="border-b border-tg-border-soft px-2.5 py-2">
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-[12px] font-semibold text-tg-text-primary">
         {translate($locale, "history.title")}
       </div>
       {#if activeFilterCount > 0}
         <button
           type="button"
-          class="tg-control tg-focus-ring px-2 py-1 text-[11px] font-medium"
+          class="tg-control tg-focus-ring px-1.5 py-0.5 text-[9px] font-medium"
           on:click={() => dispatch("clearFilters")}
         >
           {translate($locale, "history.clearFilters", {
@@ -70,7 +70,7 @@
         </button>
       {/if}
     </div>
-    <div class="mt-1 text-xs text-tg-text-secondary/80">
+    <div class="mt-0.5 text-[10px] text-tg-text-secondary/80">
       {#if branchStatus?.pushAvailable}
         {translate($locale, "history.branchStats", {
           aheadCount: branchStatus.aheadCount,
@@ -95,7 +95,7 @@
   <div class="min-h-0 flex-1 overflow-y-auto">
     {#if commits.length === 0 && !loading}
       <div
-        class="m-4 rounded-tg-control border border-dashed border-tg-border-strong bg-tg-bg-app px-4 py-10 text-center text-sm text-tg-text-muted"
+        class="m-2.5 rounded-tg-control border border-dashed border-tg-border-strong bg-tg-bg-app px-3 py-6 text-center text-[12px] text-tg-text-muted"
       >
         {activeFilterCount > 0
           ? translate($locale, "history.noMatchingCommits")
@@ -103,7 +103,7 @@
       </div>
     {/if}
 
-    <div class="space-y-2.5 p-3">
+    <div class="space-y-1.5 p-2">
       {#each commits as commit (commit.hash)}
         {@const isSelected = selectedHash === commit.hash}
         {@const relativeTime = formatRelativeDate(commit.committedAt, $locale)}
@@ -115,32 +115,32 @@
               translate($locale, "history.unsafeStepPushFallback"))}
         <button
           type="button"
-          class={`tg-focus-ring group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm transition duration-150 ${
+          class={`tg-focus-ring group relative min-h-[62px] w-full overflow-hidden rounded-lg border px-2.5 py-2 text-left shadow-sm transition duration-150 ${
             isSelected
-              ? "border-tg-blue-soft/60 bg-gradient-to-r from-tg-blue/35 via-tg-blue/20 to-tg-bg-panel shadow-[0_14px_34px_rgba(37,99,235,0.2)]"
-              : "border-tg-border-soft bg-tg-bg-card/25 shadow-black/10 hover:border-tg-blue/30 hover:bg-tg-bg-elevated/55 hover:shadow-[0_10px_26px_rgba(15,23,42,0.24)]"
+              ? "border-tg-blue-soft/60 bg-gradient-to-r from-tg-blue/35 via-tg-blue/20 to-tg-bg-panel shadow-[0_10px_24px_rgba(37,99,235,0.18)]"
+              : "border-tg-border-soft bg-tg-bg-card/25 shadow-black/10 hover:border-tg-blue/30 hover:bg-tg-bg-elevated/55 hover:shadow-[0_8px_20px_rgba(15,23,42,0.22)]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           {#if isSelected}
             <div
-              class="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-gradient-to-b from-sky-300 via-tg-blue-soft to-tg-blue shadow-[0_0_18px_rgba(96,165,250,0.6)]"
+              class="absolute inset-y-1 left-0 w-0.5 rounded-r-full bg-gradient-to-b from-sky-300 via-tg-blue-soft to-tg-blue shadow-[0_0_12px_rgba(96,165,250,0.5)]"
             ></div>
           {/if}
 
-          <div class="flex items-start gap-3">
+          <div class="flex items-start gap-2">
             <div class="relative mt-0.5 shrink-0">
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-tg-bg-app text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.32)] ring-2 ring-tg-bg-app"
+                    class="absolute -left-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-tg-bg-app text-emerald-200 shadow-[0_0_10px_rgba(52,211,153,0.28)] ring-2 ring-tg-bg-app"
                     title={pushStatusTitle}
                     aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
-                      class="h-3 w-3 fill-current"
+                      class="h-2 w-2 fill-current"
                       aria-hidden="true"
                     >
                       <path
@@ -150,13 +150,13 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-tg-bg-app text-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.28)] ring-2 ring-tg-bg-app"
+                    class="absolute -left-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-tg-bg-app text-rose-200 shadow-[0_0_10px_rgba(251,113,133,0.24)] ring-2 ring-tg-bg-app"
                     title={pushStatusTitle}
                     aria-label={pushStatusTitle}
                   >
                     <svg
                       viewBox="0 0 16 16"
-                      class="h-3 w-3 fill-current"
+                      class="h-2 w-2 fill-current"
                       aria-hidden="true"
                     >
                       <path
@@ -168,7 +168,7 @@
               {/if}
 
               <div
-                class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 transition ${
+                class={`flex h-7 w-7 items-center justify-center rounded-full border text-[9px] font-semibold shadow-sm shadow-black/20 transition ${
                   isSelected
                     ? "border-tg-blue-soft/60 bg-tg-blue/35 text-sky-100"
                     : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary group-hover:border-tg-border-strong group-hover:bg-tg-bg-elevated"
@@ -179,11 +179,11 @@
             </div>
 
             <div class="min-w-0 flex-1">
-              <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                  <div class="flex min-w-0 items-center gap-1.5">
+                  <div class="flex min-w-0 items-center gap-1">
                     <div
-                      class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-tg-text-primary"
+                      class="min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-tg-text-primary"
                       title={commit.summary}
                     >
                       {commit.summary}
@@ -191,11 +191,11 @@
                   </div>
                   {#if commit.tags.length > 0}
                     <div
-                      class="mt-1 flex max-w-full flex-wrap items-center gap-1 overflow-hidden"
+                      class="mt-0.5 flex max-w-full flex-wrap items-center gap-1 overflow-hidden"
                     >
                       {#each commit.tags as tag}
                         <span
-                          class="max-w-[10rem] truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
+                          class="max-w-[8rem] truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 text-[8px] font-medium text-amber-200"
                           title={tag}
                         >
                           {tag}
@@ -205,9 +205,9 @@
                   {/if}
                 </div>
 
-                <div class="mt-0.5 flex shrink-0 items-center gap-2">
+                <div class="mt-0.5 flex shrink-0 items-center gap-1.5">
                   <span
-                    class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    class={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
                       isSelected
                         ? "bg-tg-blue-soft/20 text-sky-100"
                         : "bg-tg-bg-card text-tg-text-secondary/80 group-hover:text-tg-text-secondary"
@@ -217,7 +217,7 @@
                   </span>
                   {#if !commit.isPushed}
                     <span
-                      class={`h-2.5 w-2.5 rounded-full ring-2 ring-tg-bg-app/90 ${
+                      class={`h-1.5 w-1.5 rounded-full ring-2 ring-tg-bg-app/90 ${
                         commit.isSafePushTarget
                           ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
                           : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
@@ -227,7 +227,7 @@
                     ></span>
                   {:else}
                     <span
-                      class="h-2.5 w-2.5 rounded-full bg-tg-text-muted ring-2 ring-tg-bg-app/90"
+                      class="h-1.5 w-1.5 rounded-full bg-tg-text-muted ring-2 ring-tg-bg-app/90"
                       title={pushStatusTitle}
                       aria-label={pushStatusTitle}
                     ></span>
@@ -236,13 +236,11 @@
               </div>
 
               <div
-                class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-tg-text-secondary/80"
+                class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] leading-3 text-tg-text-secondary/80"
               >
                 <span class="min-w-0 max-w-[9rem] truncate">
                   {commit.authorName}
                 </span>
-                <span>•</span>
-                <span>{relativeTime}</span>
                 <span>•</span>
                 <span class="font-mono text-tg-text-secondary">
                   {commit.shortHash}
@@ -255,14 +253,16 @@
     </div>
 
     {#if loading}
-      <div class="px-4 py-4 text-center text-xs text-tg-text-secondary/80">
+      <div
+        class="px-2.5 py-2 text-center text-[10px] text-tg-text-secondary/80"
+      >
         {translate($locale, "history.loading")}
       </div>
     {/if}
   </div>
 
-  <div class="border-t border-tg-border-soft bg-tg-bg-card px-4 py-3">
-    <div class="text-xs text-tg-text-secondary/80">
+  <div class="border-t border-tg-border-soft bg-tg-bg-card px-2.5 py-1.5">
+    <div class="text-[10px] leading-4 text-tg-text-secondary/80">
       {translate($locale, "history.showingRange", {
         start: pagination.showingStart,
         end: pagination.showingEnd,
@@ -271,10 +271,10 @@
     </div>
 
     {#if pagination.totalPages > 1}
-      <div class="mt-3 flex items-center gap-2">
+      <div class="mt-1 flex items-center gap-1">
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-8 w-8 items-center justify-center border-transparent disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-6 w-6 items-center justify-center border-transparent text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.previousPage")}
           disabled={!pagination.canPrevious || loading}
           on:click={() => changePage(pagination.pageIndex - 1)}
@@ -284,13 +284,16 @@
 
         {#each pagination.buttons as button}
           {#if button.kind === "ellipsis"}
-            <span class="px-1 text-xs text-tg-text-muted" aria-hidden="true">
+            <span
+              class="px-0.5 text-[11px] text-tg-text-muted"
+              aria-hidden="true"
+            >
               {button.label}
             </span>
           {:else}
             <button
               type="button"
-              class={`h-8 min-w-8 rounded-md px-2 text-sm font-semibold transition ${
+              class={`h-6 min-w-6 rounded-md px-1.5 text-[11px] font-semibold transition ${
                 button.active
                   ? "bg-tg-blue/24 text-sky-100 shadow-sm shadow-tg-blue/20"
                   : "bg-tg-bg-panel text-tg-text-secondary hover:bg-tg-bg-elevated hover:text-tg-text-primary"
@@ -309,7 +312,7 @@
 
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-8 w-8 items-center justify-center border-transparent disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-6 w-6 items-center justify-center border-transparent text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.nextPage")}
           disabled={!pagination.canNext || loading}
           on:click={() => changePage(pagination.pageIndex + 1)}
