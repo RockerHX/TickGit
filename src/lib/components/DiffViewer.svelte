@@ -127,6 +127,14 @@
     openControl = null;
   }
 
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape" || !openControl) {
+      return;
+    }
+
+    closeOptions();
+  }
+
   function formatDiffSize(value: number) {
     if (value >= 1024 * 1024) {
       return `${(value / 1024 / 1024).toFixed(1)} MiB`;
@@ -186,6 +194,8 @@
   });
 </script>
 
+<svelte:window on:keydown={handleWindowKeydown} />
+
 {#if openControl}
   <button
     class="fixed inset-0 z-20 cursor-default bg-transparent"
@@ -214,7 +224,10 @@
         type="button"
         class="tg-focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-3 text-xs font-semibold text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
         aria-label={translate($locale, "diff.display")}
+        aria-controls="diff-control-popover"
         aria-expanded={openControl === "mode"}
+        aria-haspopup="menu"
+        aria-pressed={openControl === "mode"}
         on:click={() => toggleControl("mode")}
       >
         <span>
@@ -241,7 +254,10 @@
             : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
         }`}
         aria-label={translate($locale, "diff.options")}
+        aria-controls="diff-control-popover"
         aria-expanded={openControl === "settings"}
+        aria-haspopup="menu"
+        aria-pressed={openControl === "settings"}
         on:click={() => toggleControl("settings")}
       >
         <svg
@@ -263,7 +279,10 @@
             : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
         }`}
         aria-label={translate($locale, "diff.options")}
+        aria-controls="diff-control-popover"
         aria-expanded={openControl === "more"}
+        aria-haspopup="menu"
+        aria-pressed={openControl === "more"}
         on:click={() => toggleControl("more")}
       >
         <svg
@@ -279,7 +298,12 @@
 
       {#if openControl}
         <div
+          id="diff-control-popover"
           class="tg-panel absolute right-0 top-[calc(100%+8px)] z-30 w-[240px] overflow-hidden rounded-xl p-3 shadow-2xl shadow-black/35"
+          role="group"
+          aria-label={openControl === "mode"
+            ? translate($locale, "diff.display")
+            : translate($locale, "diff.options")}
         >
           <div
             class="text-xs font-semibold uppercase tracking-[0.16em] text-tg-text-secondary/80"
@@ -298,9 +322,10 @@
                     ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
                     : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
                 }`}
+                aria-pressed={mode === "unified"}
                 on:click={() => setMode("unified")}
               >
-                Unified
+                {translate($locale, "diff.mode.unified")}
               </button>
               <button
                 type="button"
@@ -309,9 +334,10 @@
                     ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
                     : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
                 }`}
+                aria-pressed={mode === "split"}
                 on:click={() => setMode("split")}
               >
-                Split
+                {translate($locale, "diff.mode.split")}
               </button>
             </div>
           {:else if openControl === "settings"}
