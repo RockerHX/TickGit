@@ -153,27 +153,25 @@
 />
 
 <div
-  class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2b3036]"
+  class="flex h-full min-h-0 flex-col overflow-hidden bg-tg-bg-app"
   bind:this={panelElement}
 >
   <div
-    class="border-b border-[#1f2328]/80 bg-[#111827] px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
+    class="border-b border-tg-border-soft bg-tg-bg-panel px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
   >
     {#if commit}
-      <div
-        class="min-w-0 rounded-xl border border-white/10 bg-[#18202d]/80 p-3 shadow-[0_14px_32px_rgba(8,13,24,0.18)]"
-      >
+      <div class="tg-card min-w-0 p-3 shadow-[0_14px_32px_rgba(8,13,24,0.18)]">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <div
-              class="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-slate-50"
+              class="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-tg-text-primary"
               title={commit.summary}
             >
               {commit.summary}
             </div>
             {#if commitHeaderCollapsed}
               <div
-                class="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400"
+                class="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-tg-text-secondary/80"
               >
                 <span class="min-w-0 truncate leading-5">
                   {formatAbsoluteDate(commit.committedAt, $locale)}
@@ -193,7 +191,7 @@
           </div>
           <button
             type="button"
-            class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 transition hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400/35"
+            class="tg-control tg-focus-ring mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center"
             aria-label={commitHeaderCollapsed
               ? translate($locale, "commit.expandInfo")
               : translate($locale, "commit.collapseInfo")}
@@ -244,7 +242,7 @@
 
         {#if !commitHeaderCollapsed}
           <div
-            class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px] text-slate-100"
+            class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px] text-tg-text-primary"
           >
             <div class="flex min-w-0 flex-1 items-center gap-2">
               <div
@@ -260,7 +258,7 @@
                   <span class="min-w-0 truncate font-medium text-slate-100">
                     {commit.authorName}
                   </span>
-                  <span class="min-w-0 truncate text-slate-400">
+                  <span class="min-w-0 truncate text-tg-text-secondary/80">
                     &lt;{commit.authorEmail}&gt;
                   </span>
                 </div>
@@ -272,7 +270,7 @@
             >
               <button
                 type="button"
-                class="inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 font-mono font-medium text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                class="tg-focus-ring inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-2.5 font-mono font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
                 title={commit.hash}
                 aria-label={copiedCommitHash === commit.hash
                   ? translate($locale, "commit.copiedHash")
@@ -302,7 +300,7 @@
                 {:else}
                   <svg
                     viewBox="0 0 16 16"
-                    class="h-3 w-3 shrink-0 fill-current text-slate-300"
+                    class="h-3 w-3 shrink-0 fill-current text-tg-text-secondary"
                     aria-hidden="true"
                   >
                     <path
@@ -314,7 +312,7 @@
                   </svg>
                 {/if}
               </button>
-              <span class="text-right leading-5 text-slate-400">
+              <span class="text-right leading-5 text-tg-text-secondary/80">
                 {formatAbsoluteDate(commit.committedAt, $locale)}
               </span>
             </div>
@@ -359,16 +357,16 @@
 
         {#if !commitHeaderCollapsed && commitBody}
           <section
-            class="mt-2.5 rounded-lg border border-white/10 bg-[#111827]/65 px-3 py-2"
+            class="mt-2.5 rounded-lg border border-tg-border-soft bg-tg-bg-panel px-3 py-2"
             aria-label={translate($locale, "commit.messageTitle")}
           >
             <div
-              class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+              class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-tg-text-muted"
             >
               {translate($locale, "commit.messageTitle")}
             </div>
             <div
-              class="max-h-20 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-slate-300"
+              class="max-h-20 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-tg-text-secondary"
             >
               {commitBody}
             </div>
@@ -377,7 +375,7 @@
       </div>
     {:else}
       <div
-        class="rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-4 text-sm text-slate-400"
+        class="rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-4 py-4 text-sm text-tg-text-secondary/80"
       >
         {translate($locale, "commit.selectPrompt")}
       </div>
@@ -388,29 +386,27 @@
     class="grid min-h-0 flex-1"
     style={`grid-template-columns: minmax(${MIN_FILES_PANE_WIDTH}px, ${filesPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(${MIN_BRANCH_PANE_WIDTH}px,1fr);`}
   >
-    <div class="flex min-h-0 flex-col bg-[#111827]">
+    <div class="flex min-h-0 flex-col bg-tg-bg-panel">
       <div
-        class="flex items-center justify-between gap-3 border-b border-white/10 bg-[#151e2b] px-4 py-3"
+        class="flex items-center justify-between gap-3 border-b border-tg-border-soft bg-tg-bg-card px-4 py-3"
       >
-        <div class="text-sm font-semibold text-slate-50">
+        <div class="text-sm font-semibold text-tg-text-primary">
           {translate($locale, "commit.changedFiles")}
         </div>
         <div
-          class="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-0.5 text-xs font-semibold text-slate-300"
+          class="rounded-full border border-tg-border-soft bg-white/[0.06] px-2.5 py-0.5 text-xs font-semibold text-tg-text-secondary"
         >
           {files.length}
         </div>
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto bg-[#111827]">
+      <div class="min-h-0 flex-1 overflow-y-auto bg-tg-bg-panel">
         {#if loadingFiles}
-          <div
-            class="m-4 rounded-xl border border-white/10 bg-[#18202d]/80 px-4 py-5 text-sm text-slate-400"
-          >
+          <div class="tg-card m-4 px-4 py-5 text-sm text-tg-text-secondary/80">
             {translate($locale, "commit.loadingFiles")}
           </div>
         {:else if files.length === 0}
           <div
-            class="m-4 rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-8 text-center text-sm text-slate-500"
+            class="m-4 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-4 py-8 text-center text-sm text-tg-text-muted"
           >
             {translate($locale, "commit.noFileChanges")}
           </div>
@@ -420,13 +416,13 @@
               <div
                 class={`relative flex items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 transition ${
                   selectedFilePath === file.path
-                    ? "border-sky-300/25 bg-sky-400/15 shadow-[0_14px_30px_rgba(59,130,246,0.14)]"
-                    : "border-white/10 bg-[#18202d]/70 hover:border-sky-300/20 hover:bg-white/[0.06]"
+                    ? "border-tg-blue-soft/25 bg-tg-blue-soft/15 shadow-[0_14px_30px_rgba(59,130,246,0.14)]"
+                    : "border-tg-border-soft bg-tg-bg-card/70 hover:border-tg-blue-soft/20 hover:bg-white/[0.06]"
                 }`}
               >
                 {#if selectedFilePath === file.path}
                   <span
-                    class="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-sky-300"
+                    class="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-tg-blue-soft"
                     aria-hidden="true"
                   ></span>
                 {/if}
@@ -439,7 +435,7 @@
                   <div class="flex min-w-0 items-center gap-3">
                     <FileTypeIcon {file} />
                     <span
-                      class="min-w-0 flex-1 truncate text-[13px] leading-5 text-slate-200"
+                      class="min-w-0 flex-1 truncate text-[13px] leading-5 text-tg-text-secondary"
                     >
                       {file.displayPath}
                     </span>
@@ -456,7 +452,7 @@
                 {/if}
                 <button
                   type="button"
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-transparent bg-white/[0.04] text-slate-300 transition hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400/35"
+                  class="tg-control tg-focus-ring flex h-7 w-7 shrink-0 items-center justify-center border-transparent"
                   title={copiedFilePath === file.path
                     ? translate($locale, "file.copiedPath")
                     : translate($locale, "file.copyPath")}

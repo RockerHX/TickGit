@@ -49,7 +49,7 @@
   }>();
 
   const emptyStateClasses =
-    "m-4 rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-10 text-center text-sm text-slate-500";
+    "m-4 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-4 py-10 text-center text-sm text-tg-text-muted";
 
   let openControl: "mode" | "settings" | "more" | null = null;
   let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
@@ -91,7 +91,7 @@
       case "delete":
         return "bg-rose-500/[0.08] text-rose-100";
       default:
-        return "text-slate-300";
+        return "text-tg-text-secondary";
     }
   }
 
@@ -102,7 +102,7 @@
       case "delete":
         return "bg-rose-500/[0.12] text-rose-300";
       default:
-        return "bg-[#0f1724] text-slate-500";
+        return "bg-tg-bg-app text-tg-text-muted";
     }
   }
 
@@ -194,16 +194,16 @@
   ></button>
 {/if}
 
-<div class="flex min-h-0 flex-1 flex-col bg-[#111827]">
+<div class="flex min-h-0 flex-1 flex-col bg-tg-bg-panel">
   <div
-    class="relative flex items-center justify-between gap-3 border-b border-white/10 bg-[#151e2b] px-4 py-3 text-sm"
+    class="relative flex items-center justify-between gap-3 border-b border-tg-border-soft bg-tg-bg-card px-4 py-3 text-sm"
   >
     <div class="flex min-w-0 flex-1 items-center gap-3">
       {#if fileIcon}
         <FileTypeIcon file={fileIcon} />
       {/if}
       <div
-        class="min-w-0 truncate font-semibold text-[#f0f6fc]"
+        class="min-w-0 truncate font-semibold text-tg-text-primary"
         title={displayFilePath}
       >
         {displayFilePath}
@@ -212,7 +212,7 @@
     <div class="relative flex shrink-0 items-center gap-1.5">
       <button
         type="button"
-        class="inline-flex h-8 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15"
+        class="tg-focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-tg-blue-soft/20 bg-tg-blue-soft/10 px-3 text-xs font-semibold text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/15"
         aria-label={translate($locale, "diff.display")}
         aria-expanded={openControl === "mode"}
         on:click={() => toggleControl("mode")}
@@ -237,8 +237,8 @@
         type="button"
         class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
           openControl === "settings"
-            ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
-            : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100"
+            ? "border-tg-blue-soft/45 bg-tg-blue-soft/15 text-sky-100"
+            : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
         }`}
         aria-label={translate($locale, "diff.options")}
         aria-expanded={openControl === "settings"}
@@ -259,8 +259,8 @@
         type="button"
         class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
           openControl === "more"
-            ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
-            : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100"
+            ? "border-tg-blue-soft/45 bg-tg-blue-soft/15 text-sky-100"
+            : "border-tg-border-soft bg-white/[0.04] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-tg-blue-soft/10 hover:text-tg-text-primary"
         }`}
         aria-label={translate($locale, "diff.options")}
         aria-expanded={openControl === "more"}
@@ -279,10 +279,10 @@
 
       {#if openControl}
         <div
-          class="absolute right-0 top-[calc(100%+8px)] z-30 w-[240px] overflow-hidden rounded-xl border border-white/10 bg-[#151e2b] p-3 shadow-2xl shadow-black/35"
+          class="tg-panel absolute right-0 top-[calc(100%+8px)] z-30 w-[240px] overflow-hidden rounded-xl p-3 shadow-2xl shadow-black/35"
         >
           <div
-            class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+            class="text-xs font-semibold uppercase tracking-[0.16em] text-tg-text-secondary/80"
           >
             {openControl === "mode"
               ? translate($locale, "diff.display")
@@ -295,8 +295,8 @@
                 type="button"
                 class={`rounded-md border px-3 py-2 text-xs font-medium transition ${
                   mode === "unified"
-                    ? "border-[#539bf5] bg-[#347dff]/18 text-[#f0f6fc]"
-                    : "border-[#444c56] bg-[#373e47] text-slate-300 hover:border-[#539bf5]/40"
+                    ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
+                    : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
                 }`}
                 on:click={() => setMode("unified")}
               >
@@ -306,8 +306,8 @@
                 type="button"
                 class={`rounded-md border px-3 py-2 text-xs font-medium transition ${
                   mode === "split"
-                    ? "border-[#539bf5] bg-[#347dff]/18 text-[#f0f6fc]"
-                    : "border-[#444c56] bg-[#373e47] text-slate-300 hover:border-[#539bf5]/40"
+                    ? "border-tg-blue-soft bg-tg-blue/18 text-tg-text-primary"
+                    : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary hover:border-tg-blue-soft/40"
                 }`}
                 on:click={() => setMode("split")}
               >
@@ -316,26 +316,28 @@
             </div>
           {:else if openControl === "settings"}
             <label
-              class="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 transition hover:border-sky-300/35"
+              class="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-tg-border-soft bg-white/[0.04] px-3 py-2.5 transition hover:border-tg-blue-soft/35"
             >
               <input
                 type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-[#6e7681] bg-[#24292f] text-[#347dff]"
+                class="mt-0.5 h-4 w-4 rounded border-tg-border-strong bg-tg-bg-card text-tg-blue"
                 checked={hideWhitespaceInDiff}
                 on:change={(event) =>
                   setHideWhitespace(event.currentTarget.checked)}
               />
               <div class="min-w-0">
-                <div class="text-xs font-medium text-[#f0f6fc]">
+                <div class="text-xs font-medium text-tg-text-primary">
                   {translate($locale, "diff.hideWhitespace")}
                 </div>
-                <div class="mt-1 text-[11px] leading-4 text-slate-400">
+                <div
+                  class="mt-1 text-[11px] leading-4 text-tg-text-secondary/80"
+                >
                   {translate($locale, "diff.hideWhitespaceDescription")}
                 </div>
               </div>
             </label>
           {:else}
-            <div class="mt-3 space-y-2 text-xs text-slate-300">
+            <div class="mt-3 space-y-2 text-xs text-tg-text-secondary">
               {#if diffResult.byteCount > 0}
                 <div class="rounded-lg bg-white/[0.04] px-3 py-2">
                   {translate($locale, "diff.patchSize", {
@@ -355,7 +357,7 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#111827]">
+  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-tg-bg-panel">
     {#if viewerState === "loading"}
       <div class={emptyStateClasses}>
         {translate($locale, "diff.loading")}
@@ -368,17 +370,15 @@
       {#if hasPreviewableImageDiff(diffResult)}
         <div class="grid gap-4 p-4 xl:grid-cols-2">
           {#each [{ kind: "old", url: diffResult.oldImageDataUrl }, { kind: "new", url: diffResult.newImageDataUrl }] as panel}
-            <div
-              class="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#18202d]/80"
-            >
+            <div class="tg-card min-w-0 overflow-hidden">
               <div
-                class="border-b border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"
+                class="border-b border-tg-border-soft bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-tg-text-secondary/80"
               >
                 {imagePanelLabel(panel.kind as "old" | "new")}
               </div>
               {#if panel.url}
                 <div
-                  class="flex min-h-64 items-center justify-center bg-[#0f1724] p-4"
+                  class="flex min-h-64 items-center justify-center bg-tg-bg-app p-4"
                 >
                   <img
                     class="max-h-[52vh] max-w-full rounded-lg border border-white/10 bg-white/5 object-contain"
@@ -388,7 +388,7 @@
                 </div>
               {:else}
                 <div
-                  class="flex min-h-64 items-center justify-center px-4 text-center text-sm text-slate-500"
+                  class="flex min-h-64 items-center justify-center px-4 text-center text-sm text-tg-text-muted"
                 >
                   {panel.kind === "old"
                     ? translate($locale, "diff.noOldImage")
@@ -410,7 +410,7 @@
     {:else if viewerState === "too-large"}
       <div class={emptyStateClasses}>
         <div>{translate($locale, "diff.largeSkipped")}</div>
-        <div class="mt-2 text-xs text-slate-500">
+        <div class="mt-2 text-xs text-tg-text-muted">
           {#if diffResult.byteCount > 0}
             {translate($locale, "diff.patchSize", {
               size: formatDiffSize(diffResult.byteCount),
@@ -438,12 +438,12 @@
         {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
           {#if row.kind === "hunk"}
             <div
-              class="flex items-center justify-between gap-3 border-y border-slate-500/10 bg-[#172033] px-4 py-2 font-mono text-[12px] text-sky-200"
+              class="flex items-center justify-between gap-3 border-y border-tg-border-soft bg-tg-bg-elevated px-4 py-2 font-mono text-[12px] text-sky-100"
             >
               <span class="min-w-0 truncate">{row.header}</span>
               <button
                 type="button"
-                class="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-300/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+                class="tg-focus-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
                 title={copyHunkLabel(row.hunkIndex)}
                 aria-label={copyHunkLabel(row.hunkIndex)}
                 on:click={() => copyHunk(row.hunkIndex)}
@@ -487,12 +487,12 @@
                   } ${line ? lineToneClasses(line.type) : ""}`}
                 >
                   <div
-                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-[#0f1724] text-slate-600"}`}
+                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
                   >
                     {line ? formatLineNumber(line.oldLineNumber) : ""}
                   </div>
                   <div
-                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-[#0f1724] text-slate-600"}`}
+                    class={`border-r border-slate-700/55 px-2 py-0.5 text-right font-mono text-[11px] ${line ? lineNumberToneClasses(line.type) : "bg-tg-bg-app text-tg-text-muted/70"}`}
                   >
                     {line ? formatLineNumber(line.newLineNumber) : ""}
                   </div>
@@ -518,12 +518,12 @@
       <div>
         {#each parsedDiff.hunks as hunk, hunkIndex}
           <div
-            class="flex items-center justify-between gap-3 border-y border-slate-500/10 bg-[#172033] px-4 py-2 font-mono text-[12px] text-sky-200"
+            class="flex items-center justify-between gap-3 border-y border-tg-border-soft bg-tg-bg-elevated px-4 py-2 font-mono text-[12px] text-sky-100"
           >
             <span class="min-w-0 truncate">{hunk.header}</span>
             <button
               type="button"
-              class="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-300/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-sky-200/45 hover:bg-sky-300/18"
+              class="tg-focus-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-2.5 text-[11px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
               title={copyHunkLabel(hunkIndex)}
               aria-label={copyHunkLabel(hunkIndex)}
               on:click={() => copyHunk(hunkIndex)}

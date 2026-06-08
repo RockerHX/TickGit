@@ -35,7 +35,7 @@
           : status;
   $: tone =
     language === "json"
-      ? "border-sky-300/25 bg-sky-400/10 text-sky-100"
+      ? "border-tg-blue-soft/25 bg-tg-blue-soft/10 text-sky-100"
       : language === "yaml"
         ? "border-violet-300/25 bg-violet-400/10 text-violet-100"
         : language === "lock"

@@ -52,16 +52,16 @@
   }
 </script>
 
-<div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
-  <div class="border-b border-[#1f2328] px-4 py-3">
+<div class="flex h-full min-h-0 flex-col overflow-hidden bg-tg-bg-panel">
+  <div class="border-b border-tg-border-soft px-4 py-3">
     <div class="flex items-center justify-between gap-3">
-      <div class="text-sm font-semibold text-[#f0f6fc]">
+      <div class="text-sm font-semibold text-tg-text-primary">
         {translate($locale, "history.title")}
       </div>
       {#if activeFilterCount > 0}
         <button
           type="button"
-          class="rounded-md border border-[#444c56] bg-[#373e47] px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#539bf5]/45 hover:bg-[#347dff]/15"
+          class="tg-control tg-focus-ring px-2 py-1 text-[11px] font-medium"
           on:click={() => dispatch("clearFilters")}
         >
           {translate($locale, "history.clearFilters", {
@@ -70,7 +70,7 @@
         </button>
       {/if}
     </div>
-    <div class="mt-1 text-xs text-slate-400">
+    <div class="mt-1 text-xs text-tg-text-secondary/80">
       {#if branchStatus?.pushAvailable}
         {translate($locale, "history.branchStats", {
           aheadCount: branchStatus.aheadCount,
@@ -95,7 +95,7 @@
   <div class="min-h-0 flex-1 overflow-y-auto">
     {#if commits.length === 0 && !loading}
       <div
-        class="m-4 rounded-sm border border-dashed border-[#444c56] bg-[#2b3036] px-4 py-10 text-center text-sm text-slate-500"
+        class="m-4 rounded-tg-control border border-dashed border-tg-border-strong bg-tg-bg-app px-4 py-10 text-center text-sm text-tg-text-muted"
       >
         {activeFilterCount > 0
           ? translate($locale, "history.noMatchingCommits")
@@ -115,17 +115,17 @@
               translate($locale, "history.unsafeStepPushFallback"))}
         <button
           type="button"
-          class={`group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm outline-none transition duration-150 focus-visible:ring-2 focus-visible:ring-[#60a5fa]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2d333b] ${
+          class={`tg-focus-ring group relative min-h-[92px] w-full overflow-hidden rounded-2xl border px-4 py-3.5 text-left shadow-sm transition duration-150 ${
             isSelected
-              ? "border-[#60a5fa]/60 bg-gradient-to-r from-[#2563eb]/36 via-[#1d4ed8]/24 to-[#0f172a]/28 shadow-[0_14px_34px_rgba(37,99,235,0.2)]"
-              : "border-[#334155]/25 bg-[#0f172a]/18 shadow-black/10 hover:border-[#3b82f6]/30 hover:bg-[#1e293b]/42 hover:shadow-[0_10px_26px_rgba(15,23,42,0.24)]"
+              ? "border-tg-blue-soft/60 bg-gradient-to-r from-tg-blue/35 via-tg-blue/20 to-tg-bg-panel shadow-[0_14px_34px_rgba(37,99,235,0.2)]"
+              : "border-tg-border-soft bg-tg-bg-card/25 shadow-black/10 hover:border-tg-blue/30 hover:bg-tg-bg-elevated/55 hover:shadow-[0_10px_26px_rgba(15,23,42,0.24)]"
           }`}
           on:click={() => dispatch("select", { commit })}
           on:contextmenu={(event) => openMenu(event, commit)}
         >
           {#if isSelected}
             <div
-              class="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-gradient-to-b from-[#93c5fd] via-[#60a5fa] to-[#2563eb] shadow-[0_0_18px_rgba(96,165,250,0.6)]"
+              class="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-gradient-to-b from-sky-300 via-tg-blue-soft to-tg-blue shadow-[0_0_18px_rgba(96,165,250,0.6)]"
             ></div>
           {/if}
 
@@ -134,7 +134,7 @@
               {#if !commit.isPushed}
                 {#if commit.isSafePushTarget}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-[#0f172a] text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.32)] ring-2 ring-[#0f172a]"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-br from-emerald-500/25 to-tg-bg-app text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.32)] ring-2 ring-tg-bg-app"
                     title={pushStatusTitle}
                     aria-label={pushStatusTitle}
                   >
@@ -150,7 +150,7 @@
                   </span>
                 {:else}
                   <span
-                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-[#0f172a] text-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.28)] ring-2 ring-[#0f172a]"
+                    class="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-rose-300/60 bg-gradient-to-br from-rose-500/25 to-tg-bg-app text-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.28)] ring-2 ring-tg-bg-app"
                     title={pushStatusTitle}
                     aria-label={pushStatusTitle}
                   >
@@ -170,8 +170,8 @@
               <div
                 class={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm shadow-black/20 transition ${
                   isSelected
-                    ? "border-[#93c5fd]/60 bg-[#2563eb]/35 text-[#dbeafe]"
-                    : "border-[#334155] bg-[#1e293b] text-slate-200 group-hover:border-[#475569] group-hover:bg-[#243247]"
+                    ? "border-tg-blue-soft/60 bg-tg-blue/35 text-sky-100"
+                    : "border-tg-border-strong bg-tg-bg-card text-tg-text-secondary group-hover:border-tg-border-strong group-hover:bg-tg-bg-elevated"
                 }`}
               >
                 {getInitials(commit.authorName)}
@@ -183,7 +183,7 @@
                 <div class="min-w-0 flex-1">
                   <div class="flex min-w-0 items-center gap-1.5">
                     <div
-                      class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-[#f8fafc]"
+                      class="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-tg-text-primary"
                       title={commit.summary}
                     >
                       {commit.summary}
@@ -209,15 +209,15 @@
                   <span
                     class={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                       isSelected
-                        ? "bg-[#60a5fa]/20 text-[#bfdbfe]"
-                        : "bg-[#1e293b] text-slate-400 group-hover:text-slate-200"
+                        ? "bg-tg-blue-soft/20 text-sky-100"
+                        : "bg-tg-bg-card text-tg-text-secondary/80 group-hover:text-tg-text-secondary"
                     }`}
                   >
                     {relativeTime}
                   </span>
                   {#if !commit.isPushed}
                     <span
-                      class={`h-2.5 w-2.5 rounded-full ring-2 ring-[#0f172a]/90 ${
+                      class={`h-2.5 w-2.5 rounded-full ring-2 ring-tg-bg-app/90 ${
                         commit.isSafePushTarget
                           ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
                           : "bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.45)]"
@@ -227,7 +227,7 @@
                     ></span>
                   {:else}
                     <span
-                      class="h-2.5 w-2.5 rounded-full bg-slate-600 ring-2 ring-[#0f172a]/90"
+                      class="h-2.5 w-2.5 rounded-full bg-tg-text-muted ring-2 ring-tg-bg-app/90"
                       title={pushStatusTitle}
                       aria-label={pushStatusTitle}
                     ></span>
@@ -236,7 +236,7 @@
               </div>
 
               <div
-                class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-400"
+                class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-tg-text-secondary/80"
               >
                 <span class="min-w-0 max-w-[9rem] truncate">
                   {commit.authorName}
@@ -244,7 +244,9 @@
                 <span>•</span>
                 <span>{relativeTime}</span>
                 <span>•</span>
-                <span class="font-mono text-slate-300">{commit.shortHash}</span>
+                <span class="font-mono text-tg-text-secondary">
+                  {commit.shortHash}
+                </span>
               </div>
             </div>
           </div>
@@ -253,14 +255,14 @@
     </div>
 
     {#if loading}
-      <div class="px-4 py-4 text-center text-xs text-slate-400">
+      <div class="px-4 py-4 text-center text-xs text-tg-text-secondary/80">
         {translate($locale, "history.loading")}
       </div>
     {/if}
   </div>
 
-  <div class="border-t border-[#1f2328] bg-[#24292f] px-4 py-3">
-    <div class="text-xs text-slate-400">
+  <div class="border-t border-tg-border-soft bg-tg-bg-card px-4 py-3">
+    <div class="text-xs text-tg-text-secondary/80">
       {translate($locale, "history.showingRange", {
         start: pagination.showingStart,
         end: pagination.showingEnd,
@@ -272,7 +274,7 @@
       <div class="mt-3 flex items-center gap-2">
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-8 w-8 items-center justify-center border-transparent disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.previousPage")}
           disabled={!pagination.canPrevious || loading}
           on:click={() => changePage(pagination.pageIndex - 1)}
@@ -282,7 +284,7 @@
 
         {#each pagination.buttons as button}
           {#if button.kind === "ellipsis"}
-            <span class="px-1 text-xs text-slate-500" aria-hidden="true">
+            <span class="px-1 text-xs text-tg-text-muted" aria-hidden="true">
               {button.label}
             </span>
           {:else}
@@ -290,8 +292,8 @@
               type="button"
               class={`h-8 min-w-8 rounded-md px-2 text-sm font-semibold transition ${
                 button.active
-                  ? "bg-[#347dff]/24 text-[#cae8ff] shadow-sm shadow-[#2f81f7]/20"
-                  : "bg-[#2d333b] text-slate-300 hover:bg-[#373e47] hover:text-slate-100"
+                  ? "bg-tg-blue/24 text-sky-100 shadow-sm shadow-tg-blue/20"
+                  : "bg-tg-bg-panel text-tg-text-secondary hover:bg-tg-bg-elevated hover:text-tg-text-primary"
               }`}
               aria-label={translate($locale, "history.pageLabel", {
                 page: button.pageIndex + 1,
@@ -307,7 +309,7 @@
 
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-[#444c56] hover:bg-[#373e47] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-8 w-8 items-center justify-center border-transparent disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.nextPage")}
           disabled={!pagination.canNext || loading}
           on:click={() => changePage(pagination.pageIndex + 1)}
