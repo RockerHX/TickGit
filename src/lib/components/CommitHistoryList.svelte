@@ -261,8 +261,8 @@
     {/if}
   </div>
 
-  <div class="border-t border-tg-border-soft bg-tg-bg-card px-2.5 py-1.5">
-    <div class="text-[10px] leading-4 text-tg-text-secondary/80">
+  <div class="border-t border-tg-border-soft bg-tg-bg-card px-2.5 py-1">
+    <div class="text-[9px] leading-4 text-tg-text-secondary/80">
       {translate($locale, "history.showingRange", {
         start: pagination.showingStart,
         end: pagination.showingEnd,
@@ -271,10 +271,10 @@
     </div>
 
     {#if pagination.totalPages > 1}
-      <div class="mt-1 flex items-center gap-1">
+      <div class="mt-0.5 flex items-center gap-0.5">
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-6 w-6 items-center justify-center border-transparent text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-5 w-5 items-center justify-center border-transparent text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.previousPage")}
           disabled={!pagination.canPrevious || loading}
           on:click={() => changePage(pagination.pageIndex - 1)}
@@ -285,7 +285,7 @@
         {#each pagination.buttons as button}
           {#if button.kind === "ellipsis"}
             <span
-              class="px-0.5 text-[11px] text-tg-text-muted"
+              class="px-0.5 text-[10px] text-tg-text-muted"
               aria-hidden="true"
             >
               {button.label}
@@ -293,9 +293,9 @@
           {:else}
             <button
               type="button"
-              class={`h-6 min-w-6 rounded-md px-1.5 text-[11px] font-semibold transition ${
+              class={`h-5 min-w-5 rounded-md px-1 text-[10px] font-semibold transition ${
                 button.active
-                  ? "bg-tg-blue/24 text-sky-100 shadow-sm shadow-tg-blue/20"
+                  ? "bg-tg-blue/24 text-sky-100 shadow-sm shadow-tg-blue/15"
                   : "bg-tg-bg-panel text-tg-text-secondary hover:bg-tg-bg-elevated hover:text-tg-text-primary"
               }`}
               aria-label={translate($locale, "history.pageLabel", {
@@ -312,7 +312,7 @@
 
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-6 w-6 items-center justify-center border-transparent text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-control tg-focus-ring flex h-5 w-5 items-center justify-center border-transparent text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={translate($locale, "history.nextPage")}
           disabled={!pagination.canNext || loading}
           on:click={() => changePage(pagination.pageIndex + 1)}

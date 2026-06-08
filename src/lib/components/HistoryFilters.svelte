@@ -96,13 +96,13 @@
   });
 </script>
 
-<div class="mt-2 space-y-1.5">
+<div class="mt-1.5 space-y-1">
   <div class="relative">
     <span
       class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-tg-text-muted"
       aria-hidden="true"
     >
-      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
         <path
           d="M10.68 11.74a6 6 0 1 1 1.06-1.06l3.04 3.04a.75.75 0 0 1-1.06 1.06l-3.04-3.04ZM11 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z"
         ></path>
@@ -110,25 +110,25 @@
     </span>
     <input
       bind:this={searchInput}
-      class="h-8 w-full rounded-md border border-tg-border-strong bg-tg-bg-panel px-8 pr-12 text-[12px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
+      class="h-7 w-full rounded-md border border-tg-border-strong bg-tg-bg-panel px-7 pr-10 text-[11px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
       placeholder={translate($locale, "history.commitSearch")}
       aria-label={translate($locale, "history.commitSearch")}
       value={filters.query ?? ""}
       on:input={(event) => updateFilter("query", event.currentTarget.value)}
     />
     <span
-      class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 rounded border border-tg-border-strong bg-tg-bg-card px-1.5 py-0.5 text-[8px] font-semibold text-tg-text-secondary/80"
+      class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 rounded border border-tg-border-strong bg-tg-bg-card px-1 py-0 text-[7px] font-semibold text-tg-text-secondary/80"
       aria-label={translate($locale, "history.searchShortcut")}
     >
       ⌘K
     </span>
   </div>
 
-  <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5">
+  <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-1">
     {#each filterButtons as filter}
       <button
         type="button"
-        class={`flex h-7 items-center justify-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold transition ${
+        class={`flex h-6 items-center justify-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold transition ${
           isActive(filter.key) || expandedFilter === filter.key
             ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
             : "border-tg-border-strong bg-tg-bg-panel text-tg-text-secondary hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
@@ -141,7 +141,7 @@
         {#if filter.key === "author"}
           <svg
             viewBox="0 0 16 16"
-            class="h-3.5 w-3.5 shrink-0 fill-current"
+            class="h-3 w-3 shrink-0 fill-current"
             aria-hidden="true"
           >
             <path
@@ -151,7 +151,7 @@
         {:else if filter.key === "filePath"}
           <svg
             viewBox="0 0 16 16"
-            class="h-3.5 w-3.5 shrink-0 fill-current"
+            class="h-3 w-3 shrink-0 fill-current"
             aria-hidden="true"
           >
             <path
@@ -161,7 +161,7 @@
         {:else if filter.key === "message"}
           <svg
             viewBox="0 0 16 16"
-            class="h-3.5 w-3.5 shrink-0 fill-current"
+            class="h-3 w-3 shrink-0 fill-current"
             aria-hidden="true"
           >
             <path
@@ -175,7 +175,7 @@
 
     <button
       type="button"
-      class={`flex h-7 w-8 items-center justify-center rounded-md border text-tg-text-secondary transition ${
+      class={`flex h-6 w-7 items-center justify-center rounded-md border text-tg-text-secondary transition ${
         expandedFilter === "all"
           ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
           : "border-tg-border-strong bg-tg-bg-panel hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
@@ -187,11 +187,7 @@
       aria-pressed={expandedFilter === "all"}
       on:click={toggleAllFilters}
     >
-      <svg
-        viewBox="0 0 16 16"
-        class="h-3.5 w-3.5 fill-current"
-        aria-hidden="true"
-      >
+      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current" aria-hidden="true">
         <path
           d="M3.25 3.5a2 2 0 0 1 3.87-.75h5.13a.75.75 0 0 1 0 1.5H7.12a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0Zm3.63 4.5a2 2 0 0 1 3.87-.75h.5a.75.75 0 0 1 0 1.5h-.5a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0ZM2.75 7.25h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5Zm.5 5.25a2 2 0 0 1 3.87-.75h5.13a.75.75 0 0 1 0 1.5H7.12a2 2 0 0 1-3.87-.75Zm2 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0Z"
         ></path>
@@ -202,18 +198,18 @@
   {#if expandedFilter}
     <div
       id="history-expanded-filters"
-      class="space-y-1.5 rounded-md border border-tg-border-strong bg-tg-bg-panel p-1.5"
+      class="space-y-1 rounded-md border border-tg-border-strong bg-tg-bg-panel p-1"
     >
       {#each filterButtons as filter}
         {#if shouldShowInput(filter.key)}
           <label class="block">
             <span
-              class="mb-0.5 block text-[9px] font-semibold uppercase tracking-[0.14em] text-tg-text-muted"
+              class="mb-0.5 block text-[8px] font-semibold uppercase tracking-[0.14em] text-tg-text-muted"
             >
               {translate($locale, filter.labelKey)}
             </span>
             <input
-              class="h-7 w-full rounded-md border border-tg-border-strong bg-tg-bg-app px-2 text-[10px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70"
+              class="h-6 w-full rounded-md border border-tg-border-strong bg-tg-bg-app px-2 text-[10px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70"
               placeholder={translate($locale, filter.placeholderKey)}
               value={filterValue(filter.key)}
               on:input={(event) =>
