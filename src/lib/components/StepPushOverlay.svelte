@@ -19,7 +19,7 @@
     class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4"
   >
     <div
-      class="pointer-events-auto w-full max-w-xl rounded-sm border border-[#444c56] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/35"
+      class="tg-panel pointer-events-auto w-full max-w-xl rounded-tg-card px-4 py-4 shadow-lg shadow-black/35"
     >
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
@@ -32,7 +32,7 @@
               {translate($locale, "stepPush.running")}
             {/if}
           </div>
-          <div class="mt-1 text-xs text-slate-400">
+          <div class="mt-1 text-xs text-tg-text-secondary/80">
             {state.current}/{state.total} · {state.hash}
           </div>
           {#if state.message}
@@ -55,7 +55,7 @@
           {#if state.status === "failed"}
             <button
               type="button"
-              class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
+              class="tg-control tg-focus-ring flex h-7 w-7 items-center justify-center"
               aria-label={translate($locale, "stepPush.closeError")}
               on:click={() => dispatch("close")}
             >
@@ -73,7 +73,7 @@
         </div>
       </div>
 
-      <div class="mt-4 h-2 overflow-hidden rounded-sm bg-[#24292f]">
+      <div class="mt-4 h-2 overflow-hidden rounded-sm bg-tg-bg-card">
         <div
           class={`h-full rounded-sm transition-all duration-300 ${
             state.status === "failed"

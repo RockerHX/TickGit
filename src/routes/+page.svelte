@@ -1461,7 +1461,7 @@
 
           <div class="mt-3 grid gap-2 md:grid-cols-2">
             <div
-              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+              class="rounded-md border border-amber-200/15 bg-tg-bg-card/60 p-3"
             >
               <div class="text-xs font-semibold text-amber-100">
                 {translate($locale, "remoteBlock.githubDesktop")}
@@ -1476,7 +1476,7 @@
               </ol>
             </div>
             <div
-              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+              class="rounded-md border border-amber-200/15 bg-tg-bg-card/60 p-3"
             >
               <div class="text-xs font-semibold text-amber-100">
                 {translate($locale, "remoteBlock.sourceTree")}
