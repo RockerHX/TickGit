@@ -22,33 +22,33 @@
 
 <div class="flex min-h-0 flex-col bg-tg-bg-panel">
   <div
-    class="flex items-center justify-between gap-3 border-b border-tg-border-soft bg-tg-bg-card px-4 py-3"
+    class="flex items-center justify-between gap-2.5 border-b border-tg-border-soft bg-tg-bg-card px-3 py-2.5"
   >
-    <div class="text-sm font-semibold text-tg-text-primary">
+    <div class="text-[13px] font-semibold text-tg-text-primary">
       {translate($locale, "commit.changedFiles")}
     </div>
     <div
-      class="rounded-full border border-tg-border-soft bg-white/[0.06] px-2.5 py-0.5 text-xs font-semibold text-tg-text-secondary"
+      class="rounded-full border border-tg-border-soft bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-tg-text-secondary"
     >
       {files.length}
     </div>
   </div>
   <div class="min-h-0 flex-1 overflow-y-auto bg-tg-bg-panel">
     {#if loadingFiles}
-      <div class="tg-card m-4 px-4 py-5 text-sm text-tg-text-secondary/80">
+      <div class="tg-card m-3 px-3 py-4 text-[13px] text-tg-text-secondary/80">
         {translate($locale, "commit.loadingFiles")}
       </div>
     {:else if files.length === 0}
       <div
-        class="m-4 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-4 py-8 text-center text-sm text-tg-text-muted"
+        class="m-3 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-3 py-7 text-center text-[13px] text-tg-text-muted"
       >
         {translate($locale, "commit.noFileChanges")}
       </div>
     {:else}
-      <div class="space-y-2 p-3">
+      <div class="space-y-1.5 p-2.5">
         {#each files as file (file.path + file.status)}
           <div
-            class={`relative flex items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 transition ${
+            class={`relative flex items-center gap-2 overflow-hidden rounded-lg border px-2.5 py-2 transition ${
               selectedFilePath === file.path
                 ? "border-tg-blue-soft/25 bg-tg-blue-soft/15 shadow-[0_14px_30px_rgba(59,130,246,0.14)]"
                 : "border-tg-border-soft bg-tg-bg-card/70 hover:border-tg-blue-soft/20 hover:bg-white/[0.06]"
@@ -56,7 +56,7 @@
           >
             {#if selectedFilePath === file.path}
               <span
-                class="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-tg-blue-soft"
+                class="absolute bottom-1.5 left-0 top-1.5 w-1 rounded-r-full bg-tg-blue-soft"
                 aria-hidden="true"
               ></span>
             {/if}
@@ -66,10 +66,10 @@
               title={file.displayPath}
               on:click={() => dispatch("selectFile", { path: file.path })}
             >
-              <div class="flex min-w-0 items-center gap-3">
+              <div class="flex min-w-0 items-center gap-2.5">
                 <FileTypeIcon {file} />
                 <span
-                  class="min-w-0 flex-1 truncate text-[13px] leading-5 text-tg-text-secondary"
+                  class="min-w-0 flex-1 truncate text-[12px] leading-5 text-tg-text-secondary"
                 >
                   {file.displayPath}
                 </span>
@@ -77,7 +77,7 @@
             </button>
             {#if typeof file.additions === "number" && typeof file.deletions === "number"}
               <div
-                class="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold tabular-nums"
+                class="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums"
                 aria-label={`+${file.additions} -${file.deletions}`}
               >
                 <span class="text-emerald-300">+{file.additions}</span>
@@ -86,7 +86,7 @@
             {/if}
             <button
               type="button"
-              class="tg-control tg-focus-ring flex h-7 w-7 shrink-0 items-center justify-center border-transparent"
+              class="tg-control tg-focus-ring flex h-6.5 w-6.5 shrink-0 items-center justify-center border-transparent"
               title={copiedFilePath === file.path
                 ? translate($locale, "file.copiedPath")
                 : translate($locale, "file.copyPath")}
@@ -98,7 +98,7 @@
               {#if copiedFilePath === file.path}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3.5 w-3.5 fill-current text-emerald-300"
+                  class="h-3 w-3 fill-current text-emerald-300"
                   aria-hidden="true"
                 >
                   <path
@@ -108,7 +108,7 @@
               {:else}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3.5 w-3.5 fill-current"
+                  class="h-3 w-3 fill-current"
                   aria-hidden="true"
                 >
                   <path

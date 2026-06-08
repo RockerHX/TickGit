@@ -156,7 +156,7 @@
   bind:this={panelElement}
 >
   <div
-    class="border-b border-tg-border-soft bg-tg-bg-panel px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
+    class="border-b border-tg-border-soft bg-tg-bg-panel px-3 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.2)]"
   >
     <CommitDetailHeader
       {commit}
