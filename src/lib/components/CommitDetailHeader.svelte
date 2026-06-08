@@ -1,12 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { locale, translate } from "$lib/i18n";
-  import type { BranchStatus, CommitListItem, CommitMeta } from "$lib/types";
+  import type { CommitListItem, CommitMeta } from "$lib/types";
   import { formatAbsoluteDate, getInitials } from "$lib/utils";
 
   export let commit: CommitListItem | null = null;
   export let commitMeta: CommitMeta | null = null;
-  export let branchStatus: BranchStatus | null = null;
   export let collapsed = false;
   export let copiedCommitHash: string | null = null;
 
@@ -174,40 +173,19 @@
         </div>
       </div>
 
-      <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+      <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
         {#if commitMeta}
-          <div
-            class="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold tabular-nums"
-          >
-            <span
-              class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-emerald-300"
-            >
-              +{commitMeta.additions}
-            </span>
-            <span
-              class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 font-mono text-rose-300"
-            >
-              -{commitMeta.deletions}
-            </span>
-          </div>
-        {/if}
-
-        <div class="flex flex-wrap justify-end gap-1.5">
-          {#if commit.isSafePushTarget}
-            <span
-              class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300"
-            >
-              {translate($locale, "history.safeStepPush")}
-            </span>
-          {/if}
           <span
-            class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-semibold text-sky-200"
+            class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-[12px] font-semibold text-emerald-300 tabular-nums"
           >
-            {translate($locale, "commit.behindBadge", {
-              count: branchStatus?.behindCount ?? 0,
-            })}
+            +{commitMeta.additions}
           </span>
-        </div>
+          <span
+            class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 font-mono text-[12px] font-semibold text-rose-300 tabular-nums"
+          >
+            -{commitMeta.deletions}
+          </span>
+        {/if}
       </div>
     {/if}
 

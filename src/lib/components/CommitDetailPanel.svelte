@@ -4,6 +4,7 @@
   import { createEventDispatcher } from "svelte";
   import ChangedFilesPanel from "$lib/components/ChangedFilesPanel.svelte";
   import CommitDetailHeader from "$lib/components/CommitDetailHeader.svelte";
+  import CommitMessagePanel from "$lib/components/CommitMessagePanel.svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import {
@@ -160,29 +161,14 @@
     <CommitDetailHeader
       {commit}
       {commitMeta}
-      {branchStatus}
       collapsed={commitHeaderCollapsed}
       {copiedCommitHash}
       on:toggleCollapsed={() =>
         (commitHeaderCollapsed = !commitHeaderCollapsed)}
       on:copyHash={(event) => copyCommitHash(event.detail.hash)}
     >
-      {#if commit && !commitHeaderCollapsed && commitBody}
-        <section
-          class="mt-2.5 rounded-lg border border-tg-border-soft bg-tg-bg-panel px-3 py-2"
-          aria-label={translate($locale, "commit.messageTitle")}
-        >
-          <div
-            class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-tg-text-muted"
-          >
-            {translate($locale, "commit.messageTitle")}
-          </div>
-          <div
-            class="max-h-20 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-tg-text-secondary"
-          >
-            {commitBody}
-          </div>
-        </section>
+      {#if commit && !commitHeaderCollapsed}
+        <CommitMessagePanel {commit} body={commitBody} {branchStatus} />
       {/if}
     </CommitDetailHeader>
   </div>
