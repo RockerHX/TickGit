@@ -261,8 +261,10 @@
     {/if}
   </div>
 
-  <div class="border-t border-tg-border-soft bg-tg-bg-card px-2.5 py-1">
-    <div class="text-[9px] leading-4 text-tg-text-secondary/80">
+  <div
+    class="flex min-h-8 items-center gap-2 border-t border-tg-border-soft bg-tg-bg-card px-2.5 py-1"
+  >
+    <div class="min-w-0 flex-1 truncate text-[9px] text-tg-text-secondary/80">
       {translate($locale, "history.showingRange", {
         start: pagination.showingStart,
         end: pagination.showingEnd,
@@ -271,10 +273,12 @@
     </div>
 
     {#if pagination.totalPages > 1}
-      <div class="mt-0.5 flex items-center gap-0.5">
+      <div
+        class="flex shrink-0 items-center gap-1 rounded-md border border-tg-border-soft bg-tg-bg-panel/70 px-1 py-0.5"
+      >
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-5 w-5 items-center justify-center border-transparent text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-focus-ring flex h-5 w-5 items-center justify-center rounded text-[11px] text-tg-text-secondary transition hover:bg-tg-bg-elevated hover:text-tg-text-primary disabled:cursor-not-allowed disabled:opacity-35"
           aria-label={translate($locale, "history.previousPage")}
           disabled={!pagination.canPrevious || loading}
           on:click={() => changePage(pagination.pageIndex - 1)}
@@ -282,37 +286,21 @@
           ‹
         </button>
 
-        {#each pagination.buttons as button}
-          {#if button.kind === "ellipsis"}
-            <span
-              class="px-0.5 text-[10px] text-tg-text-muted"
-              aria-hidden="true"
-            >
-              {button.label}
-            </span>
-          {:else}
-            <button
-              type="button"
-              class={`h-5 min-w-5 rounded-md px-1 text-[10px] font-semibold transition ${
-                button.active
-                  ? "bg-tg-blue/24 text-sky-100 shadow-sm shadow-tg-blue/15"
-                  : "bg-tg-bg-panel text-tg-text-secondary hover:bg-tg-bg-elevated hover:text-tg-text-primary"
-              }`}
-              aria-label={translate($locale, "history.pageLabel", {
-                page: button.pageIndex + 1,
-              })}
-              aria-current={button.active ? "page" : undefined}
-              disabled={button.active || loading}
-              on:click={() => changePage(button.pageIndex)}
-            >
-              {button.label}
-            </button>
-          {/if}
-        {/each}
+        <div
+          class="min-w-[3.25rem] text-center text-[10px] font-semibold tabular-nums text-tg-text-secondary"
+          aria-label={translate($locale, "history.pageLabel", {
+            page: pagination.pageIndex + 1,
+          })}
+        >
+          {translate($locale, "history.pageSummary", {
+            page: pagination.pageIndex + 1,
+            total: pagination.totalPages,
+          })}
+        </div>
 
         <button
           type="button"
-          class="tg-control tg-focus-ring flex h-5 w-5 items-center justify-center border-transparent text-[11px] disabled:cursor-not-allowed disabled:opacity-40"
+          class="tg-focus-ring flex h-5 w-5 items-center justify-center rounded text-[11px] text-tg-text-secondary transition hover:bg-tg-bg-elevated hover:text-tg-text-primary disabled:cursor-not-allowed disabled:opacity-35"
           aria-label={translate($locale, "history.nextPage")}
           disabled={!pagination.canNext || loading}
           on:click={() => changePage(pagination.pageIndex + 1)}
