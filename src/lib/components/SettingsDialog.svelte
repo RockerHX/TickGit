@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { createEventDispatcher } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import LanguageOptionList from "$lib/components/LanguageOptionList.svelte";
@@ -11,6 +12,61 @@
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
+  let dialogElement: HTMLDivElement | null = null;
+  let previousFocusedElement: HTMLElement | null = null;
+  let wasOpen = false;
+
+  $: if (open && !wasOpen) {
+    wasOpen = true;
+    previousFocusedElement =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    void focusFirstControl();
+  } else if (!open && wasOpen) {
+    wasOpen = false;
+    restorePreviousFocus();
+  }
+
+  function getFocusableElements() {
+    if (!dialogElement) {
+      return [];
+    }
+
+    return Array.from(
+      dialogElement.querySelectorAll<HTMLElement>(
+        [
+          "button:not([disabled])",
+          "[href]",
+          "input:not([disabled])",
+          "select:not([disabled])",
+          "textarea:not([disabled])",
+          "[tabindex]:not([tabindex='-1'])",
+        ].join(","),
+      ),
+    ).filter(
+      (element) =>
+        !element.hasAttribute("disabled") &&
+        element.getAttribute("aria-hidden") !== "true" &&
+        element.offsetParent !== null,
+    );
+  }
+
+  async function focusFirstControl() {
+    await tick();
+    getFocusableElements()[0]?.focus();
+  }
+
+  function restorePreviousFocus() {
+    if (!previousFocusedElement?.isConnected) {
+      previousFocusedElement = null;
+      return;
+    }
+
+    previousFocusedElement.focus();
+    previousFocusedElement = null;
+  }
+
   function close() {
     dispatch("close");
   }
@@ -22,11 +78,45 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
-    if (!open || event.key !== "Escape") {
+    if (!open) {
       return;
     }
 
-    close();
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusableElements = getFocusableElements();
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement;
+
+    if (!dialogElement?.contains(activeElement)) {
+      event.preventDefault();
+      firstElement.focus();
+      return;
+    }
+
+    if (event.shiftKey && activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+      return;
+    }
+
+    if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
   }
 </script>
 
@@ -44,6 +134,7 @@
       aria-modal="true"
       aria-labelledby="settings-title"
       aria-describedby="settings-description"
+      bind:this={dialogElement}
     >
       <div
         class="flex items-center justify-between border-b border-tg-border-soft px-5 py-4"
