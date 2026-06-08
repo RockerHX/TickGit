@@ -33,7 +33,7 @@
 </script>
 
 <button
-  class={`group tg-card flex min-h-[60px] w-full items-center gap-3 px-3.5 py-2.5 text-left transition duration-200 ${
+  class={`group tg-card flex min-h-[52px] w-full items-center gap-2.5 px-3 py-2 text-left transition duration-200 ${
     disabled
       ? "cursor-not-allowed border-tg-border-soft/60 bg-tg-bg-panel/50 text-tg-text-muted opacity-70"
       : open
@@ -49,14 +49,14 @@
   on:click|stopPropagation={toggle}
 >
   <span
-    class={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px] border transition ${
+    class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border transition ${
       disabled
         ? "border-tg-border-soft bg-tg-bg-elevated/60 text-tg-text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-        : "tg-icon-tile group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.36)]"
+        : "tg-icon-tile group-hover:shadow-[0_12px_24px_rgba(37,99,235,0.32)]"
     }`}
     aria-hidden="true"
   >
-    <svg viewBox="0 0 16 16" class="h-4.5 w-4.5 fill-current drop-shadow">
+    <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current drop-shadow">
       <path
         d="M5.75 2a1.75 1.75 0 1 0 1.72 2.06l1.6.64a1.75 1.75 0 0 0 2.16 2.16l.64 1.6a1.75 1.75 0 1 0 1.38-.56 1.73 1.73 0 0 0-.31.03l-.64-1.6a1.75 1.75 0 0 0-2.16-2.16l-1.6-.64A1.75 1.75 0 0 0 5.75 2Zm0 1.5a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm4.5 2a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Zm3 4a.25.25 0 1 1 0 .5.25.25 0 0 1 0-.5Z"
       ></path>
@@ -65,14 +65,14 @@
 
   <span class="min-w-0 flex-1">
     <span
-      class={`block truncate text-[0.95rem] font-semibold ${
+      class={`block truncate text-[0.875rem] font-semibold ${
         disabled ? "text-tg-text-muted" : "text-tg-text-primary"
       }`}
     >
       {currentBranch ?? translate($locale, "branch.noneSelected")}
     </span>
     <span
-      class={`mt-1 block truncate text-[11px] ${
+      class={`mt-0.5 block truncate text-[10px] ${
         disabled ? "text-tg-text-muted/70" : "text-tg-text-secondary/80"
       }`}
     >
@@ -81,7 +81,7 @@
   </span>
 
   <span
-    class={`flex h-8 w-7 shrink-0 items-center justify-center border-l transition duration-200 ${
+    class={`flex h-7 w-6.5 shrink-0 items-center justify-center border-l transition duration-200 ${
       disabled
         ? "border-tg-border-soft/50 text-tg-text-muted/70"
         : open

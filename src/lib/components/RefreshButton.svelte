@@ -22,7 +22,7 @@
 
 <button
   type="button"
-  class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center transition ${
+  class={`mt-[15px] flex min-h-[48px] w-full items-center justify-center transition ${
     enabled
       ? "tg-control tg-focus-ring"
       : "cursor-not-allowed rounded-tg-control border border-tg-border-soft/50 bg-white/[0.025] text-tg-text-muted opacity-75"
@@ -35,7 +35,7 @@
 >
   <svg
     viewBox="0 0 16 16"
-    class={`h-4.5 w-4.5 fill-current ${loading ? "animate-spin" : ""}`}
+    class={`h-4 w-4 fill-current ${loading ? "animate-spin" : ""}`}
     aria-hidden="true"
   >
     <path

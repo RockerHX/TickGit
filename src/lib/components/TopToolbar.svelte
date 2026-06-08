@@ -38,15 +38,15 @@
 </script>
 
 <div
-  class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_42%)] px-6 pb-3 pt-2"
+  class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_42%)] px-5 pb-2 pt-1.5"
 >
   <div
-    class="grid min-w-0 items-start gap-3"
-    style="grid-template-columns: minmax(240px, 1fr) 10px minmax(180px, 0.72fr) 10px minmax(220px, 270px) 56px 56px;"
+    class="grid min-w-0 items-start gap-2.5"
+    style="grid-template-columns: minmax(220px, 1fr) 8px minmax(165px, 0.68fr) 8px minmax(200px, 250px) 48px 48px;"
   >
     <div class="min-w-0">
       <div
-        class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
+        class="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
       >
         {translate($locale, "repository.current")}
       </div>
@@ -64,7 +64,7 @@
     </div>
 
     <div
-      class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
+      class="flex h-[66px] items-center justify-center text-tg-text-muted/70"
       aria-hidden="true"
     >
       <span class="text-xs">›</span>
@@ -72,7 +72,7 @@
 
     <div class="min-w-0">
       <div
-        class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
+        class="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
       >
         {translate($locale, "branch.current")}
       </div>
@@ -88,7 +88,7 @@
     </div>
 
     <div
-      class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
+      class="flex h-[66px] items-center justify-center text-tg-text-muted/70"
       aria-hidden="true"
     >
       <span class="text-xs">›</span>
