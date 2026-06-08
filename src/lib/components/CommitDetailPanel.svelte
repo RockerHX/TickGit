@@ -44,10 +44,14 @@
   let panelElement: HTMLDivElement | null = null;
   let copiedCommitHash: string | null = null;
   let copiedFilePath: string | null = null;
+  let commitHeaderCollapsed = false;
+  let previousCommitHash: string | null = null;
   let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
   let filePathCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
-  $: if (commit && copiedCommitHash !== commit.hash) {
+  $: if (commit?.hash !== previousCommitHash) {
+    previousCommitHash = commit?.hash ?? null;
+    commitHeaderCollapsed = false;
     copiedCommitHash = null;
   }
 
@@ -158,7 +162,7 @@
       <div
         class="min-w-0 rounded-xl border border-white/10 bg-[#18202d]/80 p-3 shadow-[0_14px_32px_rgba(8,13,24,0.18)]"
       >
-        <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <div
               class="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-slate-50"
@@ -166,24 +170,48 @@
             >
               {commit.summary}
             </div>
+            {#if commitHeaderCollapsed}
+              <div
+                class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400"
+              >
+                <span class="leading-5">
+                  {formatAbsoluteDate(commit.committedAt, $locale)}
+                </span>
+                {#if commitMeta}
+                  <span
+                    class="flex items-center gap-1.5 font-mono text-[12px] font-semibold tabular-nums"
+                    aria-label={`+${commitMeta.additions} -${commitMeta.deletions}`}
+                  >
+                    <span class="text-emerald-300">+{commitMeta.additions}</span
+                    >
+                    <span class="text-rose-300">-{commitMeta.deletions}</span>
+                  </span>
+                {/if}
+              </div>
+            {/if}
           </div>
-          <span
-            class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400"
-            aria-hidden="true"
+          <button
+            type="button"
+            class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 transition hover:border-sky-300/30 hover:bg-sky-400/10 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400/35"
+            aria-label={commitHeaderCollapsed
+              ? translate($locale, "commit.expandInfo")
+              : translate($locale, "commit.collapseInfo")}
+            aria-expanded={!commitHeaderCollapsed}
+            on:click={() => (commitHeaderCollapsed = !commitHeaderCollapsed)}
           >
             <svg
               viewBox="0 0 16 16"
-              class="h-3 w-3 fill-current"
+              class={`h-3 w-3 fill-current transition-transform ${commitHeaderCollapsed ? "rotate-180" : ""}`}
               aria-hidden="true"
             >
               <path
                 d="M3.22 9.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1-1.06 1.06L8 5.81 4.28 9.53a.75.75 0 0 1-1.06 0Z"
               ></path>
             </svg>
-          </span>
+          </button>
         </div>
 
-        {#if commit.tags.length > 0 || !commit.isPushed}
+        {#if !commitHeaderCollapsed && (commit.tags.length > 0 || !commit.isPushed)}
           <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
             {#if !commit.isPushed}
               <span
@@ -213,120 +241,122 @@
           </div>
         {/if}
 
-        <div
-          class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px] text-slate-100"
-        >
-          <div class="flex min-w-0 flex-1 items-center gap-2">
-            <div
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[9px] font-semibold tracking-wide text-sky-100"
-            >
-              {getInitials(commit.authorName)}
-            </div>
-            <div
-              class="min-w-0 flex-1"
-              title={`${commit.authorName} <${commit.authorEmail}>`}
-            >
-              <div class="flex min-w-0 items-center gap-1.5">
-                <span class="min-w-0 truncate font-medium text-slate-100">
-                  {commit.authorName}
-                </span>
-                <span class="min-w-0 truncate text-slate-400">
-                  &lt;{commit.authorEmail}&gt;
-                </span>
+        {#if !commitHeaderCollapsed}
+          <div
+            class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px] text-slate-100"
+          >
+            <div class="flex min-w-0 flex-1 items-center gap-2">
+              <div
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[9px] font-semibold tracking-wide text-sky-100"
+              >
+                {getInitials(commit.authorName)}
+              </div>
+              <div
+                class="min-w-0 flex-1"
+                title={`${commit.authorName} <${commit.authorEmail}>`}
+              >
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <span class="min-w-0 truncate font-medium text-slate-100">
+                    {commit.authorName}
+                  </span>
+                  <span class="min-w-0 truncate text-slate-400">
+                    &lt;{commit.authorEmail}&gt;
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-[11px]"
-          >
-            <button
-              type="button"
-              class="inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 font-mono font-medium text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-              title={commit.hash}
-              aria-label={copiedCommitHash === commit.hash
-                ? translate($locale, "commit.copiedHash")
-                : translate($locale, "commit.copyHash")}
-              on:click={() => copyCommitHash(commit.hash)}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                class="h-3 w-3 shrink-0 fill-current text-sky-300"
-                aria-hidden="true"
-              >
-                <path
-                  d="M1.75 8a2.75 2.75 0 1 1 5.18 1.28h2.14a2.751 2.751 0 0 1 5.18-1.28 2.75 2.75 0 1 1-5.18 1.28H6.93A2.75 2.75 0 1 1 1.75 8Zm2.75-1.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm7 0a1.25 1.25 0 1 0 .001 2.501A1.25 1.25 0 0 0 11.5 6.75Z"
-                ></path>
-              </svg>
-              <span class="truncate">{commit.shortHash}</span>
-              {#if copiedCommitHash === commit.hash}
-                <svg
-                  viewBox="0 0 16 16"
-                  class="h-3 w-3 shrink-0 fill-current text-emerald-300"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
-                  ></path>
-                </svg>
-              {:else}
-                <svg
-                  viewBox="0 0 16 16"
-                  class="h-3 w-3 shrink-0 fill-current text-slate-300"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
-                  ></path>
-                  <path
-                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
-                  ></path>
-                </svg>
-              {/if}
-            </button>
-            <span class="text-right leading-5 text-slate-400">
-              {formatAbsoluteDate(commit.committedAt, $locale)}
-            </span>
-          </div>
-        </div>
-
-        <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-          {#if commitMeta}
             <div
-              class="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold tabular-nums"
+              class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-[11px]"
             >
-              <span
-                class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-emerald-300"
+              <button
+                type="button"
+                class="inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 font-mono font-medium text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                title={commit.hash}
+                aria-label={copiedCommitHash === commit.hash
+                  ? translate($locale, "commit.copiedHash")
+                  : translate($locale, "commit.copyHash")}
+                on:click={() => copyCommitHash(commit.hash)}
               >
-                +{commitMeta.additions}
-              </span>
-              <span
-                class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 font-mono text-rose-300"
-              >
-                -{commitMeta.deletions}
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3 w-3 shrink-0 fill-current text-sky-300"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M1.75 8a2.75 2.75 0 1 1 5.18 1.28h2.14a2.751 2.751 0 0 1 5.18-1.28 2.75 2.75 0 1 1-5.18 1.28H6.93A2.75 2.75 0 1 1 1.75 8Zm2.75-1.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm7 0a1.25 1.25 0 1 0 .001 2.501A1.25 1.25 0 0 0 11.5 6.75Z"
+                  ></path>
+                </svg>
+                <span class="truncate">{commit.shortHash}</span>
+                {#if copiedCommitHash === commit.hash}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-3 w-3 shrink-0 fill-current text-emerald-300"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                    ></path>
+                  </svg>
+                {:else}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-3 w-3 shrink-0 fill-current text-slate-300"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                    ></path>
+                    <path
+                      d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                    ></path>
+                  </svg>
+                {/if}
+              </button>
+              <span class="text-right leading-5 text-slate-400">
+                {formatAbsoluteDate(commit.committedAt, $locale)}
               </span>
             </div>
-          {/if}
-
-          <div class="flex flex-wrap justify-end gap-1.5">
-            {#if commit.isSafePushTarget}
-              <span
-                class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300"
-              >
-                {translate($locale, "history.safeStepPush")}
-              </span>
-            {/if}
-            <span
-              class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-semibold text-sky-200"
-            >
-              {translate($locale, "commit.behindBadge", {
-                count: branchStatus?.behindCount ?? 0,
-              })}
-            </span>
           </div>
-        </div>
 
-        {#if commitBody}
+          <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+            {#if commitMeta}
+              <div
+                class="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold tabular-nums"
+              >
+                <span
+                  class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-emerald-300"
+                >
+                  +{commitMeta.additions}
+                </span>
+                <span
+                  class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 font-mono text-rose-300"
+                >
+                  -{commitMeta.deletions}
+                </span>
+              </div>
+            {/if}
+
+            <div class="flex flex-wrap justify-end gap-1.5">
+              {#if commit.isSafePushTarget}
+                <span
+                  class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300"
+                >
+                  {translate($locale, "history.safeStepPush")}
+                </span>
+              {/if}
+              <span
+                class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-semibold text-sky-200"
+              >
+                {translate($locale, "commit.behindBadge", {
+                  count: branchStatus?.behindCount ?? 0,
+                })}
+              </span>
+            </div>
+          </div>
+        {/if}
+
+        {#if !commitHeaderCollapsed && commitBody}
           <section
             class="mt-2.5 rounded-lg border border-white/10 bg-[#111827]/65 px-3 py-2"
             aria-label={translate($locale, "commit.messageTitle")}
