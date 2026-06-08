@@ -110,28 +110,28 @@
     </span>
     <input
       bind:this={searchInput}
-      class="h-7 w-full rounded-md border border-tg-border-strong bg-tg-bg-panel px-7 pr-10 text-[11px] text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
+      class="h-7 w-full rounded-md border border-tg-border-soft bg-white/[0.025] px-7 pr-10 text-[10px] font-medium text-tg-text-primary outline-none transition placeholder:text-tg-text-muted/85 focus:border-tg-blue-soft/60 focus:bg-tg-bg-app/80"
       placeholder={translate($locale, "history.commitSearch")}
       aria-label={translate($locale, "history.commitSearch")}
       value={filters.query ?? ""}
       on:input={(event) => updateFilter("query", event.currentTarget.value)}
     />
     <span
-      class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 rounded border border-tg-border-strong bg-tg-bg-card px-1 py-0 text-[7px] font-semibold text-tg-text-secondary/80"
+      class="pointer-events-none absolute right-1 top-1/2 inline-flex h-4 -translate-y-1/2 items-center rounded border border-tg-border-soft bg-tg-bg-card/70 px-1 text-[8px] font-semibold leading-none text-tg-text-secondary/75"
       aria-label={translate($locale, "history.searchShortcut")}
     >
       ⌘K
     </span>
   </div>
 
-  <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-1">
+  <div class="flex items-center gap-1.5 overflow-hidden">
     {#each filterButtons as filter}
       <button
         type="button"
-        class={`flex h-6 items-center justify-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold transition ${
+        class={`inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-[10px] font-medium leading-none transition ${
           isActive(filter.key) || expandedFilter === filter.key
-            ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
-            : "border-tg-border-strong bg-tg-bg-panel text-tg-text-secondary hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
+            ? "border-tg-blue-soft/45 bg-tg-blue/15 text-sky-100"
+            : "border-tg-border-soft bg-white/[0.02] text-tg-text-secondary/85 hover:border-tg-blue-soft/35 hover:bg-white/[0.045] hover:text-tg-text-primary"
         }`}
         aria-controls="history-expanded-filters"
         aria-expanded={shouldShowInput(filter.key)}
@@ -175,10 +175,10 @@
 
     <button
       type="button"
-      class={`flex h-6 w-7 items-center justify-center rounded-md border text-tg-text-secondary transition ${
+      class={`inline-flex h-6 w-7 shrink-0 items-center justify-center rounded-md border text-tg-text-secondary transition ${
         expandedFilter === "all"
-          ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
-          : "border-tg-border-strong bg-tg-bg-panel hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
+          ? "border-tg-blue-soft/45 bg-tg-blue/15 text-sky-100"
+          : "border-tg-border-soft bg-white/[0.02] text-tg-text-secondary/85 hover:border-tg-blue-soft/35 hover:bg-white/[0.045] hover:text-tg-text-primary"
       }`}
       title={translate($locale, "history.moreFilters")}
       aria-label={translate($locale, "history.moreFilters")}
