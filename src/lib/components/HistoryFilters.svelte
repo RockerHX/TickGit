@@ -175,7 +175,7 @@
 
     <button
       type="button"
-      class={`inline-flex h-6 w-7 shrink-0 items-center justify-center rounded-md border text-tg-text-secondary transition ${
+      class={`ml-auto inline-flex h-6 w-7 shrink-0 items-center justify-center rounded-md border text-tg-text-secondary transition ${
         expandedFilter === "all"
           ? "border-tg-blue-soft/45 bg-tg-blue/15 text-sky-100"
           : "border-tg-border-soft bg-white/[0.02] text-tg-text-secondary/85 hover:border-tg-blue-soft/35 hover:bg-white/[0.045] hover:text-tg-text-primary"
