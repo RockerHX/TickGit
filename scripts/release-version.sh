@@ -6,39 +6,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 normalize_version() {
-  VERSION_INPUT="$1" python <<'EOF'
-import os
-import unicodedata
-
-value = os.environ["VERSION_INPUT"].strip()
-value = unicodedata.normalize("NFKC", value)
-value = (
-    value.replace("。", ".")
-    .replace("．", ".")
-    .replace("｡", ".")
-    .replace("·", ".")
-    .replace(" ", "")
-)
-print(value)
-EOF
+  node scripts/release-version-input.mjs --normalize "$1"
 }
 
 read_version_interactively() {
-  while true; do
-    read -r -p "请输入版本号: " raw_version
-    normalized_version="$(normalize_version "${raw_version}")"
-
-    if [[ "${normalized_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      printf '%s\n' "${normalized_version}"
-      return
-    fi
-
-    echo "版本号格式无效：${raw_version}" >&2
-    if [[ "${normalized_version}" != "${raw_version}" ]]; then
-      echo "已自动归一化为：${normalized_version}" >&2
-    fi
-    echo "请使用 x.y.z 格式，例如 1.0.1" >&2
-  done
+  node scripts/release-version-input.mjs --prompt
 }
 
 if [[ $# -ge 1 ]]; then
