@@ -112,6 +112,7 @@
       bind:this={searchInput}
       class="h-10 w-full rounded-tg-control border border-tg-border-strong bg-tg-bg-panel px-10 pr-15 text-sm text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
       placeholder={translate($locale, "history.commitSearch")}
+      aria-label={translate($locale, "history.commitSearch")}
       value={filters.query ?? ""}
       on:input={(event) => updateFilter("query", event.currentTarget.value)}
     />
@@ -132,6 +133,9 @@
             ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
             : "border-tg-border-strong bg-tg-bg-panel text-tg-text-secondary hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
         }`}
+        aria-controls="history-expanded-filters"
+        aria-expanded={shouldShowInput(filter.key)}
+        aria-pressed={isActive(filter.key)}
         on:click={() => toggleFilter(filter.key)}
       >
         {#if filter.key === "filePath"}
@@ -154,6 +158,9 @@
       }`}
       title={translate($locale, "history.moreFilters")}
       aria-label={translate($locale, "history.moreFilters")}
+      aria-controls="history-expanded-filters"
+      aria-expanded={expandedFilter === "all"}
+      aria-pressed={expandedFilter === "all"}
       on:click={toggleAllFilters}
     >
       <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" aria-hidden="true">
@@ -166,6 +173,7 @@
 
   {#if expandedFilter}
     <div
+      id="history-expanded-filters"
       class="space-y-2 rounded-tg-control border border-tg-border-strong bg-tg-bg-panel p-2"
     >
       {#each filterButtons as filter}
