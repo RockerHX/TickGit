@@ -2,6 +2,10 @@
   import { createEventDispatcher } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import LanguageOptionList from "$lib/components/LanguageOptionList.svelte";
+  import {
+    commitInfoDefaultCollapsed,
+    setCommitInfoDefaultCollapsed,
+  } from "$lib/tickgit/preferences";
 
   export let open = false;
 
@@ -73,8 +77,52 @@
         </button>
       </div>
 
-      <div class="px-5 py-5">
+      <div class="space-y-5 px-5 py-5">
         <LanguageOptionList />
+
+        <div
+          class="rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-3"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div
+                id="settings-commit-info-title"
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+              >
+                {translate($locale, "settings.commitInfo")}
+              </div>
+              <p class="mt-2 text-sm font-medium text-slate-200">
+                {translate($locale, "settings.commitInfoDefaultCollapsed")}
+              </p>
+              <p class="mt-1 text-xs leading-5 text-slate-400">
+                {translate(
+                  $locale,
+                  "settings.commitInfoDefaultCollapsedDescription",
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              class={`relative mt-1 h-6 w-11 shrink-0 rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1b2027] ${
+                $commitInfoDefaultCollapsed
+                  ? "border-[#539bf5]/55 bg-[#347dff]/70"
+                  : "border-white/[0.12] bg-white/[0.08]"
+              }`}
+              role="switch"
+              aria-labelledby="settings-commit-info-title"
+              aria-checked={$commitInfoDefaultCollapsed}
+              on:click={() =>
+                setCommitInfoDefaultCollapsed(!$commitInfoDefaultCollapsed)}
+            >
+              <span
+                class={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow transition ${
+                  $commitInfoDefaultCollapsed ? "left-[22px]" : "left-1"
+                }`}
+                aria-hidden="true"
+              ></span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

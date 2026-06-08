@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::path::Path;
 
 use base64::{engine::general_purpose, Engine as _};
 
@@ -84,27 +84,6 @@ pub(super) fn git_image_data_url(
         Err(error) if error.code == "git_command_failed" => Ok(None),
         Err(error) => Err(error),
     }
-}
-
-pub(super) fn working_tree_image_data_url(
-    repo_path: &Path,
-    file_path: &str,
-) -> AppResult<Option<String>> {
-    let bytes = match fs::read(repo_path.join(file_path)) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(crate::error::AppError::new(
-                "read_image_failed",
-                error.to_string(),
-            ))
-        }
-    };
-    Ok(bytes_to_image_data_url(file_path, bytes))
-}
-
-pub(super) fn index_image_data_url(repo_path: &Path, file_path: &str) -> AppResult<Option<String>> {
-    git_image_data_url(repo_path, ":", file_path)
 }
 
 fn parse_numstat(output: &str) -> DiffStats {

@@ -49,11 +49,9 @@ Svelte 页面与组件
 - 分支状态
 - Commit 历史分页
 - 当前选中 Commit / 文件 / Diff
-- 工作区 Changes / History 视图切换
-- 工作区 staged / unstaged / untracked 文件、文件级暂存和提交表单
 - 拖拽添加仓库
 - 右键动作
-- 分步提交进度状态
+- 分步推送进度状态
 
 当前项目未引入全局状态库，页面级主状态保留在这里；非视觉的页面辅助逻辑优先下沉到普通 TypeScript helper，而不是继续堆积在页面文件内。
 
@@ -67,19 +65,13 @@ Svelte 页面与组件
 - `page-helpers.ts`：错误消息和 toast 数据辅助
 - `step-push-plan.ts`：分步推送 plan hashes 提取与确认后启动 job 的状态转换
 - `diff.ts`：unified diff 解析、diff 降级状态与 split 视图数据派生
-- `workspace.ts`：工作区状态默认选择、Diff 加载快照与提交后 UI effect
 - 对应 Vitest 单元测试承载
 
 ### `src/lib/components/*`
 
 负责展示和局部交互，不直接承担后端协议封装。
 
-当前工作区视图约束：
-
-- 前端显示 staged / unstaged / untracked 两类文件分组
-- stage / unstage 为文件级操作
-- commit 表单只提交 staged 内容
-- hunk / 行级暂存、discard changes、冲突解决不在当前范围
+当前不提供工作区 Changes 视图，不读取或展示 staged / unstaged / untracked 文件，也不提供 stage / unstage / git commit / discard / 冲突处理能力。
 
 当前 Diff Viewer 约束：
 
@@ -95,7 +87,7 @@ Svelte 页面与组件
 
 ### `src/lib/tauri/events.ts`
 
-前端唯一事件监听入口，当前仅封装分步提交相关事件。
+前端唯一事件监听入口，当前仅封装分步推送相关事件。
 
 ### `src/lib/types.ts`
 
@@ -111,7 +103,7 @@ Tauri command 边界层，只做参数接收和模块转发。
 
 ### `src-tauri/src/git/`
 
-Git 领域核心模块目录，统一负责 Git 相关查询、解析和写操作。当前模块边界：
+Git 领域核心模块目录，统一负责 Git 相关查询、解析和安全推送操作。当前模块边界：
 
 ```text
 src-tauri/src/git/
@@ -121,7 +113,6 @@ src-tauri/src/git/
   history.rs      # commit history / file list / meta
   diff.rs         # file diff / metadata / 大文件保护
   push.rs         # push current / push to commit / step push plan / safe target
-  workspace.rs    # workspace status / diff / stage / unstage / commit
   parse.rs        # 文本解析函数
   tests.rs        # Git 行为集成测试
 ```
@@ -177,17 +168,16 @@ Git 命令执行规则：
 - 远端固定为 `origin`
 - 未推送判断依赖 upstream
 - 仅通过 `fetch --prune origin` 刷新远端跟踪信息；不内置 `git pull` / `merge` / `rebase`
+- 不内置 `git commit` / `stage` / `unstage`，不提供工作区 Changes 视图
 - 本地分支落后远端或与远端分叉时禁用推送，并引导用户使用 GitHub Desktop / SourceTree 等外部工具同步
 - `origin` 缺失、upstream 缺失或 detached HEAD 时禁用推送
 - 前端不能直接执行 Git
 - 不引入 `libgit2`
 - Diff 为结构化文本视图，支持 unified / split 与 hide whitespace，并对 binary/image/tooLarge 做降级展示
-- 工作区支持 staged / unstaged / untracked 查看、文件级 stage / unstage，以及只提交 staged 内容
-- 当前不支持 hunk / 行级暂存、discard changes、冲突解决
 - 仓库列表保留失效路径，通过 runtime status 标记 missing / invalid，不自动清理用户配置
 - 从 TickGit 移除仓库只移除持久化记录，不删除磁盘文件
 - 重新定位仓库通过 Tauri dialog 选择目录，后端仍负责校验新路径是 Git work tree
-- 分步提交为单任务、不可取消
+- 分步推送为单任务、不可取消
 - Step push plan 由后端生成，前端只展示并在用户确认后传回 plan hashes；job 启动前仍由后端二次校验
 
 ### Tauri 插件与权限
@@ -210,7 +200,7 @@ Git 命令执行规则：
 3. 拉取完整 Commit 历史，并标记哪些未推送 Commit 位于 first-parent 安全路径上
 4. 自动加载当前选中 Commit 的文件与 Diff
 
-### 分步提交
+### 分步推送
 
 用户层面的目标是：
 
@@ -265,13 +255,13 @@ A --- B --- M   (当前分支 HEAD)
 - 任一步推送失败后，任务立即安全终止，并通过失败事件通知前端
 - 已成功推送到远端的 Commit 视为已完成，不要求从头开始
 - 前端刷新仓库状态后，重新计算剩余未推送 Commit 列表
-- 用户可基于剩余未推送部分重新发起分步提交
+- 用户可基于剩余未推送部分重新发起分步推送
 
 ---
 
 ## 7. 新功能放置规则
 
-- 新的 Git 查询或操作：`src-tauri/src/git/`，按 command / repository / history / diff / push / parse 职责放置
+- 新的 Git 查询或安全推送操作：`src-tauri/src/git/`，按 command / repository / history / diff / push / parse 职责放置；除非先更新架构边界，否则不得新增 pull / merge / rebase / commit / stage / unstage
 - 新的后台异步任务：`src-tauri/src/jobs.rs`
 - 新的持久化配置：优先 `src-tauri/src/repo_store.rs`
 - 新的前后端接口：同步修改 `commands.rs`、`models.rs`、`api.ts`、`types.ts`

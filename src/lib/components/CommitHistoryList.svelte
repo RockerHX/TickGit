@@ -2,9 +2,6 @@
   import { createEventDispatcher } from "svelte";
   import { locale, translate, translateBranchDisabledReason } from "$lib/i18n";
   import HistoryFilters from "$lib/components/HistoryFilters.svelte";
-  import MainViewTabs, {
-    type MainViewId,
-  } from "$lib/components/MainViewTabs.svelte";
   import type {
     BranchStatus,
     CommitHistoryFilters,
@@ -26,12 +23,10 @@
   export let branchStatus: BranchStatus | null = null;
   export let filters: CommitHistoryFilters = EMPTY_HISTORY_FILTERS;
   export let activeFilterCount = 0;
-  export let activeMainView: MainViewId = "history";
 
   const dispatch = createEventDispatcher<{
     select: { commit: CommitListItem };
     pageChange: { pageIndex: number };
-    mainViewChange: { view: MainViewId };
     openMenu: { commit: CommitListItem; x: number; y: number };
     filterChange: { filters: CommitHistoryFilters };
     clearFilters: void;
@@ -59,13 +54,7 @@
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden bg-[#2d333b]">
   <div class="border-b border-[#1f2328] px-4 py-3">
-    <MainViewTabs
-      active={activeMainView}
-      on:change={(event) =>
-        dispatch("mainViewChange", { view: event.detail.view })}
-    />
-
-    <div class="mt-3 flex items-center justify-between gap-3">
+    <div class="flex items-center justify-between gap-3">
       <div class="text-sm font-semibold text-[#f0f6fc]">
         {translate($locale, "history.title")}
       </div>

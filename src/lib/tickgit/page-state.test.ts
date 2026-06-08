@@ -9,13 +9,11 @@ import {
   canLoadDiff,
   canLoadHistory,
   canPushCurrentBranch,
-  canCreateWorkspaceCommit,
   canRefreshBlockedBranchStatus,
   canRefreshCurrentRepositoryOnFocus,
   canStartStepPush,
   canStartTargetCommitPush,
   canSwitchBranch,
-  canWriteWorkspace,
   isRepositoryAvailable,
   isBranchSwitcherDisabled,
   isContextMenuDisabled,
@@ -247,65 +245,5 @@ describe("page state", () => {
         stepPushState: stepPushState("running"),
       }),
     ).toBe(true);
-  });
-
-  it("guards workspace write operations while repository controls are busy", () => {
-    const base = {
-      currentRepository: repository(),
-      loadingRepository: false,
-      loadingWorkspace: false,
-      switchingBranch: false,
-      isPushing: false,
-      stepPushState: null,
-      workspaceActionFileKey: null,
-      committingWorkspace: false,
-    };
-
-    expect(canWriteWorkspace(base)).toBe(true);
-    expect(canWriteWorkspace({ ...base, currentRepository: null })).toBe(false);
-    expect(canWriteWorkspace({ ...base, loadingRepository: true })).toBe(false);
-    expect(canWriteWorkspace({ ...base, loadingWorkspace: true })).toBe(false);
-    expect(canWriteWorkspace({ ...base, switchingBranch: true })).toBe(false);
-    expect(canWriteWorkspace({ ...base, isPushing: true })).toBe(false);
-    expect(
-      canWriteWorkspace({
-        ...base,
-        workspaceActionFileKey: "unstaged:file.txt",
-      }),
-    ).toBe(false);
-    expect(canWriteWorkspace({ ...base, committingWorkspace: true })).toBe(
-      false,
-    );
-    expect(
-      canWriteWorkspace({
-        ...base,
-        stepPushState: stepPushState("running"),
-      }),
-    ).toBe(false);
-  });
-
-  it("allows workspace commit only with staged files and a non-empty message", () => {
-    const base = {
-      currentRepository: repository(),
-      loadingRepository: false,
-      loadingWorkspace: false,
-      switchingBranch: false,
-      isPushing: false,
-      stepPushState: null,
-      workspaceActionFileKey: null,
-      committingWorkspace: false,
-      commitMessage: "Add feature",
-      stagedCount: 1,
-    };
-
-    expect(canCreateWorkspaceCommit(base)).toBe(true);
-    expect(canCreateWorkspaceCommit({ ...base, commitMessage: "   " })).toBe(
-      false,
-    );
-    expect(canCreateWorkspaceCommit({ ...base, stagedCount: 0 })).toBe(false);
-    expect(
-      canCreateWorkspaceCommit({ ...base, committingWorkspace: true }),
-    ).toBe(false);
-    expect(canCreateWorkspaceCommit({ ...base, isPushing: true })).toBe(false);
   });
 });
