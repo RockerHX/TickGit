@@ -2,7 +2,6 @@
   import { onDestroy } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
-  import CommitMessagePanel from "$lib/components/CommitMessagePanel.svelte";
   import DiffViewer from "$lib/components/DiffViewer.svelte";
   import FileTypeIcon from "$lib/components/FileTypeIcon.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
@@ -54,6 +53,7 @@
 
   $: selectedFile =
     files.find((file) => file.path === selectedFilePath) ?? null;
+  $: commitBody = commitMeta?.body.trim() ?? "";
 
   function clampFilesPaneWidth(value: number) {
     if (!panelElement) {
@@ -290,27 +290,64 @@
           </div>
         </div>
 
-        {#if commitMeta}
-          <div
-            class="mt-3 flex flex-wrap items-center gap-2 text-[13px] font-medium"
-          >
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-emerald-300"
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {#if commitMeta}
+            <div
+              class="flex flex-wrap items-center gap-2 text-[13px] font-medium"
             >
-              <span class="font-mono text-sm leading-none">+</span>
-              {translate($locale, "commit.addedLines", {
-                count: commitMeta.additions,
-              })}
-            </span>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-emerald-300"
+              >
+                <span class="font-mono text-sm leading-none">+</span>
+                {translate($locale, "commit.addedLines", {
+                  count: commitMeta.additions,
+                })}
+              </span>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/10 px-3 py-1 text-rose-300"
+              >
+                <span class="font-mono text-sm leading-none">-</span>
+                {translate($locale, "commit.removedLines", {
+                  count: commitMeta.deletions,
+                })}
+              </span>
+            </div>
+          {/if}
+
+          <div class="flex flex-wrap justify-end gap-1.5">
+            {#if commit.isSafePushTarget}
+              <span
+                class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
+              >
+                {translate($locale, "history.safeStepPush")}
+              </span>
+            {/if}
             <span
-              class="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/10 px-3 py-1 text-rose-300"
+              class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200"
             >
-              <span class="font-mono text-sm leading-none">-</span>
-              {translate($locale, "commit.removedLines", {
-                count: commitMeta.deletions,
+              {translate($locale, "commit.behindBadge", {
+                count: branchStatus?.behindCount ?? 0,
               })}
             </span>
           </div>
+        </div>
+
+        {#if commitBody}
+          <section
+            class="mt-3 rounded-xl border border-white/10 bg-[#111827]/65 px-3 py-2.5"
+            aria-label={translate($locale, "commit.messageTitle")}
+          >
+            <div
+              class="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+            >
+              {translate($locale, "commit.messageTitle")}
+            </div>
+            <div
+              class="max-h-24 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-slate-300"
+            >
+              {commitBody}
+            </div>
+          </section>
         {/if}
       </div>
     {:else}
@@ -453,11 +490,6 @@
         on:modeChange={(event) => dispatch("diffModeChange", event.detail)}
         on:hideWhitespaceChange={(event) =>
           dispatch("hideWhitespaceChange", event.detail)}
-      />
-      <CommitMessagePanel
-        {commit}
-        {commitMeta}
-        behindCount={branchStatus?.behindCount ?? 0}
       />
     </div>
   </div>
