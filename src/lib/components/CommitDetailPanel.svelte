@@ -152,28 +152,28 @@
   bind:this={panelElement}
 >
   <div
-    class="border-b border-[#1f2328]/80 bg-[#111827] px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.28)]"
+    class="border-b border-[#1f2328]/80 bg-[#111827] px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
   >
     {#if commit}
       <div
-        class="min-w-0 rounded-xl border border-white/10 bg-[#18202d]/80 p-4 shadow-[0_18px_42px_rgba(8,13,24,0.22)]"
+        class="min-w-0 rounded-xl border border-white/10 bg-[#18202d]/80 p-3 shadow-[0_14px_32px_rgba(8,13,24,0.18)]"
       >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0 flex-1">
             <div
-              class="truncate text-xl font-semibold leading-7 tracking-[-0.01em] text-slate-50"
+              class="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-slate-50"
               title={commit.summary}
             >
               {commit.summary}
             </div>
           </div>
           <span
-            class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400"
+            class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400"
             aria-hidden="true"
           >
             <svg
               viewBox="0 0 16 16"
-              class="h-4 w-4 fill-current"
+              class="h-3 w-3 fill-current"
               aria-hidden="true"
             >
               <path
@@ -184,15 +184,15 @@
         </div>
 
         {#if commit.tags.length > 0 || !commit.isPushed}
-          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
             {#if !commit.isPushed}
               <span
-                class="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-200"
+                class="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-0.5 text-[10px] font-medium text-sky-200"
                 title={translate($locale, "commit.local")}
               >
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3.5 w-3.5 fill-current"
+                  class="h-3 w-3 fill-current"
                   aria-hidden="true"
                 >
                   <path
@@ -204,7 +204,7 @@
             {/if}
             {#each commit.tags as tag}
               <span
-                class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200"
+                class="max-w-full truncate rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
                 title={tag}
               >
                 {tag}
@@ -214,11 +214,11 @@
         {/if}
 
         <div
-          class="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 text-[13px] text-slate-100"
+          class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px] text-slate-100"
         >
-          <div class="flex min-w-0 flex-1 items-center gap-2.5">
+          <div class="flex min-w-0 flex-1 items-center gap-2">
             <div
-              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[10px] font-semibold tracking-wide text-sky-100"
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-sky-300/25 bg-sky-400/15 text-[9px] font-semibold tracking-wide text-sky-100"
             >
               {getInitials(commit.authorName)}
             </div>
@@ -238,11 +238,11 @@
           </div>
 
           <div
-            class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-[12px]"
+            class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-[11px]"
           >
             <button
               type="button"
-              class="inline-flex h-8 max-w-full shrink-0 items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 font-mono font-medium text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              class="inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 font-mono font-medium text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
               title={commit.hash}
               aria-label={copiedCommitHash === commit.hash
                 ? translate($locale, "commit.copiedHash")
@@ -251,7 +251,7 @@
             >
               <svg
                 viewBox="0 0 16 16"
-                class="h-3.5 w-3.5 shrink-0 fill-current text-sky-300"
+                class="h-3 w-3 shrink-0 fill-current text-sky-300"
                 aria-hidden="true"
               >
                 <path
@@ -262,7 +262,7 @@
               {#if copiedCommitHash === commit.hash}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3.5 w-3.5 shrink-0 fill-current text-emerald-300"
+                  class="h-3 w-3 shrink-0 fill-current text-emerald-300"
                   aria-hidden="true"
                 >
                   <path
@@ -272,7 +272,7 @@
               {:else}
                 <svg
                   viewBox="0 0 16 16"
-                  class="h-3.5 w-3.5 shrink-0 fill-current text-slate-300"
+                  class="h-3 w-3 shrink-0 fill-current text-slate-300"
                   aria-hidden="true"
                 >
                   <path
@@ -290,26 +290,20 @@
           </div>
         </div>
 
-        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
           {#if commitMeta}
             <div
-              class="flex flex-wrap items-center gap-2 text-[13px] font-medium"
+              class="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold tabular-nums"
             >
               <span
-                class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-emerald-300"
+                class="inline-flex items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-emerald-300"
               >
-                <span class="font-mono text-sm leading-none">+</span>
-                {translate($locale, "commit.addedLines", {
-                  count: commitMeta.additions,
-                })}
+                +{commitMeta.additions}
               </span>
               <span
-                class="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/10 px-3 py-1 text-rose-300"
+                class="inline-flex items-center rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 font-mono text-rose-300"
               >
-                <span class="font-mono text-sm leading-none">-</span>
-                {translate($locale, "commit.removedLines", {
-                  count: commitMeta.deletions,
-                })}
+                -{commitMeta.deletions}
               </span>
             </div>
           {/if}
@@ -317,13 +311,13 @@
           <div class="flex flex-wrap justify-end gap-1.5">
             {#if commit.isSafePushTarget}
               <span
-                class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
+                class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300"
               >
                 {translate($locale, "history.safeStepPush")}
               </span>
             {/if}
             <span
-              class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200"
+              class="rounded-full border border-sky-300/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-semibold text-sky-200"
             >
               {translate($locale, "commit.behindBadge", {
                 count: branchStatus?.behindCount ?? 0,
@@ -334,16 +328,16 @@
 
         {#if commitBody}
           <section
-            class="mt-3 rounded-xl border border-white/10 bg-[#111827]/65 px-3 py-2.5"
+            class="mt-2.5 rounded-lg border border-white/10 bg-[#111827]/65 px-3 py-2"
             aria-label={translate($locale, "commit.messageTitle")}
           >
             <div
-              class="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+              class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
             >
               {translate($locale, "commit.messageTitle")}
             </div>
             <div
-              class="max-h-24 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-slate-300"
+              class="max-h-20 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-slate-300"
             >
               {commitBody}
             </div>
@@ -352,7 +346,7 @@
       </div>
     {:else}
       <div
-        class="rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-5 text-sm text-slate-400"
+        class="rounded-xl border border-dashed border-white/10 bg-[#18202d]/70 px-4 py-4 text-sm text-slate-400"
       >
         {translate($locale, "commit.selectPrompt")}
       </div>
