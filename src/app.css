@@ -1,6 +1,49 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-tg-bg-app: var(--tg-bg-app);
+  --color-tg-bg-app-alt: var(--tg-bg-app-alt);
+  --color-tg-bg-panel: var(--tg-bg-panel);
+  --color-tg-bg-card: var(--tg-bg-card);
+  --color-tg-bg-elevated: var(--tg-bg-elevated);
+  --color-tg-border-soft: var(--tg-border-soft);
+  --color-tg-border-strong: var(--tg-border-strong);
+  --color-tg-blue: var(--tg-blue);
+  --color-tg-blue-soft: var(--tg-blue-soft);
+  --color-tg-green: var(--tg-green);
+  --color-tg-red: var(--tg-red);
+  --color-tg-text-primary: var(--tg-text-primary);
+  --color-tg-text-secondary: var(--tg-text-secondary);
+  --color-tg-text-muted: var(--tg-text-muted);
+  --radius-tg-card: var(--tg-radius-card);
+  --radius-tg-control: var(--tg-radius-control);
+  --shadow-tg-glow: var(--tg-shadow-glow);
+}
+
 :root {
+  --tg-bg-app: #090d16;
+  --tg-bg-app-alt: #0b1020;
+  --tg-bg-panel: rgba(15, 23, 42, 0.72);
+  --tg-bg-card: rgba(30, 41, 59, 0.72);
+  --tg-bg-elevated: rgba(30, 41, 59, 0.86);
+  --tg-border-soft: rgba(148, 163, 184, 0.12);
+  --tg-border-strong: rgba(148, 163, 184, 0.2);
+  --tg-blue: #3b82f6;
+  --tg-blue-soft: #60a5fa;
+  --tg-green: #34d399;
+  --tg-red: #fb7185;
+  --tg-text-primary: #f8fafc;
+  --tg-text-secondary: #cbd5e1;
+  --tg-text-muted: #64748b;
+  --tg-radius-card: 12px;
+  --tg-radius-control: 8px;
+  --tg-radius-pill: 999px;
+  --tg-shadow-glow:
+    0 0 0 1px rgba(96, 165, 250, 0.14), 0 16px 36px rgba(15, 23, 42, 0.35);
+  --tg-scrollbar-track: rgba(15, 23, 42, 0.88);
+  --tg-scrollbar-thumb: rgba(100, 116, 139, 0.72);
+  --tg-scrollbar-thumb-hover: rgba(148, 163, 184, 0.72);
+
   color-scheme: dark;
   font-family:
     Inter,
@@ -10,8 +53,8 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background: #2b3036;
-  color: #e6edf3;
+  background: var(--tg-bg-app);
+  color: var(--tg-text-primary);
 }
 
 html,
@@ -24,7 +67,9 @@ body,
 body {
   min-height: 100vh;
   overflow: hidden;
-  background: #2b3036;
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.1), transparent 38%),
+    linear-gradient(135deg, var(--tg-bg-app), var(--tg-bg-app-alt));
 }
 
 button,
@@ -48,15 +93,83 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #2d333b;
+  background: var(--tg-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  border: 2px solid #2d333b;
+  border: 2px solid var(--tg-scrollbar-track);
   border-radius: 999px;
-  background: #545d68;
+  background: var(--tg-scrollbar-thumb);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6e7681;
+  background: var(--tg-scrollbar-thumb-hover);
+}
+
+.tg-app-shell {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.1), transparent 38%),
+    linear-gradient(135deg, var(--tg-bg-app), var(--tg-bg-app-alt));
+  color: var(--tg-text-secondary);
+}
+
+.tg-panel {
+  border: 1px solid var(--tg-border-soft);
+  background: var(--tg-bg-panel);
+  backdrop-filter: blur(18px);
+}
+
+.tg-card {
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-card);
+  background: var(--tg-bg-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.tg-card-hover {
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+}
+
+.tg-card-hover:hover {
+  border-color: rgba(96, 165, 250, 0.32);
+  background: var(--tg-bg-elevated);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.24);
+}
+
+.tg-control {
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-control);
+  background: rgba(248, 250, 252, 0.04);
+  color: var(--tg-text-secondary);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tg-control:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(248, 250, 252, 0.07);
+  color: var(--tg-text-primary);
+}
+
+.tg-icon-tile {
+  border: 1px solid rgba(147, 197, 253, 0.25);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, var(--tg-blue), #6366f1);
+  color: var(--tg-text-primary);
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.28);
+}
+
+.tg-focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(96, 165, 250, 0.55),
+    0 0 0 4px var(--tg-bg-app);
 }

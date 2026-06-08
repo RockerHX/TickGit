@@ -23,10 +23,10 @@
 </script>
 
 <button
-  class={`group mt-[18px] flex min-h-[60px] min-w-0 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left backdrop-blur-xl transition duration-200 ${
+  class={`group tg-card mt-[18px] flex min-h-[60px] min-w-0 items-center gap-3 px-3.5 py-2.5 text-left transition duration-200 ${
     active
-      ? "border-white/[0.1] bg-[#0f172a]/55 text-[#f8fafc] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#60a5fa]/32 hover:bg-[#1e293b]/62 hover:shadow-[0_14px_34px_rgba(15,23,42,0.24)]"
-      : "cursor-not-allowed border-white/[0.06] bg-[#0f172a]/35 text-slate-500 opacity-70"
+      ? "tg-card-hover text-tg-text-primary"
+      : "cursor-not-allowed border-tg-border-soft/60 bg-tg-bg-panel/50 text-tg-text-muted opacity-70"
   }`}
   type="button"
   disabled={!enabled}
@@ -37,8 +37,8 @@
   <span
     class={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full border transition ${
       active
-        ? "border-[#93c5fd]/25 bg-[#2563eb]/20 text-[#dbeafe] shadow-[0_12px_26px_rgba(37,99,235,0.24)] group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.32)]"
-        : "border-white/[0.06] bg-[#1f2937] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+        ? "border-tg-blue-soft/25 bg-tg-blue/20 text-sky-100 shadow-[0_12px_26px_rgba(37,99,235,0.24)] group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.32)]"
+        : "border-tg-border-soft bg-tg-bg-elevated/60 text-tg-text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
     }`}
     aria-hidden="true"
   >
@@ -60,14 +60,14 @@
   <span class="min-w-0 flex-1">
     <span
       class={`block truncate text-[0.95rem] font-semibold ${
-        active ? "text-[#f8fafc]" : "text-slate-500"
+        active ? "text-tg-text-primary" : "text-tg-text-muted"
       }`}
     >
       {title}
     </span>
     <span
       class={`mt-1 block truncate text-[11px] ${
-        active ? "text-slate-400" : "text-slate-600"
+        active ? "text-tg-text-secondary/80" : "text-tg-text-muted/70"
       }`}
     >
       {subtitle}
@@ -77,8 +77,8 @@
   <span
     class={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-[0.06em] transition ${
       enabled
-        ? "bg-[#347dff] text-white shadow-[0_8px_22px_rgba(52,125,255,0.3)] group-hover:shadow-[0_10px_26px_rgba(52,125,255,0.38)]"
-        : "bg-[#6e7681]/35 text-slate-400"
+        ? "bg-tg-blue text-white shadow-[0_8px_22px_rgba(59,130,246,0.3)] group-hover:shadow-[0_10px_26px_rgba(59,130,246,0.38)]"
+        : "bg-tg-text-muted/35 text-tg-text-secondary/80"
     }`}
   >
     <span>{aheadCount}</span>

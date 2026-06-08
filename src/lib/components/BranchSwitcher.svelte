@@ -70,12 +70,12 @@
 
 <div class="relative w-full min-w-0" bind:this={container}>
   <button
-    class={`group flex min-h-[60px] w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left backdrop-blur-xl transition duration-200 ${
+    class={`group tg-card flex min-h-[60px] w-full items-center gap-3 px-3.5 py-2.5 text-left transition duration-200 ${
       disabled
-        ? "cursor-not-allowed border-white/[0.06] bg-[#0f172a]/35 text-slate-500 opacity-70"
+        ? "cursor-not-allowed border-tg-border-soft/60 bg-tg-bg-panel/50 text-tg-text-muted opacity-70"
         : open
-          ? "border-[#60a5fa]/45 bg-[#1d4ed8]/16 shadow-[0_0_0_1px_rgba(96,165,250,0.14),0_16px_36px_rgba(15,23,42,0.35)]"
-          : "border-white/[0.1] bg-[#0f172a]/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#60a5fa]/32 hover:bg-[#1e293b]/62 hover:shadow-[0_14px_34px_rgba(15,23,42,0.24)]"
+          ? "border-tg-blue-soft/45 bg-tg-blue/15 shadow-tg-glow"
+          : "tg-card-hover"
     }`}
     type="button"
     disabled={disabled || branches.length === 0}
@@ -86,8 +86,8 @@
     <span
       class={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px] border transition ${
         disabled
-          ? "border-white/[0.06] bg-[#1f2937] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-          : "border-[#93c5fd]/25 bg-gradient-to-br from-[#2563eb] via-[#3b82f6] to-[#06b6d4] text-[#f8fafc] shadow-[0_12px_26px_rgba(37,99,235,0.28)] group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.36)]"
+          ? "border-tg-border-soft bg-tg-bg-elevated/60 text-tg-text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+          : "tg-icon-tile group-hover:shadow-[0_14px_30px_rgba(37,99,235,0.36)]"
       }`}
       aria-hidden="true"
     >
@@ -101,14 +101,14 @@
     <span class="min-w-0 flex-1">
       <span
         class={`block truncate text-[0.95rem] font-semibold ${
-          disabled ? "text-slate-500" : "text-[#f8fafc]"
+          disabled ? "text-tg-text-muted" : "text-tg-text-primary"
         }`}
       >
         {currentBranch ?? translate($locale, "branch.noneSelected")}
       </span>
       <span
         class={`mt-1 block truncate text-[11px] ${
-          disabled ? "text-slate-600" : "text-slate-400"
+          disabled ? "text-tg-text-muted/70" : "text-tg-text-secondary/80"
         }`}
       >
         {upstreamLabel}
@@ -118,10 +118,10 @@
     <span
       class={`flex h-8 w-7 shrink-0 items-center justify-center border-l transition duration-200 ${
         disabled
-          ? "border-white/[0.05] text-slate-600"
+          ? "border-tg-border-soft/50 text-tg-text-muted/70"
           : open
-            ? "border-[#60a5fa]/40 text-[#dbeafe]"
-            : "border-white/[0.1] text-slate-400 group-hover:text-slate-200"
+            ? "border-tg-blue-soft/40 text-sky-100"
+            : "border-tg-border-soft text-tg-text-secondary/80 group-hover:text-tg-text-primary"
       }`}
     >
       <svg
@@ -138,19 +138,19 @@
 
   {#if open}
     <div
-      class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-white/[0.12] bg-[#22272e]/95 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+      class="tg-panel absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-tg-card shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
     >
-      <div class="border-b border-white/[0.08] px-3.5 pb-2.5 pt-3">
+      <div class="border-b border-tg-border-soft px-3.5 pb-2.5 pt-3">
         <div
-          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"
+          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
         >
           {translate($locale, "branch.switch")}
         </div>
       </div>
 
-      <div class="border-b border-white/[0.08] px-3.5 py-3">
+      <div class="border-b border-tg-border-soft px-3.5 py-3">
         <label
-          class="flex h-9 items-center gap-2.5 rounded-md border border-white/[0.12] bg-[#1f242b] px-2.5 text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-[#539bf5]/70 focus-within:shadow-[0_0_0_1px_rgba(83,155,245,0.16)]"
+          class="flex h-9 items-center gap-2.5 rounded-tg-control border border-tg-border-soft bg-tg-bg-card px-2.5 text-tg-text-secondary/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-tg-blue-soft/70 focus-within:shadow-[0_0_0_1px_rgba(96,165,250,0.16)]"
         >
           <svg
             viewBox="0 0 16 16"
@@ -162,7 +162,7 @@
             ></path>
           </svg>
           <input
-            class="w-full bg-transparent text-sm text-[#f0f6fc] outline-none placeholder:text-slate-500"
+            class="w-full bg-transparent text-sm text-tg-text-primary outline-none placeholder:text-tg-text-muted"
             placeholder={translate($locale, "branch.filter")}
             bind:value={filterText}
           />
@@ -171,7 +171,7 @@
 
       <div class="max-h-[280px] overflow-y-auto px-2 py-2">
         {#if filteredBranches.length === 0}
-          <div class="px-3 py-6 text-center text-xs text-slate-500">
+          <div class="px-3 py-6 text-center text-xs text-tg-text-muted">
             {translate($locale, "branch.noneFound")}
           </div>
         {:else}
@@ -179,8 +179,8 @@
             <button
               class={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition ${
                 branch === currentBranch
-                  ? "bg-[#345fc2]/90 text-white"
-                  : "text-[#f0f6fc] hover:bg-white/[0.05]"
+                  ? "bg-tg-blue/80 text-white"
+                  : "text-tg-text-primary hover:bg-white/[0.05]"
               }`}
               type="button"
               on:click={() => selectBranch(branch)}

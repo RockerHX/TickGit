@@ -14,7 +14,7 @@
 
 <div
   id="settings-language-title"
-  class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+  class="text-xs font-semibold uppercase tracking-[0.2em] text-tg-text-muted"
 >
   {translate($locale, "settings.language")}
 </div>
@@ -26,10 +26,10 @@
   {#each SUPPORTED_LOCALES as option}
     <button
       type="button"
-      class={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+      class={`tg-focus-ring flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
         $locale === option
-          ? "border-[#539bf5]/45 bg-[#347dff]/16 text-[#f0f6fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1b2027]"
-          : "border-white/[0.08] bg-white/[0.035] text-slate-300 hover:border-[#539bf5]/30 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1b2027]"
+          ? "border-tg-blue-soft/45 bg-tg-blue/16 text-tg-text-primary"
+          : "border-tg-border-soft bg-white/[0.035] text-tg-text-secondary hover:border-tg-blue-soft/30 hover:bg-white/[0.06]"
       }`}
       aria-pressed={$locale === option}
       on:click={() => chooseLocale(option)}
@@ -39,7 +39,7 @@
       </span>
       {#if $locale === option}
         <span
-          class="flex h-6 w-6 items-center justify-center rounded-full bg-[#347dff] text-white"
+          class="flex h-6 w-6 items-center justify-center rounded-full bg-tg-blue text-white"
           aria-hidden="true"
         >
           <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">

@@ -22,10 +22,10 @@
 
 <button
   type="button"
-  class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center rounded-lg border backdrop-blur transition ${
+  class={`mt-[18px] flex min-h-[56px] w-full items-center justify-center transition ${
     enabled
-      ? "border-white/[0.08] bg-white/[0.045] text-slate-300 hover:border-[#539bf5]/35 hover:bg-white/[0.07] hover:text-[#f0f6fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#539bf5]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#10151c]"
-      : "cursor-not-allowed border-white/[0.05] bg-white/[0.025] text-slate-600 opacity-75"
+      ? "tg-control tg-focus-ring"
+      : "cursor-not-allowed rounded-tg-control border border-tg-border-soft/50 bg-white/[0.025] text-tg-text-muted opacity-75"
   }`}
   disabled={!enabled}
   aria-label={label}

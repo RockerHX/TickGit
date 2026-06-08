@@ -15,7 +15,7 @@
     class="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center p-4"
   >
     <div
-      class="pointer-events-auto w-full max-w-xl rounded-sm border border-[#444c56] bg-[#2d333b] px-4 py-4 shadow-lg shadow-black/35"
+      class="tg-panel pointer-events-auto w-full max-w-xl rounded-tg-card px-4 py-4 shadow-lg shadow-black/35"
     >
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
@@ -30,7 +30,9 @@
                 : translate($locale, "push.pushingBranch")}
             {/if}
           </div>
-          <div class="mt-1 text-xs text-slate-400">{state.target}</div>
+          <div class="mt-1 text-xs text-tg-text-secondary/80">
+            {state.target}
+          </div>
           {#if state.message}
             <div class="mt-1 text-xs text-rose-300">{state.message}</div>
           {/if}
@@ -57,7 +59,7 @@
           {#if state.status === "failed"}
             <button
               type="button"
-              class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
+              class="tg-control tg-focus-ring flex h-7 w-7 items-center justify-center"
               aria-label={translate($locale, "push.closeError")}
               on:click={() => dispatch("close")}
             >

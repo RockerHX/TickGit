@@ -14,11 +14,11 @@
           ? "border-rose-500/40 bg-[#3a2024]"
           : toast.tone === "success"
             ? "border-emerald-500/35 bg-[#1f3328]"
-            : "border-[#444c56] bg-[#2d333b]"
+            : "border-tg-border-strong bg-tg-bg-card"
       }`}
     >
       <div class="text-sm font-semibold text-white">{toast.title}</div>
-      <div class="mt-1 text-sm text-slate-300">{toast.message}</div>
+      <div class="mt-1 text-sm text-tg-text-secondary">{toast.message}</div>
     </div>
   {/each}
 </div>

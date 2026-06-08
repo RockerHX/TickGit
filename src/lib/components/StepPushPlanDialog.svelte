@@ -22,16 +22,16 @@
 
 {#if open}
   <div
-    class="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-tg-bg-app/75 p-4 backdrop-blur-sm"
   >
     <div
-      class="w-full max-w-2xl rounded-sm border border-[#444c56] bg-[#2d333b] shadow-xl shadow-black/40"
+      class="tg-panel w-full max-w-2xl rounded-tg-card shadow-xl shadow-black/40"
       role="dialog"
       aria-modal="true"
       aria-labelledby="step-push-plan-title"
     >
       <div
-        class="flex items-start justify-between gap-4 border-b border-[#444c56] px-5 py-4"
+        class="flex items-start justify-between gap-4 border-b border-tg-border-soft px-5 py-4"
       >
         <div>
           <h2
@@ -40,13 +40,13 @@
           >
             {translate($locale, "stepPush.previewTitle")}
           </h2>
-          <p class="mt-1 text-xs text-slate-400">
+          <p class="mt-1 text-xs text-tg-text-secondary/80">
             {translate($locale, "stepPush.previewDescription")}
           </p>
         </div>
         <button
           type="button"
-          class="flex h-7 w-7 items-center justify-center rounded-sm border border-[#444c56] bg-[#24292f] text-slate-300 transition hover:border-[#6e7681] hover:text-white"
+          class="tg-control tg-focus-ring flex h-7 w-7 items-center justify-center"
           aria-label={translate($locale, "stepPush.closePreview")}
           on:click={() => dispatch("cancel")}
         >
@@ -82,11 +82,11 @@
           </div>
         {:else if plan?.available}
           <div
-            class="mb-3 flex items-center justify-between gap-3 text-xs text-slate-400"
+            class="mb-3 flex items-center justify-between gap-3 text-xs text-tg-text-secondary/80"
           >
             <span
               >{translate($locale, "stepPush.branch")}:
-              <span class="text-slate-200">{plan.branch}</span></span
+              <span class="text-tg-text-secondary">{plan.branch}</span></span
             >
             <span
               >{translate($locale, "stepPush.commits", {
@@ -95,14 +95,14 @@
             >
           </div>
           <ol
-            class="max-h-80 overflow-y-auto rounded-sm border border-[#444c56] bg-[#24292f]"
+            class="max-h-80 overflow-y-auto rounded-tg-control border border-tg-border-soft bg-tg-bg-card"
           >
             {#each plan.items as item, index}
               <li
-                class="flex gap-3 border-b border-[#30363d] px-4 py-3 last:border-b-0"
+                class="flex gap-3 border-b border-tg-border-soft px-4 py-3 last:border-b-0"
               >
                 <span
-                  class="mt-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#444c56] text-[11px] font-semibold text-slate-200"
+                  class="mt-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-tg-bg-elevated text-[11px] font-semibold text-tg-text-secondary"
                 >
                   {index + 1}
                 </span>
@@ -111,7 +111,7 @@
                     {item.summary ||
                       translate($locale, "stepPush.noCommitMessage")}
                   </div>
-                  <div class="mt-1 font-mono text-xs text-slate-400">
+                  <div class="mt-1 font-mono text-xs text-tg-text-secondary/80">
                     {item.shortHash || item.hash}
                   </div>
                 </div>
@@ -120,24 +120,26 @@
           </ol>
         {:else}
           <div
-            class="rounded-sm border border-[#444c56] bg-[#24292f] px-4 py-3 text-sm text-slate-300"
+            class="rounded-tg-control border border-tg-border-soft bg-tg-bg-card px-4 py-3 text-sm text-tg-text-secondary"
           >
             {translate($locale, "stepPush.noPushableCommits")}
           </div>
         {/if}
       </div>
 
-      <div class="flex justify-end gap-2 border-t border-[#444c56] px-5 py-4">
+      <div
+        class="flex justify-end gap-2 border-t border-tg-border-soft px-5 py-4"
+      >
         <button
           type="button"
-          class="rounded-sm border border-[#444c56] bg-[#24292f] px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-[#6e7681] hover:text-white"
+          class="tg-control tg-focus-ring px-3 py-2 text-sm font-semibold"
           on:click={() => dispatch("cancel")}
         >
           {translate($locale, "common.cancel")}
         </button>
         <button
           type="button"
-          class="rounded-sm border border-[#2f81f7] bg-[#2f81f7] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#1f6feb] disabled:cursor-not-allowed disabled:border-[#444c56] disabled:bg-[#444c56] disabled:text-slate-400"
+          class="tg-focus-ring rounded-tg-control border border-tg-blue bg-tg-blue px-3 py-2 text-sm font-semibold text-white transition hover:bg-tg-blue-soft disabled:cursor-not-allowed disabled:border-tg-border-soft disabled:bg-tg-bg-elevated disabled:text-tg-text-muted"
           disabled={loading || !canConfirm}
           on:click={() => dispatch("confirm")}
         >

@@ -106,6 +106,7 @@ if (!isDevCommand || !process.stdin.isTTY) {
     }
 
     if (stopping) {
+      process.stdout.write("Tauri dev 已退出。\n");
       process.exit(0);
     }
 

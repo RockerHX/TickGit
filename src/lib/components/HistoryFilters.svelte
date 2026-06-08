@@ -99,7 +99,7 @@
 <div class="mt-3 space-y-2">
   <div class="relative">
     <span
-      class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+      class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-tg-text-muted"
       aria-hidden="true"
     >
       <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
@@ -110,13 +110,13 @@
     </span>
     <input
       bind:this={searchInput}
-      class="h-10 w-full rounded-lg border border-[#334155]/80 bg-[#111827]/80 px-10 pr-15 text-sm text-[#f8fafc] outline-none transition placeholder:text-slate-500 focus:border-[#60a5fa]/70 focus:bg-[#0f172a]"
+      class="h-10 w-full rounded-tg-control border border-tg-border-strong bg-tg-bg-panel px-10 pr-15 text-sm text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70 focus:bg-tg-bg-app"
       placeholder={translate($locale, "history.commitSearch")}
       value={filters.query ?? ""}
       on:input={(event) => updateFilter("query", event.currentTarget.value)}
     />
     <span
-      class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-[#334155] bg-[#1e293b]/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400"
+      class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-tg-border-strong bg-tg-bg-card px-1.5 py-0.5 text-[10px] font-semibold text-tg-text-secondary/80"
       aria-label={translate($locale, "history.searchShortcut")}
     >
       ⌘K
@@ -129,8 +129,8 @@
         type="button"
         class={`flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition ${
           isActive(filter.key) || expandedFilter === filter.key
-            ? "border-[#3b82f6]/60 bg-[#2563eb]/20 text-[#bfdbfe]"
-            : "border-[#334155]/80 bg-[#111827]/70 text-slate-300 hover:border-[#60a5fa]/45 hover:bg-[#1e293b]"
+            ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
+            : "border-tg-border-strong bg-tg-bg-panel text-tg-text-secondary hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
         }`}
         on:click={() => toggleFilter(filter.key)}
       >
@@ -147,10 +147,10 @@
 
     <button
       type="button"
-      class={`flex h-9 w-10 items-center justify-center rounded-lg border text-slate-300 transition ${
+      class={`flex h-9 w-10 items-center justify-center rounded-lg border text-tg-text-secondary transition ${
         expandedFilter === "all"
-          ? "border-[#3b82f6]/60 bg-[#2563eb]/20 text-[#bfdbfe]"
-          : "border-[#334155]/80 bg-[#111827]/70 hover:border-[#60a5fa]/45 hover:bg-[#1e293b]"
+          ? "border-tg-blue/60 bg-tg-blue/20 text-sky-100"
+          : "border-tg-border-strong bg-tg-bg-panel hover:border-tg-blue-soft/45 hover:bg-tg-bg-card"
       }`}
       title={translate($locale, "history.moreFilters")}
       aria-label={translate($locale, "history.moreFilters")}
@@ -166,18 +166,18 @@
 
   {#if expandedFilter}
     <div
-      class="space-y-2 rounded-lg border border-[#334155]/70 bg-[#0f172a]/80 p-2"
+      class="space-y-2 rounded-tg-control border border-tg-border-strong bg-tg-bg-panel p-2"
     >
       {#each filterButtons as filter}
         {#if shouldShowInput(filter.key)}
           <label class="block">
             <span
-              class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-tg-text-muted"
             >
               {translate($locale, filter.labelKey)}
             </span>
             <input
-              class="h-9 w-full rounded-md border border-[#334155]/80 bg-[#111827] px-3 text-xs text-[#f8fafc] outline-none transition placeholder:text-slate-500 focus:border-[#60a5fa]/70"
+              class="h-9 w-full rounded-md border border-tg-border-strong bg-tg-bg-app px-3 text-xs text-tg-text-primary outline-none transition placeholder:text-tg-text-muted focus:border-tg-blue-soft/70"
               placeholder={translate($locale, filter.placeholderKey)}
               value={filterValue(filter.key)}
               on:input={(event) =>

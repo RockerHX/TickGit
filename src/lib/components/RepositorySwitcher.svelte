@@ -75,19 +75,19 @@
 
   {#if open}
     <div
-      class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-white/[0.12] bg-[#22272e]/95 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+      class="tg-panel absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
     >
-      <div class="border-b border-white/[0.08] px-3.5 pb-2.5 pt-3">
+      <div class="border-b border-tg-border-soft px-3.5 pb-2.5 pt-3">
         <div
-          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"
+          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
         >
           {translate($locale, "repository.select")}
         </div>
       </div>
 
-      <div class="border-b border-white/[0.08] px-3.5 py-3">
+      <div class="border-b border-tg-border-soft px-3.5 py-3">
         <label
-          class="flex h-9 items-center gap-2.5 rounded-md border border-white/[0.12] bg-[#1f242b] px-2.5 text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-[#539bf5]/70 focus-within:shadow-[0_0_0_1px_rgba(83,155,245,0.16)]"
+          class="flex h-9 items-center gap-2.5 rounded-tg-control border border-tg-border-soft bg-tg-bg-card px-2.5 text-tg-text-secondary/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-tg-blue-soft/70 focus-within:shadow-[0_0_0_1px_rgba(96,165,250,0.16)]"
         >
           <svg
             viewBox="0 0 16 16"
@@ -99,7 +99,7 @@
             ></path>
           </svg>
           <input
-            class="w-full bg-transparent text-sm text-[#f0f6fc] outline-none placeholder:text-slate-500"
+            class="w-full bg-transparent text-sm text-tg-text-primary outline-none placeholder:text-tg-text-muted"
             placeholder={translate($locale, "repository.filter")}
             bind:value={filterText}
           />
@@ -108,7 +108,7 @@
 
       <div class="max-h-[280px] overflow-y-auto px-2 py-2">
         {#if filteredRepositories.length === 0}
-          <div class="px-3 py-6 text-center text-xs text-slate-500">
+          <div class="px-3 py-6 text-center text-xs text-tg-text-muted">
             {translate($locale, "repository.noneFound")}
           </div>
         {:else}
@@ -116,8 +116,8 @@
             <div
               class={`flex items-center gap-2 rounded-md px-2 py-1.5 transition ${
                 repository.path === currentPath
-                  ? "bg-[#345fc2]/90 text-white"
-                  : "text-[#f0f6fc] hover:bg-white/[0.05]"
+                  ? "bg-tg-blue/80 text-white"
+                  : "text-tg-text-primary hover:bg-white/[0.05]"
               }`}
             >
               <button
@@ -155,7 +155,7 @@
                     </span>
                   </span>
                   <span
-                    class="mt-0.5 block truncate text-xs leading-4 text-slate-400"
+                    class="mt-0.5 block truncate text-xs leading-4 text-tg-text-secondary/80"
                   >
                     {formatRepositoryPath(repository.path)}
                   </span>
@@ -172,7 +172,7 @@
               <div class="flex shrink-0 flex-col gap-1">
                 <button
                   type="button"
-                  class="rounded border border-white/[0.1] bg-white/[0.035] px-1.5 py-0.5 text-[10px] font-medium leading-4 text-slate-400 transition hover:border-[#539bf5]/40 hover:bg-[#347dff]/12 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-45"
+                  class="rounded border border-tg-border-soft bg-white/[0.035] px-1.5 py-0.5 text-[10px] font-medium leading-4 text-tg-text-secondary/80 transition hover:border-tg-blue-soft/40 hover:bg-tg-blue/12 hover:text-tg-text-secondary disabled:cursor-not-allowed disabled:opacity-45"
                   disabled={managementDisabled}
                   on:click={() => relocateRepository(repository.path)}
                 >

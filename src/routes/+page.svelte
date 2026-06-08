@@ -1332,12 +1332,12 @@
   on:close={closeContextMenu}
 />
 
-<main
-  class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#2b3036] text-slate-200"
->
-  <header class="shrink-0 border-b border-[#15191f] bg-[#10151c]">
+<main class="tg-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
+  <header
+    class="shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
+  >
     <div
-      class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(47,129,247,0.08),transparent_42%)] px-6 pb-3 pt-2"
+      class="overflow-visible bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_42%)] px-6 pb-3 pt-2"
     >
       <div
         class="grid items-start gap-3"
@@ -1345,7 +1345,7 @@
       >
         <div class="min-w-0">
           <div
-            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"
+            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
           >
             {translate($locale, "repository.current")}
           </div>
@@ -1360,7 +1360,7 @@
         </div>
 
         <div
-          class="flex h-[74px] items-center justify-center text-slate-600/70"
+          class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
           aria-hidden="true"
         >
           <span class="text-xs">›</span>
@@ -1368,7 +1368,7 @@
 
         <div class="min-w-0">
           <div
-            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"
+            class="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-tg-text-muted"
           >
             {translate($locale, "branch.current")}
           </div>
@@ -1389,7 +1389,7 @@
         </div>
 
         <div
-          class="flex h-[74px] items-center justify-center text-slate-600/70"
+          class="flex h-[74px] items-center justify-center text-tg-text-muted/70"
           aria-hidden="true"
         >
           <span class="text-xs">›</span>
@@ -1461,7 +1461,7 @@
 
           <div class="mt-3 grid gap-2 md:grid-cols-2">
             <div
-              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+              class="rounded-md border border-amber-200/15 bg-tg-bg-card/60 p-3"
             >
               <div class="text-xs font-semibold text-amber-100">
                 {translate($locale, "remoteBlock.githubDesktop")}
@@ -1476,7 +1476,7 @@
               </ol>
             </div>
             <div
-              class="rounded-md border border-amber-200/15 bg-[#24292f]/60 p-3"
+              class="rounded-md border border-amber-200/15 bg-tg-bg-card/60 p-3"
             >
               <div class="text-xs font-semibold text-amber-100">
                 {translate($locale, "remoteBlock.sourceTree")}
@@ -1504,17 +1504,17 @@
 
   {#if shouldShowRepositoryUnavailableState(currentRepository)}
     <section
-      class="flex min-h-0 flex-1 items-center justify-center bg-[#2b3036] px-6"
+      class="flex min-h-0 flex-1 items-center justify-center bg-tg-bg-app px-6"
     >
       <div
-        class="max-w-2xl rounded-lg border border-amber-300/25 bg-[#24292f] p-6 text-center shadow-lg shadow-black/20"
+        class="max-w-2xl rounded-tg-card border border-amber-300/25 bg-tg-bg-card p-6 text-center shadow-lg shadow-black/20 backdrop-blur-xl"
       >
         <div
           class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-400/12 text-xl font-bold text-amber-200"
         >
           !
         </div>
-        <h2 class="mt-4 text-lg font-semibold text-[#f0f6fc]">
+        <h2 class="mt-4 text-lg font-semibold text-tg-text-primary">
           {translate($locale, "repository.pathUnavailable")}
         </h2>
         <p class="mt-2 text-sm leading-6 text-slate-300">
@@ -1529,7 +1529,7 @@
           <div class="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               type="button"
-              class="rounded-md border border-[#539bf5]/45 bg-[#347dff]/15 px-4 py-2 text-sm font-semibold text-[#cae8ff] transition hover:bg-[#347dff]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded-md border border-tg-blue-soft/45 bg-tg-blue/15 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-tg-blue/25 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canRunRepositoryManagementNow}
               on:click={() =>
                 currentRepository &&
@@ -1553,7 +1553,7 @@
     </section>
   {:else}
     <section
-      class="grid min-h-0 flex-1 bg-[#2b3036]"
+      class="grid min-h-0 flex-1 bg-tg-bg-app"
       style={`grid-template-columns: minmax(${MIN_LEFT_PANE_WIDTH}px, ${leftPaneWidth}px) ${RESIZE_DIVIDER_LINE_WIDTH}px minmax(0,1fr);`}
     >
       <CommitHistoryList
