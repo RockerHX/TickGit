@@ -1,6 +1,6 @@
 {
   "name": "tickgit",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "TickGit - Git history and push workflow desktop client",
   "type": "module",
   "scripts": {
