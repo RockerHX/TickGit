@@ -72,7 +72,7 @@
 
   {#if open}
     <div
-      class="tg-panel absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-tg-card shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
+      class="tg-panel tg-dropdown-panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-tg-card shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
     >
       <div class="border-b border-tg-border-soft px-3.5 pb-2.5 pt-3">
         <div

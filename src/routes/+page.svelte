@@ -1330,7 +1330,7 @@
 
 <main class="tg-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
   <header
-    class="shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
+    class="relative z-30 shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
   >
     <TopToolbar
       {repositories}
