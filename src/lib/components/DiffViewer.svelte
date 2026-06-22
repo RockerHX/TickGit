@@ -7,22 +7,26 @@
 </script>
 
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { locale, translate } from "$lib/i18n";
   import { createEventDispatcher } from "svelte";
   import FileTypeIcon from "$lib/components/FileTypeIcon.svelte";
   import {
     buildHunkCopyText,
     getDiffViewerState,
-    getSplitDiffRowsForMode,
     hasPreviewableImageDiff,
     parseUnifiedDiff,
     type DiffLine,
-    type ParsedTextDiff,
-    type SplitDiffRow,
   } from "$lib/tickgit/diff";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
   import { highlightDiffContent } from "$lib/tickgit/diff-highlight";
+  import type {
+    DiffWorkerRequest,
+    DiffWorkerResponse,
+    HighlightedDiffLine,
+    HighlightedParsedTextDiff,
+    HighlightedSplitDiffRow,
+  } from "$lib/tickgit/diff-worker";
   import type { CommitFileDiffResult } from "$lib/types";
 
   export let title = "Diff";
@@ -52,15 +56,19 @@
     "m-3 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-3 py-8 text-center text-xs text-tg-text-muted";
 
   let openControl: "mode" | "settings" | "more" | null = null;
-  let parsedDiff: ParsedTextDiff = parseUnifiedDiff("");
-  let splitRows: SplitDiffRow[] = [];
+  let parsedDiff: HighlightedParsedTextDiff = {
+    ...parseUnifiedDiff(""),
+    hunks: [],
+  };
+  let splitRows: HighlightedSplitDiffRow[] = [];
   let copiedHunkIndex: number | null = null;
   let hunkCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
+  let diffWorker: Worker | null = null;
+  let diffWorkerRequestId = 0;
 
   // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
   $: diffText = diffResult.text;
-  $: parsedDiff = parseUnifiedDiff(diffText);
-  $: splitRows = getSplitDiffRowsForMode(parsedDiff, mode);
+  $: scheduleDiffProcessing(diffText, selectedFilePath, mode);
   $: displayFilePath =
     selectedFile?.displayPath ??
     selectedFilePath ??
@@ -83,6 +91,61 @@
     hideWhitespaceInDiff,
     parsedDiff,
   });
+
+  function highlightLine(
+    line: DiffLine,
+    filePath: string | null,
+  ): HighlightedDiffLine {
+    return {
+      ...line,
+      html: highlightDiffContent(line.content || " ", filePath),
+    };
+  }
+
+  function processDiffOnMainThread(
+    nextDiffText: string,
+    filePath: string | null,
+    nextMode: "unified" | "split",
+  ) {
+    const parsed = parseUnifiedDiff(nextDiffText);
+    parsedDiff = {
+      ...parsed,
+      hunks: parsed.hunks.map((hunk) => ({
+        ...hunk,
+        lines: hunk.lines.map((line) => highlightLine(line, filePath)),
+      })),
+    };
+    splitRows =
+      nextMode === "split"
+        ? parsedDiff.hunks.flatMap((hunk, hunkIndex) => [
+            { kind: "hunk" as const, header: hunk.header, hunkIndex },
+            ...hunk.lines.map((line) => ({
+              kind: "line" as const,
+              left: line.type === "add" ? null : line,
+              right: line.type === "delete" ? null : line,
+            })),
+          ])
+        : [];
+  }
+
+  function scheduleDiffProcessing(
+    nextDiffText: string,
+    filePath: string | null,
+    nextMode: "unified" | "split",
+  ) {
+    const requestId = ++diffWorkerRequestId;
+    if (!diffWorker) {
+      processDiffOnMainThread(nextDiffText, filePath, nextMode);
+      return;
+    }
+
+    diffWorker.postMessage({
+      id: requestId,
+      diffText: nextDiffText,
+      filePath,
+      mode: nextMode,
+    } satisfies DiffWorkerRequest);
+  }
 
   function lineToneClasses(type: DiffLine["type"]) {
     switch (type) {
@@ -147,10 +210,6 @@
     return `${value} B`;
   }
 
-  function highlightedLineContent(content: string) {
-    return highlightDiffContent(content || " ", selectedFilePath);
-  }
-
   function imagePanelLabel(kind: "old" | "new") {
     return kind === "old"
       ? translate($locale, "diff.imageBefore")
@@ -187,10 +246,27 @@
     }
   }
 
+  onMount(() => {
+    diffWorker = new Worker(
+      new URL("$lib/tickgit/diff-worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    diffWorker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
+      if (event.data.id !== diffWorkerRequestId) {
+        return;
+      }
+
+      parsedDiff = event.data.parsedDiff;
+      splitRows = event.data.splitRows;
+    };
+    scheduleDiffProcessing(diffText, selectedFilePath, mode);
+  });
+
   onDestroy(() => {
     if (hunkCopyResetTimer) {
       clearTimeout(hunkCopyResetTimer);
     }
+    diffWorker?.terminate();
   });
 </script>
 
@@ -526,7 +602,7 @@
                     class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
                   >
                     <span class="block whitespace-pre-wrap break-all">
-                      {@html line ? highlightedLineContent(line.content) : " "}
+                      {@html line ? line.html : " "}
                     </span>
                     {#if line?.noTrailingNewLine}
                       <div class="text-[10px] italic text-amber-200">
@@ -600,7 +676,7 @@
                 class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
               >
                 <span class="block whitespace-pre-wrap break-all">
-                  {@html highlightedLineContent(line.content)}
+                  {@html line.html}
                 </span>
                 {#if line.noTrailingNewLine}
                   <div class="text-[10px] italic text-amber-200">
