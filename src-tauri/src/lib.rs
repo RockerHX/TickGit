@@ -21,6 +21,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_repository_index_fast,
+            commands::get_cached_repository_overview,
+            commands::refresh_repository_statuses,
+            commands::get_repository_overview,
+            commands::get_commit_details,
             commands::list_repositories,
             commands::add_repository,
             commands::set_current_repository,

@@ -97,7 +97,10 @@ fn first_parent_unpushed_hashes_in_push_order(
     Ok(hashes)
 }
 
-fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+pub(super) fn safe_unpushed_hashes_in_push_order(
+    repo_path: &Path,
+    upstream: &str,
+) -> AppResult<Vec<String>> {
     let hashes = first_parent_unpushed_hashes_in_push_order(repo_path, upstream)?;
     let mut first_safe_index = None;
     for (index, hash) in hashes.iter().enumerate() {

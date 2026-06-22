@@ -6,6 +6,11 @@ import type {
   CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
+  CommitDetails,
+  RepositoryIndex,
+  RepositoryOverview,
+  RepositoryOverviewCacheEntry,
+  RepositoryStatusUpdate,
   RepositorySummary,
 } from "$lib/types";
 import { pickCommitFileForPathFilter } from "$lib/tickgit/history";
@@ -53,8 +58,24 @@ export type TickGitPageApi = {
   ) => Promise<CommitFileDiffResult>;
 };
 
+export type TickGitOptimizedPageApi = TickGitPageApi & {
+  getRepositoryIndexFast: () => Promise<RepositoryIndex>;
+  getCachedRepositoryOverview: () => Promise<RepositoryOverviewCacheEntry | null>;
+  refreshRepositoryStatuses: (
+    paths: string[],
+  ) => Promise<RepositoryStatusUpdate[]>;
+  getRepositoryOverview: (
+    repoPath: string,
+    skip: number,
+    limit: number,
+    filters?: CommitHistoryFilters | null,
+  ) => Promise<RepositoryOverview>;
+  getCommitDetails: (repoPath: string, hash: string) => Promise<CommitDetails>;
+};
+
 export type RepositorySnapshot = {
   branchStatus: BranchStatus;
+  branches: string[];
   commits: CommitListItem[];
   nextSkip: number;
   hasMore: boolean;
@@ -73,6 +94,103 @@ export async function fetchRepositoryIndex(api: TickGitPageApi) {
   ]);
 
   return { repositories, currentRepository };
+}
+
+export async function fetchRepositoryIndexFast(api: TickGitOptimizedPageApi) {
+  return api.getRepositoryIndexFast();
+}
+
+export async function fetchCachedRepositoryOverview(
+  api: TickGitOptimizedPageApi,
+) {
+  return api.getCachedRepositoryOverview();
+}
+
+export async function refreshRepositoryStatuses(
+  api: TickGitOptimizedPageApi,
+  repositories: RepositorySummary[],
+) {
+  const updates = await api.refreshRepositoryStatuses(
+    repositories.map((repository) => repository.path),
+  );
+  const updatesByPath = new Map(
+    updates.map((update) => [update.path, update] as const),
+  );
+
+  return repositories.map((repository) => {
+    const update = updatesByPath.get(repository.path);
+    return update
+      ? {
+          ...repository,
+          status: update.status,
+          disabledReason: update.disabledReason,
+          disabledReasonCode: update.disabledReasonCode,
+        }
+      : repository;
+  });
+}
+
+export async function fetchRepositoryOverviewSnapshot(
+  api: TickGitOptimizedPageApi,
+  repoPath: string,
+  pageSize: number,
+  keepSelection: boolean,
+  previousSelectedHash: string | null,
+  options: CommitHistoryLoadOptions = {},
+): Promise<RepositorySnapshot> {
+  const overview = await api.getRepositoryOverview(
+    repoPath,
+    options.skip ?? 0,
+    pageSize,
+    options.filters,
+  );
+  return snapshotFromOverview(overview, keepSelection, previousSelectedHash);
+}
+
+export function snapshotFromOverview(
+  overview: RepositoryOverview,
+  keepSelection: boolean,
+  previousSelectedHash: string | null,
+): RepositorySnapshot {
+  const commits = overview.history.items;
+  const selectedCommit = pickSelectedCommit(
+    commits,
+    previousSelectedHash,
+    keepSelection,
+  );
+
+  return {
+    branchStatus: overview.branchStatus,
+    branches: overview.branches,
+    commits,
+    nextSkip: overview.history.nextSkip,
+    hasMore: overview.history.hasMore,
+    totalCount: overview.history.totalCount,
+    selectedCommit,
+    commitMeta: null,
+    commitFiles: [],
+    selectedFilePath: null,
+    diffResult: EMPTY_DIFF_RESULT,
+  };
+}
+
+export async function fetchCommitDetailsOnly(
+  api: Pick<TickGitOptimizedPageApi, "getCommitDetails">,
+  repoPath: string,
+  hash: string,
+  preferredFilePathFilter?: string | null,
+) {
+  const details = await api.getCommitDetails(repoPath, hash);
+  const selectedFile = pickCommitFileForPathFilter(
+    details.files,
+    preferredFilePathFilter,
+  );
+
+  return {
+    commitFiles: details.files,
+    commitMeta: details.meta,
+    selectedFilePath: selectedFile?.path ?? null,
+  };
 }
 
 export async function fetchCommitDetails(
@@ -148,6 +266,7 @@ export async function fetchRepositorySnapshot(
   if (!selectedCommit) {
     return {
       branchStatus,
+      branches: [],
       commits,
       nextSkip,
       hasMore,
@@ -170,6 +289,7 @@ export async function fetchRepositorySnapshot(
 
   return {
     branchStatus,
+    branches: [],
     commits,
     nextSkip,
     hasMore,

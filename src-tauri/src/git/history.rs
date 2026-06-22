@@ -2,7 +2,10 @@ use std::{collections::HashSet, path::Path};
 
 use crate::{
     error::AppResult,
-    models::{CommitFileChange, CommitHistoryFilters, CommitHistoryPage, CommitMeta},
+    models::{
+        BranchStatus, CommitDetails, CommitFileChange, CommitHistoryFilters, CommitHistoryPage,
+        CommitMeta, RepositoryOverview,
+    },
 };
 
 use super::{
@@ -11,8 +14,11 @@ use super::{
         apply_commit_file_numstat, parse_commit_files, parse_commit_history, parse_shortstat,
         parse_unpushed_hashes,
     },
-    push::safe_unpushed_hashes,
-    repository::{branch_status_for_path, resolve_repository_path},
+    push::safe_unpushed_hashes_in_push_order,
+    repository::{
+        ahead_behind, current_branch_name, remote_origin_exists, resolve_repository_path,
+        total_ahead_count, upstream_is_origin, upstream_name,
+    },
 };
 
 #[derive(Debug, Default)]
@@ -116,79 +122,202 @@ fn commit_record_hash(record: &str) -> Option<&str> {
         .filter(|hash| !hash.is_empty())
 }
 
-fn commit_matches_file_path(
+fn matching_commit_hashes_for_path_filter(
     repo_path: &Path,
-    hash: &str,
     file_path_filter: &str,
-) -> AppResult<bool> {
-    let files = commit_files_for_resolved_path(repo_path, hash)?;
+) -> AppResult<HashSet<String>> {
+    let output = git_output_bytes(
+        repo_path,
+        &[
+            "log",
+            "--topo-order",
+            "--find-renames",
+            "--pretty=format:%H%x00",
+            "--name-status",
+            "-z",
+            "HEAD",
+        ],
+    )?;
+    let mut hashes = HashSet::new();
+    let mut current_hash: Option<String> = None;
+    let mut parts = output.split(|byte| *byte == b'\0');
 
-    Ok(files.iter().any(|file| {
-        contains_normalized(&file.path, file_path_filter)
-            || file
-                .previous_path
-                .as_deref()
-                .is_some_and(|previous_path| contains_normalized(previous_path, file_path_filter))
-            || contains_normalized(&file.display_path, file_path_filter)
-    }))
-}
+    while let Some(part) = parts.next() {
+        if part.is_empty() {
+            continue;
+        }
 
-fn commit_record_matches_filters(
-    repo_path: &Path,
-    record: &str,
-    filters: &NormalizedCommitHistoryFilters,
-) -> AppResult<bool> {
-    if !commit_record_matches_metadata(record, filters) {
-        return Ok(false);
+        let value = String::from_utf8_lossy(part).to_string();
+        let value = value.trim();
+
+        if value.len() == 40 && value.chars().all(|ch| ch.is_ascii_hexdigit()) {
+            current_hash = Some(value.to_string());
+            continue;
+        }
+
+        let status = value;
+        if status.starts_with('R') || status.starts_with('C') {
+            let previous_path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
+            let path = parts
+                .next()
+                .map(|value| String::from_utf8_lossy(value).to_string())
+                .unwrap_or_default();
+            let display_path = format!("{previous_path} -> {path}");
+
+            if let Some(hash) = current_hash.as_ref() {
+                if contains_normalized(&previous_path, file_path_filter)
+                    || contains_normalized(&path, file_path_filter)
+                    || contains_normalized(&display_path, file_path_filter)
+                {
+                    hashes.insert(hash.clone());
+                }
+            }
+            continue;
+        }
+
+        let path = parts
+            .next()
+            .map(|value| String::from_utf8_lossy(value).to_string())
+            .unwrap_or_default();
+
+        if let Some(hash) = current_hash.as_ref() {
+            if contains_normalized(&path, file_path_filter) {
+                hashes.insert(hash.clone());
+            }
+        }
     }
 
-    let Some(file_path_filter) = filters.file_path.as_deref() else {
-        return Ok(true);
+    Ok(hashes)
+}
+
+fn commit_record_matches_filters_with_path_hashes(
+    record: &str,
+    filters: &NormalizedCommitHistoryFilters,
+    path_filter_hashes: Option<&HashSet<String>>,
+) -> bool {
+    if !commit_record_matches_metadata(record, filters) {
+        return false;
+    }
+
+    let Some(path_filter_hashes) = path_filter_hashes else {
+        return true;
     };
     let Some(hash) = commit_record_hash(record) else {
-        return Ok(false);
+        return false;
     };
 
-    commit_matches_file_path(repo_path, hash, file_path_filter)
+    path_filter_hashes.contains(hash)
 }
 
-pub(super) fn unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResult<HashSet<String>> {
-    let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", &range])?;
-    Ok(parse_unpushed_hashes(&output))
-}
+fn branch_status_and_push_sets(
+    repo_path: &Path,
+) -> AppResult<(BranchStatus, HashSet<String>, HashSet<String>, Option<String>)> {
+    let (branch, detached) = current_branch_name(repo_path)?;
+    let has_origin = remote_origin_exists(repo_path);
+    let upstream = if detached || !has_origin {
+        None
+    } else {
+        upstream_name(repo_path)
+    };
 
-pub fn get_commit_history(
-    repo_path: &str,
-    skip: usize,
-    limit: usize,
-    filters: Option<CommitHistoryFilters>,
-) -> AppResult<CommitHistoryPage> {
-    let repo_path = resolve_repository_path(repo_path)?;
-    let filters = normalize_history_filters(filters);
-    let branch_status = branch_status_for_path(&repo_path)?;
-    let (unpushed, safe_push_targets, unsafe_push_reason) = match branch_status.upstream.as_deref()
-    {
+    let (ahead_count, behind_count, unpushed, safe_push_targets) = match upstream.as_deref() {
         Some(upstream) => {
-            let unpushed = unpushed_hashes(&repo_path, upstream)?;
-            let safe_push_targets = if branch_status.behind_count > 0 {
+            let (_, behind_count) = ahead_behind(repo_path, upstream)?;
+            let ahead_count = total_ahead_count(repo_path, upstream)?;
+            let range = format!("{upstream}..HEAD");
+            let unpushed_output = git_trimmed(repo_path, &["rev-list", &range])?;
+            let unpushed = parse_unpushed_hashes(&unpushed_output);
+            let safe_push_targets = if behind_count > 0 {
                 HashSet::new()
             } else {
-                safe_unpushed_hashes(&repo_path, upstream)?
+                safe_unpushed_hashes_in_push_order(repo_path, upstream)?
+                    .into_iter()
+                    .collect()
             };
-            let unsafe_push_reason = if branch_status.behind_count > 0 {
-                branch_status.disabled_reason.as_deref()
-            } else {
-                None
-            };
-            (unpushed, safe_push_targets, unsafe_push_reason)
+            (ahead_count, behind_count, unpushed, safe_push_targets)
         }
-        _ => (HashSet::new(), HashSet::new(), None),
+        None => (0, 0, HashSet::new(), HashSet::new()),
     };
 
+    let upstream_uses_origin = upstream.as_deref().is_some_and(upstream_is_origin);
+    let push_available = !detached && has_origin && upstream_uses_origin && behind_count == 0;
+    let safe_ahead_count = if behind_count > 0 {
+        0
+    } else {
+        safe_push_targets.len()
+    };
+    let (disabled_reason, disabled_reason_code) = if detached {
+        (
+            Some("当前仓库处于 detached HEAD 状态，已禁用推送动作".to_string()),
+            Some("detached_head".to_string()),
+        )
+    } else if !has_origin {
+        (
+            Some("当前仓库未配置 origin 远端，已禁用推送动作".to_string()),
+            Some("missing_origin".to_string()),
+        )
+    } else if upstream.is_none() {
+        (
+            Some("当前分支没有上游跟踪分支，已禁用推送动作".to_string()),
+            Some("missing_upstream".to_string()),
+        )
+    } else if !upstream_uses_origin {
+        (
+            Some("当前分支的上游不是 origin 远端，已禁用推送动作".to_string()),
+            Some("non_origin_upstream".to_string()),
+        )
+    } else if behind_count > 0 {
+        (
+            Some(super::BRANCH_BEHIND_REMOTE_MESSAGE.to_string()),
+            Some("behind_remote".to_string()),
+        )
+    } else {
+        (None, None)
+    };
+    let unsafe_push_reason = if behind_count > 0 {
+        disabled_reason.as_deref().map(ToOwned::to_owned)
+    } else {
+        None
+    };
+
+    Ok((
+        BranchStatus {
+            branch,
+            upstream,
+            ahead_count,
+            safe_ahead_count,
+            behind_count,
+            detached,
+            push_available,
+            disabled_reason,
+            disabled_reason_code,
+        },
+        unpushed,
+        safe_push_targets,
+        unsafe_push_reason,
+    ))
+}
+
+fn commit_history_for_resolved_path(
+    repo_path: &Path,
+    skip: usize,
+    limit: usize,
+    filters: NormalizedCommitHistoryFilters,
+    unpushed: &HashSet<String>,
+    safe_push_targets: &HashSet<String>,
+    unsafe_push_reason: Option<&str>,
+) -> AppResult<CommitHistoryPage> {
     let (items, item_count, has_more, total_count) = if filters.has_filters() {
+        let path_filter_hashes = filters
+            .file_path
+            .as_deref()
+            .map(|file_path_filter| matching_commit_hashes_for_path_filter(repo_path, file_path_filter))
+            .transpose()?;
         let output = git_trimmed(
-            &repo_path,
+            repo_path,
             &[
                 "log",
                 "--topo-order",
@@ -203,7 +332,11 @@ pub fn get_commit_history(
             .split('\u{1e}')
             .filter(|record| !record.trim().is_empty())
         {
-            if commit_record_matches_filters(&repo_path, record, &filters)? {
+            if commit_record_matches_filters_with_path_hashes(
+                record,
+                &filters,
+                path_filter_hashes.as_ref(),
+            ) {
                 matched_records.push(record);
             }
         }
@@ -223,8 +356,8 @@ pub fn get_commit_history(
         };
         let items = parse_commit_history(
             &page_output,
-            &unpushed,
-            &safe_push_targets,
+            unpushed,
+            safe_push_targets,
             unsafe_push_reason,
         );
         let item_count = items.len();
@@ -232,11 +365,11 @@ pub fn get_commit_history(
 
         (items, item_count, has_more, total_count)
     } else {
-        let total_count = git_trimmed(&repo_path, &["rev-list", "--count", "HEAD"])?
+        let total_count = git_trimmed(repo_path, &["rev-list", "--count", "HEAD"])?
             .parse::<usize>()
             .unwrap_or(0);
         let output = git_trimmed(
-            &repo_path,
+            repo_path,
             &[
                 "log",
                 "--topo-order",
@@ -251,8 +384,7 @@ pub fn get_commit_history(
             ],
         )?;
 
-        let items =
-            parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
+        let items = parse_commit_history(&output, unpushed, safe_push_targets, unsafe_push_reason);
         let item_count = items.len();
         let has_more = skip + item_count < total_count;
 
@@ -267,6 +399,27 @@ pub fn get_commit_history(
         unpushed_count: unpushed.len(),
         safe_unpushed_count: safe_push_targets.len(),
     })
+}
+
+pub fn get_commit_history(
+    repo_path: &str,
+    skip: usize,
+    limit: usize,
+    filters: Option<CommitHistoryFilters>,
+) -> AppResult<CommitHistoryPage> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let filters = normalize_history_filters(filters);
+    let (_branch_status, unpushed, safe_push_targets, unsafe_push_reason) =
+        branch_status_and_push_sets(&repo_path)?;
+    commit_history_for_resolved_path(
+        &repo_path,
+        skip,
+        limit,
+        filters,
+        &unpushed,
+        &safe_push_targets,
+        unsafe_push_reason.as_deref(),
+    )
 }
 
 pub fn get_commit_files(repo_path: &str, hash: &str) -> AppResult<Vec<CommitFileChange>> {
@@ -307,6 +460,10 @@ fn commit_files_for_resolved_path(
 
 pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
     let repo_path = resolve_repository_path(repo_path)?;
+    commit_meta_for_resolved_path(&repo_path, hash)
+}
+
+fn commit_meta_for_resolved_path(repo_path: &Path, hash: &str) -> AppResult<CommitMeta> {
     let body = git_text(&repo_path, &["show", "-s", "--format=%b", hash])?
         .trim()
         .to_string();
@@ -317,5 +474,41 @@ pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
         body,
         additions,
         deletions,
+    })
+}
+
+pub fn get_commit_details(repo_path: &str, hash: &str) -> AppResult<CommitDetails> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    Ok(CommitDetails {
+        meta: commit_meta_for_resolved_path(&repo_path, hash)?,
+        files: commit_files_for_resolved_path(&repo_path, hash)?,
+    })
+}
+
+pub fn get_repository_overview(
+    repo_path: &str,
+    skip: usize,
+    limit: usize,
+    filters: Option<CommitHistoryFilters>,
+) -> AppResult<RepositoryOverview> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let filters = normalize_history_filters(filters);
+    let (branch_status, unpushed, safe_push_targets, unsafe_push_reason) =
+        branch_status_and_push_sets(&repo_path)?;
+    let branches = super::repository::list_local_branches_for_path(&repo_path)?;
+    let history = commit_history_for_resolved_path(
+        &repo_path,
+        skip,
+        limit,
+        filters,
+        &unpushed,
+        &safe_push_targets,
+        unsafe_push_reason.as_deref(),
+    )?;
+
+    Ok(RepositoryOverview {
+        branch_status,
+        branches,
+        history,
     })
 }

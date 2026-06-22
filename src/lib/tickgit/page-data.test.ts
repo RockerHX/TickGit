@@ -477,6 +477,7 @@ describe("page data", () => {
 
     expect(snapshot).toEqual({
       branchStatus: branchStatus(),
+      branches: [],
       commits: [],
       nextSkip: 0,
       hasMore: false,

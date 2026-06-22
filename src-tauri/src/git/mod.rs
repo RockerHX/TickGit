@@ -6,7 +6,10 @@ mod push;
 mod repository;
 
 pub use diff::get_commit_file_diff;
-pub use history::{get_commit_files, get_commit_history, get_commit_meta};
+pub use history::{
+    get_commit_details, get_commit_files, get_commit_history, get_commit_meta,
+    get_repository_overview,
+};
 pub use push::{
     get_step_push_plan, push_current_branch_checked, push_to_commit, validate_push_target,
     validate_step_push_hashes,

@@ -45,11 +45,11 @@ pub(super) fn current_branch_matching(repo_path: &Path, branch: &str) -> AppResu
     Ok(current_branch)
 }
 
-fn remote_origin_exists(repo_path: &Path) -> bool {
+pub(super) fn remote_origin_exists(repo_path: &Path) -> bool {
     git_trimmed(repo_path, &["remote", "get-url", REMOTE_NAME]).is_ok()
 }
 
-fn upstream_name(repo_path: &Path) -> Option<String> {
+pub(super) fn upstream_name(repo_path: &Path) -> Option<String> {
     git_trimmed(
         repo_path,
         &[
@@ -63,7 +63,7 @@ fn upstream_name(repo_path: &Path) -> Option<String> {
     .filter(|value| !value.is_empty())
 }
 
-fn upstream_is_origin(upstream: &str) -> bool {
+pub(super) fn upstream_is_origin(upstream: &str) -> bool {
     upstream.starts_with("origin/")
 }
 
@@ -84,13 +84,13 @@ pub(super) fn sync_origin_tracking(repo_path: &Path) -> AppResult<()> {
     git_run(repo_path, &["fetch", "--prune", REMOTE_NAME])
 }
 
-fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
+pub(super) fn ahead_behind(repo_path: &Path, upstream: &str) -> AppResult<(usize, usize)> {
     let range = format!("{upstream}...HEAD");
     let counts = git_trimmed(repo_path, &["rev-list", "--left-right", "--count", &range])?;
     Ok(parse_ahead_behind(&counts))
 }
 
-fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
+pub(super) fn total_ahead_count(repo_path: &Path, upstream: &str) -> AppResult<usize> {
     let range = format!("{upstream}..HEAD");
     let output = git_trimmed(repo_path, &["rev-list", "--count", &range])?;
     Ok(parse_count(&output))
@@ -218,6 +218,10 @@ pub fn get_branch_status(repo_path: &str) -> AppResult<BranchStatus> {
 
 pub fn list_local_branches(repo_path: &str) -> AppResult<Vec<String>> {
     let repo_path = resolve_repository_path(repo_path)?;
+    list_local_branches_for_path(&repo_path)
+}
+
+pub(super) fn list_local_branches_for_path(repo_path: &Path) -> AppResult<Vec<String>> {
     let output = git_trimmed(
         &repo_path,
         &[

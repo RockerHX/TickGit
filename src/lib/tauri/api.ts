@@ -4,10 +4,15 @@ import type {
   CommitMeta,
   CommitFileChange,
   CommitFileDiffResult,
+  CommitDetails,
   CommitHistoryFilters,
   CommitHistoryPage,
   PushToCommitJobStarted,
   PushToCommitRequest,
+  RepositoryIndex,
+  RepositoryOverview,
+  RepositoryOverviewCacheEntry,
+  RepositoryStatusUpdate,
   RepositorySummary,
   StepPushJobStarted,
   StepPushPlan,
@@ -15,6 +20,28 @@ import type {
 } from "$lib/types";
 
 export const api = {
+  getRepositoryIndexFast: () =>
+    invoke<RepositoryIndex>("get_repository_index_fast"),
+  getCachedRepositoryOverview: () =>
+    invoke<RepositoryOverviewCacheEntry | null>(
+      "get_cached_repository_overview",
+    ),
+  refreshRepositoryStatuses: (paths: string[]) =>
+    invoke<RepositoryStatusUpdate[]>("refresh_repository_statuses", { paths }),
+  getRepositoryOverview: (
+    repoPath: string,
+    skip: number,
+    limit: number,
+    filters?: CommitHistoryFilters | null,
+  ) =>
+    invoke<RepositoryOverview>("get_repository_overview", {
+      repoPath,
+      skip,
+      limit,
+      filters: filters ?? null,
+    }),
+  getCommitDetails: (repoPath: string, hash: string) =>
+    invoke<CommitDetails>("get_commit_details", { repoPath, hash }),
   listRepositories: () => invoke<RepositorySummary[]>("list_repositories"),
   addRepository: (path: string) =>
     invoke<RepositorySummary>("add_repository", { path }),

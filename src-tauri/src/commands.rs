@@ -1,18 +1,131 @@
-use tauri::{AppHandle, State};
+use std::{fs, path::PathBuf};
+
+use tauri::{AppHandle, Manager, State};
 
 use crate::{
-    error::AppResult,
+    error::{AppError, AppResult},
     git, jobs,
     models::{
-        BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
-        CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest,
-        RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
+        BranchStatus, CommitDetails, CommitFileChange, CommitFileDiffResult,
+        CommitHistoryFilters, CommitHistoryPage, CommitMeta, PushToCommitJobStarted,
+        PushToCommitRequest, RepositoryIndex, RepositoryOverview, RepositoryOverviewCacheEntry,
+        RepositoryStatusUpdate, RepositorySummary, StepPushJobStarted, StepPushPlan,
+        StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
 
+fn overview_cache_path(app: &AppHandle) -> AppResult<PathBuf> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| AppError::new("config_dir_unavailable", error.to_string()))?;
+
+    fs::create_dir_all(&config_dir)
+        .map_err(|error| AppError::new("config_dir_create_failed", error.to_string()))?;
+
+    Ok(config_dir.join("repository-overview-cache.json"))
+}
+
+fn read_overview_cache(app: &AppHandle) -> AppResult<Option<RepositoryOverviewCacheEntry>> {
+    let path = overview_cache_path(app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path)
+        .map_err(|error| AppError::new("overview_cache_read_failed", error.to_string()))?;
+    serde_json::from_str(&content)
+        .map(Some)
+        .map_err(|error| AppError::new("overview_cache_parse_failed", error.to_string()))
+}
+
+fn write_overview_cache(app: &AppHandle, entry: &RepositoryOverviewCacheEntry) -> AppResult<()> {
+    let path = overview_cache_path(app)?;
+    let content = serde_json::to_string(entry)
+        .map_err(|error| AppError::new("overview_cache_serialize_failed", error.to_string()))?;
+
+    fs::write(path, content)
+        .map_err(|error| AppError::new("overview_cache_write_failed", error.to_string()))
+}
+
+async fn run_blocking<T, F>(task: F) -> AppResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> AppResult<T> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|error| AppError::new("background_task_failed", error.to_string()))?
+}
+
 #[tauri::command]
-pub fn list_repositories(
+pub async fn get_repository_index_fast(
+    app: AppHandle,
+    state: State<'_, RepositoryStoreState>,
+) -> AppResult<RepositoryIndex> {
+    repo_store::get_repository_index_fast(&app, state)
+}
+
+#[tauri::command]
+pub async fn get_cached_repository_overview(
+    app: AppHandle,
+) -> AppResult<Option<RepositoryOverviewCacheEntry>> {
+    read_overview_cache(&app)
+}
+
+#[tauri::command]
+pub async fn refresh_repository_statuses(
+    paths: Vec<String>,
+) -> AppResult<Vec<RepositoryStatusUpdate>> {
+    run_blocking(move || {
+        Ok(paths
+            .into_iter()
+            .map(repo_store::repository_status_update)
+            .collect())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn get_repository_overview(
+    app: AppHandle,
+    repo_path: String,
+    skip: usize,
+    limit: usize,
+    filters: Option<CommitHistoryFilters>,
+) -> AppResult<RepositoryOverview> {
+    let overview = run_blocking({
+        let repo_path = repo_path.clone();
+        let filters = filters.clone();
+        move || git::get_repository_overview(&repo_path, skip, limit, filters)
+    })
+    .await?;
+
+    if skip == 0 {
+        let _ = write_overview_cache(
+            &app,
+            &RepositoryOverviewCacheEntry {
+                repo_path,
+                skip,
+                limit,
+                filters,
+                overview: overview.clone(),
+                cached_at: repo_store::now_millis(),
+            },
+        );
+    }
+
+    Ok(overview)
+}
+
+#[tauri::command]
+pub async fn get_commit_details(repo_path: String, hash: String) -> AppResult<CommitDetails> {
+    run_blocking(move || git::get_commit_details(&repo_path, &hash)).await
+}
+
+#[tauri::command]
+pub async fn list_repositories(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
 ) -> AppResult<Vec<RepositorySummary>> {
@@ -20,7 +133,7 @@ pub fn list_repositories(
 }
 
 #[tauri::command]
-pub fn add_repository(
+pub async fn add_repository(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
     path: String,
@@ -29,7 +142,7 @@ pub fn add_repository(
 }
 
 #[tauri::command]
-pub fn set_current_repository(
+pub async fn set_current_repository(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
     path: String,
@@ -38,7 +151,7 @@ pub fn set_current_repository(
 }
 
 #[tauri::command]
-pub fn get_current_repository(
+pub async fn get_current_repository(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
 ) -> AppResult<Option<RepositorySummary>> {
@@ -46,7 +159,7 @@ pub fn get_current_repository(
 }
 
 #[tauri::command]
-pub fn remove_repository(
+pub async fn remove_repository(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
     path: String,
@@ -55,7 +168,7 @@ pub fn remove_repository(
 }
 
 #[tauri::command]
-pub fn relocate_repository(
+pub async fn relocate_repository(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
     old_path: String,
@@ -65,64 +178,67 @@ pub fn relocate_repository(
 }
 
 #[tauri::command]
-pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
-    git::get_branch_status(&repo_path)
+pub async fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
+    run_blocking(move || git::get_branch_status(&repo_path)).await
 }
 
 #[tauri::command]
-pub fn refresh_remote_tracking(repo_path: String) -> AppResult<()> {
-    git::refresh_remote_tracking(&repo_path)
+pub async fn refresh_remote_tracking(repo_path: String) -> AppResult<()> {
+    run_blocking(move || git::refresh_remote_tracking(&repo_path)).await
 }
 
 #[tauri::command]
-pub fn list_local_branches(repo_path: String) -> AppResult<Vec<String>> {
-    git::list_local_branches(&repo_path)
+pub async fn list_local_branches(repo_path: String) -> AppResult<Vec<String>> {
+    run_blocking(move || git::list_local_branches(&repo_path)).await
 }
 
 #[tauri::command]
-pub fn checkout_branch(repo_path: String, branch: String) -> AppResult<()> {
-    git::checkout_branch(&repo_path, &branch)
+pub async fn checkout_branch(repo_path: String, branch: String) -> AppResult<()> {
+    run_blocking(move || git::checkout_branch(&repo_path, &branch)).await
 }
 
 #[tauri::command]
-pub fn get_commit_history(
+pub async fn get_commit_history(
     repo_path: String,
     skip: usize,
     limit: usize,
     filters: Option<CommitHistoryFilters>,
 ) -> AppResult<CommitHistoryPage> {
-    git::get_commit_history(&repo_path, skip, limit, filters)
+    run_blocking(move || git::get_commit_history(&repo_path, skip, limit, filters)).await
 }
 
 #[tauri::command]
-pub fn get_commit_files(repo_path: String, hash: String) -> AppResult<Vec<CommitFileChange>> {
-    git::get_commit_files(&repo_path, &hash)
+pub async fn get_commit_files(repo_path: String, hash: String) -> AppResult<Vec<CommitFileChange>> {
+    run_blocking(move || git::get_commit_files(&repo_path, &hash)).await
 }
 
 #[tauri::command]
-pub fn get_commit_meta(repo_path: String, hash: String) -> AppResult<CommitMeta> {
-    git::get_commit_meta(&repo_path, &hash)
+pub async fn get_commit_meta(repo_path: String, hash: String) -> AppResult<CommitMeta> {
+    run_blocking(move || git::get_commit_meta(&repo_path, &hash)).await
 }
 
 #[tauri::command]
-pub fn get_commit_file_diff(
+pub async fn get_commit_file_diff(
     repo_path: String,
     hash: String,
     file_path: String,
     previous_path: Option<String>,
     ignore_whitespace: bool,
 ) -> AppResult<CommitFileDiffResult> {
-    git::get_commit_file_diff(
-        &repo_path,
-        &hash,
-        &file_path,
-        previous_path.as_deref(),
-        ignore_whitespace,
-    )
+    run_blocking(move || {
+        git::get_commit_file_diff(
+            &repo_path,
+            &hash,
+            &file_path,
+            previous_path.as_deref(),
+            ignore_whitespace,
+        )
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn start_push_current_branch(
+pub async fn start_push_current_branch(
     app: AppHandle,
     jobs: State<'_, jobs::PushToCommitManager>,
     gate: State<'_, jobs::PushExecutionGate>,
@@ -133,7 +249,7 @@ pub fn start_push_current_branch(
 }
 
 #[tauri::command]
-pub fn save_window_size(
+pub async fn save_window_size(
     app: AppHandle,
     state: State<'_, RepositoryStoreState>,
     width: f64,
@@ -143,12 +259,12 @@ pub fn save_window_size(
 }
 
 #[tauri::command]
-pub fn get_step_push_plan(repo_path: String, target_hash: String) -> AppResult<StepPushPlan> {
-    git::get_step_push_plan(&repo_path, &target_hash)
+pub async fn get_step_push_plan(repo_path: String, target_hash: String) -> AppResult<StepPushPlan> {
+    run_blocking(move || git::get_step_push_plan(&repo_path, &target_hash)).await
 }
 
 #[tauri::command]
-pub fn start_push_to_commit(
+pub async fn start_push_to_commit(
     app: AppHandle,
     jobs: State<'_, jobs::PushToCommitManager>,
     gate: State<'_, jobs::PushExecutionGate>,
@@ -158,7 +274,7 @@ pub fn start_push_to_commit(
 }
 
 #[tauri::command]
-pub fn start_step_push(
+pub async fn start_step_push(
     app: AppHandle,
     jobs: State<'_, jobs::StepPushManager>,
     gate: State<'_, jobs::PushExecutionGate>,

@@ -11,7 +11,8 @@ use crate::{
     error::{AppError, AppResult},
     git,
     models::{
-        RepositoryConfig, RepositoryStatus, RepositorySummary, StoredRepository, WindowSizeConfig,
+        RepositoryConfig, RepositoryIndex, RepositoryStatus, RepositoryStatusUpdate,
+        RepositorySummary, StoredRepository, WindowSizeConfig,
     },
 };
 
@@ -33,7 +34,7 @@ impl RepositoryStoreState {
     }
 }
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as i64)
@@ -125,6 +126,28 @@ fn repository_summary(repository: &StoredRepository) -> RepositorySummary {
         name: repository.name.clone(),
         path: repository.path.clone(),
         last_opened_at: repository.last_opened_at,
+        status,
+        disabled_reason,
+        disabled_reason_code,
+    }
+}
+
+fn repository_summary_fast(repository: &StoredRepository) -> RepositorySummary {
+    RepositorySummary {
+        name: repository.name.clone(),
+        path: repository.path.clone(),
+        last_opened_at: repository.last_opened_at,
+        status: RepositoryStatus::Available,
+        disabled_reason: None,
+        disabled_reason_code: None,
+    }
+}
+
+pub fn repository_status_update(path: String) -> RepositoryStatusUpdate {
+    let (status, disabled_reason, disabled_reason_code) = repository_status(&path);
+
+    RepositoryStatusUpdate {
+        path,
         status,
         disabled_reason,
         disabled_reason_code,
@@ -372,6 +395,32 @@ pub fn list_repositories(
     let mut repositories = read_store(&path)?.repositories;
     sort_repositories(&mut repositories);
     Ok(repositories.iter().map(repository_summary).collect())
+}
+
+pub fn get_repository_index_fast(
+    app: &AppHandle,
+    state: State<'_, RepositoryStoreState>,
+) -> AppResult<RepositoryIndex> {
+    let _guard = state.lock.lock().expect("repository store poisoned");
+    let path = store_path(app)?;
+    let mut store = read_store(&path)?;
+    sort_repositories(&mut store.repositories);
+    let repositories: Vec<RepositorySummary> = store
+        .repositories
+        .iter()
+        .map(repository_summary_fast)
+        .collect();
+    let current_repository = store.current_path.as_ref().and_then(|path| {
+        repositories
+            .iter()
+            .find(|repository| &repository.path == path)
+            .cloned()
+    });
+
+    Ok(RepositoryIndex {
+        repositories,
+        current_repository,
+    })
 }
 
 pub fn add_repository(
