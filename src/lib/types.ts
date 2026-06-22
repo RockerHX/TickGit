@@ -86,38 +86,6 @@ export type CommitFileDiffResult = {
   newImageDataUrl: string | null;
 };
 
-export type RepositoryIndex = {
-  repositories: RepositorySummary[];
-  currentRepository: RepositorySummary | null;
-};
-
-export type RepositoryStatusUpdate = {
-  path: string;
-  status: RepositoryStatus;
-  disabledReason: string | null;
-  disabledReasonCode?: string | null;
-};
-
-export type RepositoryOverview = {
-  branchStatus: BranchStatus;
-  branches: string[];
-  history: CommitHistoryPage;
-};
-
-export type CommitDetails = {
-  meta: CommitMeta;
-  files: CommitFileChange[];
-};
-
-export type RepositoryOverviewCacheEntry = {
-  repoPath: string;
-  skip: number;
-  limit: number;
-  filters: CommitHistoryFilters | null;
-  overview: RepositoryOverview;
-  cachedAt: number;
-};
-
 export type StepPushPlan = {
   branch: string;
   targetHash: string;

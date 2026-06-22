@@ -125,48 +125,6 @@ pub struct CommitFileDiffResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RepositoryIndex {
-    pub repositories: Vec<RepositorySummary>,
-    pub current_repository: Option<RepositorySummary>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RepositoryStatusUpdate {
-    pub path: String,
-    pub status: RepositoryStatus,
-    pub disabled_reason: Option<String>,
-    pub disabled_reason_code: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RepositoryOverview {
-    pub branch_status: BranchStatus,
-    pub branches: Vec<String>,
-    pub history: CommitHistoryPage,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CommitDetails {
-    pub meta: CommitMeta,
-    pub files: Vec<CommitFileChange>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RepositoryOverviewCacheEntry {
-    pub repo_path: String,
-    pub skip: usize,
-    pub limit: usize,
-    pub filters: Option<CommitHistoryFilters>,
-    pub overview: RepositoryOverview,
-    pub cached_at: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct StepPushPlan {
     pub branch: String,
     pub target_hash: String,
