@@ -21,6 +21,7 @@
   import { writeClipboardText } from "$lib/tickgit/clipboard";
   import { highlightDiffContent } from "$lib/tickgit/diff-highlight";
   import { logPerfDuration, perfNow } from "$lib/tickgit/performance";
+  import { getVirtualWindow } from "$lib/tickgit/virtual-list";
   import type {
     DiffWorkerRequest,
     DiffWorkerResponse,
@@ -55,6 +56,8 @@
 
   const emptyStateClasses =
     "m-3 rounded-xl border border-dashed border-tg-border-soft bg-tg-bg-card/70 px-3 py-8 text-center text-xs text-tg-text-muted";
+  const VIRTUAL_ROW_HEIGHT = 22;
+  const VIRTUAL_OVERSCAN_ROWS = 18;
 
   let openControl: "mode" | "settings" | "more" | null = null;
   let parsedDiff: HighlightedParsedTextDiff = {
@@ -67,10 +70,39 @@
   let diffWorker: Worker | null = null;
   let diffWorkerRequestId = 0;
   const diffWorkerRequestStarts = new Map<number, number>();
+  let viewerScrollElement: HTMLDivElement | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  let scrollTop = 0;
+  let viewportHeight = 0;
+
+  type UnifiedVirtualRow =
+    | { kind: "hunk"; header: string; hunkIndex: number }
+    | { kind: "line"; line: HighlightedDiffLine };
 
   // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
   $: diffText = diffResult.text;
   $: scheduleDiffProcessing(diffText, selectedFilePath, mode);
+  $: unifiedRows = parsedDiff.hunks.flatMap((hunk, hunkIndex) => [
+    { kind: "hunk" as const, header: hunk.header, hunkIndex },
+    ...hunk.lines.map((line) => ({ kind: "line" as const, line })),
+  ]);
+  $: virtualRowsLength =
+    mode === "split" ? splitRows.length : unifiedRows.length;
+  $: virtualWindow = getVirtualWindow({
+    totalRows: virtualRowsLength,
+    scrollTop,
+    viewportHeight: viewportHeight || 600,
+    rowHeight: VIRTUAL_ROW_HEIGHT,
+    overscanRows: VIRTUAL_OVERSCAN_ROWS,
+  });
+  $: visibleSplitRows =
+    mode === "split"
+      ? splitRows.slice(virtualWindow.startIndex, virtualWindow.endIndex)
+      : [];
+  $: visibleUnifiedRows =
+    mode === "unified"
+      ? unifiedRows.slice(virtualWindow.startIndex, virtualWindow.endIndex)
+      : [];
   $: displayFilePath =
     selectedFile?.displayPath ??
     selectedFilePath ??
@@ -218,6 +250,21 @@
     return `${value} B`;
   }
 
+  function handleViewerScroll() {
+    scrollTop = viewerScrollElement?.scrollTop ?? 0;
+  }
+
+  function updateViewportHeight() {
+    viewportHeight = viewerScrollElement?.clientHeight ?? 0;
+  }
+
+  function resetViewerScroll() {
+    scrollTop = 0;
+    if (viewerScrollElement) {
+      viewerScrollElement.scrollTop = 0;
+    }
+  }
+
   function imagePanelLabel(kind: "old" | "new") {
     return kind === "old"
       ? translate($locale, "diff.imageBefore")
@@ -266,6 +313,7 @@
 
       parsedDiff = event.data.parsedDiff;
       splitRows = event.data.splitRows;
+      resetViewerScroll();
       const startedAt = diffWorkerRequestStarts.get(event.data.id);
       if (startedAt !== undefined) {
         logPerfDuration("diff.process.worker", startedAt, {
@@ -275,6 +323,11 @@
         diffWorkerRequestStarts.delete(event.data.id);
       }
     };
+    updateViewportHeight();
+    if (typeof ResizeObserver !== "undefined" && viewerScrollElement) {
+      resizeObserver = new ResizeObserver(updateViewportHeight);
+      resizeObserver.observe(viewerScrollElement);
+    }
     scheduleDiffProcessing(diffText, selectedFilePath, mode);
   });
 
@@ -283,6 +336,7 @@
       clearTimeout(hunkCopyResetTimer);
     }
     diffWorkerRequestStarts.clear();
+    resizeObserver?.disconnect();
     diffWorker?.terminate();
   });
 </script>
@@ -476,7 +530,11 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-tg-bg-panel">
+  <div
+    class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-tg-bg-panel"
+    bind:this={viewerScrollElement}
+    on:scroll={handleViewerScroll}
+  >
     {#if viewerState === "loading"}
       <div class={emptyStateClasses}>
         {translate($locale, "diff.loading")}
@@ -554,7 +612,8 @@
       </div>
     {:else if mode === "split"}
       <div>
-        {#each splitRows as row, index (row.kind === "hunk" ? `${row.header}-${index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${index}`)}
+        <div style={`height: ${virtualWindow.topSpacerHeight}px;`}></div>
+        {#each visibleSplitRows as row, index (row.kind === "hunk" ? `${row.header}-${virtualWindow.startIndex + index}` : `${row.left?.originalLineNumber ?? "x"}-${row.right?.originalLineNumber ?? "y"}-${virtualWindow.startIndex + index}`)}
           {#if row.kind === "hunk"}
             <div
               class="flex items-center justify-between gap-2 border-y border-tg-border-soft bg-tg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-sky-100"
@@ -632,50 +691,54 @@
             </div>
           {/if}
         {/each}
+        <div style={`height: ${virtualWindow.bottomSpacerHeight}px;`}></div>
       </div>
     {:else}
       <div>
-        {#each parsedDiff.hunks as hunk, hunkIndex}
-          <div
-            class="flex items-center justify-between gap-2 border-y border-tg-border-soft bg-tg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-sky-100"
-          >
-            <span class="min-w-0 truncate">{hunk.header}</span>
-            <button
-              type="button"
-              class="tg-focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-1.5 text-[9px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
-              title={copyHunkLabel(hunkIndex)}
-              aria-label={copyHunkLabel(hunkIndex)}
-              on:click={() => copyHunk(hunkIndex)}
+        <div style={`height: ${virtualWindow.topSpacerHeight}px;`}></div>
+        {#each visibleUnifiedRows as row, index (row.kind === "hunk" ? `${row.header}-${virtualWindow.startIndex + index}` : `${row.line.originalLineNumber}-${virtualWindow.startIndex + index}`)}
+          {#if row.kind === "hunk"}
+            <div
+              class="flex items-center justify-between gap-2 border-y border-tg-border-soft bg-tg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-sky-100"
             >
-              {#if copiedHunkIndex === hunkIndex}
-                <svg
-                  viewBox="0 0 16 16"
-                  class="h-2.5 w-2.5 fill-current text-emerald-300"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
-                  ></path>
-                </svg>
-                {translate($locale, "common.copied")}
-              {:else}
-                <svg
-                  viewBox="0 0 16 16"
-                  class="h-2.5 w-2.5 fill-current"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
-                  ></path>
-                  <path
-                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
-                  ></path>
-                </svg>
-                {translate($locale, "diff.copyHunk")}
-              {/if}
-            </button>
-          </div>
-          {#each hunk.lines as line}
+              <span class="min-w-0 truncate">{row.header}</span>
+              <button
+                type="button"
+                class="tg-focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-tg-blue-soft/25 bg-tg-blue-soft/10 px-1.5 text-[9px] font-medium text-sky-100 transition hover:border-tg-blue-soft/45 hover:bg-tg-blue-soft/18"
+                title={copyHunkLabel(row.hunkIndex)}
+                aria-label={copyHunkLabel(row.hunkIndex)}
+                on:click={() => copyHunk(row.hunkIndex)}
+              >
+                {#if copiedHunkIndex === row.hunkIndex}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-2.5 w-2.5 fill-current text-emerald-300"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M13.78 4.97a.75.75 0 0 1 0 1.06L7.53 12.28a.75.75 0 0 1-1.06 0L2.22 8.03a.75.75 0 1 1 1.06-1.06L7 10.69l5.72-5.72a.75.75 0 0 1 1.06 0Z"
+                    ></path>
+                  </svg>
+                  {translate($locale, "common.copied")}
+                {:else}
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-2.5 w-2.5 fill-current"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                    ></path>
+                    <path
+                      d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                    ></path>
+                  </svg>
+                  {translate($locale, "diff.copyHunk")}
+                {/if}
+              </button>
+            </div>
+          {:else}
+            {@const line = row.line}
             <div
               class={`grid grid-cols-[3rem_3rem_minmax(0,1fr)] border-b border-slate-700/45 ${lineToneClasses(line.type)}`}
             >
@@ -702,8 +765,9 @@
                 {/if}
               </div>
             </div>
-          {/each}
+          {/if}
         {/each}
+        <div style={`height: ${virtualWindow.bottomSpacerHeight}px;`}></div>
       </div>
     {/if}
   </div>
