@@ -83,14 +83,31 @@ export type RepositorySnapshot = {
   diffResult: CommitFileDiffResult;
 };
 
+const REPOSITORY_SNAPSHOT_CACHE_LIMIT = 12;
+const COMMIT_DETAILS_CACHE_LIMIT = 80;
+const DIFF_CACHE_LIMIT = 120;
+
+type CacheEntry<T> = {
+  repoPath: string;
+  generation: number;
+  value: T;
+};
+
 let nextApiId = 1;
 const apiIds = new WeakMap<TickGitPageApi, number>();
+const repositoryGenerations = new Map<string, number>();
 const repositorySnapshotInflight = new Map<
   string,
   Promise<RepositorySnapshot>
 >();
 const commitDetailsInflight = new Map<string, Promise<CommitDetailsResult>>();
 const diffInflight = new Map<string, Promise<CommitFileDiffResult>>();
+const repositorySnapshotCache = new Map<
+  string,
+  CacheEntry<RepositorySnapshot>
+>();
+const commitDetailsCache = new Map<string, CacheEntry<CommitDetailsResult>>();
+const diffCache = new Map<string, CacheEntry<CommitFileDiffResult>>();
 
 function apiId(api: TickGitPageApi) {
   const existing = apiIds.get(api);
@@ -107,6 +124,88 @@ function apiId(api: TickGitPageApi) {
 
 function inflightKey(...parts: unknown[]) {
   return JSON.stringify(parts);
+}
+
+function repositoryGeneration(repoPath: string) {
+  return repositoryGenerations.get(repoPath) ?? 0;
+}
+
+function pruneRepositoryCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  repoPath: string,
+  generation: number,
+) {
+  for (const [key, entry] of cache) {
+    if (entry.repoPath === repoPath && entry.generation !== generation) {
+      cache.delete(key);
+    }
+  }
+}
+
+export function invalidateRepositoryCache(repoPath: string) {
+  const generation = repositoryGeneration(repoPath) + 1;
+  repositoryGenerations.set(repoPath, generation);
+  pruneRepositoryCache(repositorySnapshotCache, repoPath, generation);
+  pruneRepositoryCache(commitDetailsCache, repoPath, generation);
+  pruneRepositoryCache(diffCache, repoPath, generation);
+}
+
+function readCache<T>(cache: Map<string, CacheEntry<T>>, key: string) {
+  const entry = cache.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+function writeCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  entry: CacheEntry<T>,
+  limit: number,
+) {
+  if (entry.generation !== repositoryGeneration(entry.repoPath)) {
+    return;
+  }
+
+  cache.delete(key);
+  cache.set(key, entry);
+
+  while (cache.size > limit) {
+    const oldestKey = cache.keys().next().value;
+
+    if (!oldestKey) {
+      return;
+    }
+
+    cache.delete(oldestKey);
+  }
+}
+
+function cacheThroughInflight<T>(
+  cache: Map<string, CacheEntry<T>>,
+  inflight: Map<string, Promise<T>>,
+  key: string,
+  repoPath: string,
+  generation: number,
+  limit: number,
+  task: () => Promise<T>,
+) {
+  const cached = readCache(cache, key);
+
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+
+  return reuseInflight(inflight, key, async () => {
+    const value = await task();
+    writeCache(cache, key, { repoPath, generation, value }, limit);
+    return value;
+  });
 }
 
 function reuseInflight<T>(
@@ -149,17 +248,25 @@ export function fetchCommitFileDiff(
   ignoreWhitespace = false,
   previousPath?: string | null,
 ) {
-  return reuseInflight(
+  const generation = repositoryGeneration(repoPath);
+  const key = inflightKey(
+    "diff",
+    apiId(api),
+    repoPath,
+    generation,
+    hash,
+    filePath,
+    ignoreWhitespace,
+    previousPath ?? null,
+  );
+
+  return cacheThroughInflight(
+    diffCache,
     diffInflight,
-    inflightKey(
-      "diff",
-      apiId(api),
-      repoPath,
-      hash,
-      filePath,
-      ignoreWhitespace,
-      previousPath ?? null,
-    ),
+    key,
+    repoPath,
+    generation,
+    DIFF_CACHE_LIMIT,
     () =>
       api.getCommitFileDiff(
         repoPath,
@@ -214,16 +321,24 @@ export function fetchCommitDetails(
   ignoreWhitespace = false,
   preferredFilePathFilter?: string | null,
 ): Promise<CommitDetailsResult> {
-  return reuseInflight(
+  const generation = repositoryGeneration(repoPath);
+  const key = inflightKey(
+    "details",
+    apiId(api),
+    repoPath,
+    generation,
+    hash,
+    ignoreWhitespace,
+    normalizePreferredFilePathFilter(preferredFilePathFilter),
+  );
+
+  return cacheThroughInflight(
+    commitDetailsCache,
     commitDetailsInflight,
-    inflightKey(
-      "details",
-      apiId(api),
-      repoPath,
-      hash,
-      ignoreWhitespace,
-      normalizePreferredFilePathFilter(preferredFilePathFilter),
-    ),
+    key,
+    repoPath,
+    generation,
+    COMMIT_DETAILS_CACHE_LIMIT,
     () =>
       fetchCommitDetailsUncached(
         api,
@@ -360,6 +475,7 @@ export function fetchRepositorySnapshot(
   ignoreWhitespace = false,
   options: CommitHistoryLoadOptions = {},
 ): Promise<RepositorySnapshot> {
+  const generation = repositoryGeneration(repoPath);
   const cached = options.cachedCommitDetails
     ? {
         hash: options.cachedCommitDetails.hash,
@@ -370,22 +486,28 @@ export function fetchRepositorySnapshot(
         selectedFilePath: options.cachedCommitDetails.selectedFilePath,
       }
     : null;
+  const key = inflightKey(
+    "snapshot",
+    apiId(api),
+    repoPath,
+    generation,
+    pageSize,
+    options.skip ?? 0,
+    keepSelection,
+    previousSelectedHash,
+    ignoreWhitespace,
+    normalizeHistoryFilters(options.filters),
+    normalizePreferredFilePathFilter(options.preferredFilePathFilter),
+    cached,
+  );
 
-  return reuseInflight(
+  return cacheThroughInflight(
+    repositorySnapshotCache,
     repositorySnapshotInflight,
-    inflightKey(
-      "snapshot",
-      apiId(api),
-      repoPath,
-      pageSize,
-      options.skip ?? 0,
-      keepSelection,
-      previousSelectedHash,
-      ignoreWhitespace,
-      normalizeHistoryFilters(options.filters),
-      normalizePreferredFilePathFilter(options.preferredFilePathFilter),
-      cached,
-    ),
+    key,
+    repoPath,
+    generation,
+    REPOSITORY_SNAPSHOT_CACHE_LIMIT,
     () =>
       fetchRepositorySnapshotUncached(
         api,

@@ -32,6 +32,7 @@
     EMPTY_DIFF_RESULT,
     fetchCommitDetails,
     fetchCommitFileDiff,
+    invalidateRepositoryCache,
     type CachedCommitDetails,
   } from "$lib/tickgit/page-data";
   import {
@@ -547,6 +548,7 @@
 
     try {
       await api.checkoutBranch(repository.path, branch);
+      invalidateRepositoryCache(repository.path);
       await loadRepositoryState(repository.path);
       notify(
         translate($locale, "branch.switchedTitle"),
@@ -600,6 +602,7 @@
     }
 
     syncingRemoteStatus = true;
+    invalidateRepositoryCache(repository.path);
 
     try {
       const repositoryState = await loadRepositoryStateSnapshot(
@@ -1189,6 +1192,9 @@
           );
           pushToCommitState = toFinishedPushToCommitState(payload);
           isPushing = false;
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "push.successTitle"),
@@ -1213,6 +1219,9 @@
         await listenPushToCommitFailed((payload) => {
           pushToCommitState = toFailedPushToCommitState(payload, $locale);
           isPushing = false;
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "push.failedTitle"),
@@ -1240,6 +1249,9 @@
       disposers.push(
         await listenStepPushFinished((payload) => {
           stepPushState = toFinishedStepPushState(payload, stepPushState);
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "stepPush.completeTitle"),
@@ -1261,6 +1273,9 @@
       disposers.push(
         await listenStepPushFailed((payload) => {
           stepPushState = toFailedStepPushState(payload, $locale);
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "stepPush.failedTitle"),
