@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    command::{git_run, git_trimmed},
+    command::{git_run, git_text, git_trimmed},
     repository::{
         branch_status_for_path, current_branch_matching, resolve_repository_path,
         sync_origin_tracking,
@@ -252,15 +252,39 @@ fn step_push_branch_blocked_reason(
     }
 }
 
-fn step_push_plan_item(repo_path: &Path, hash: &str) -> AppResult<StepPushPlanItem> {
-    let output = git_trimmed(repo_path, &["show", "-s", "--format=%H%x1f%h%x1f%s", hash])?;
-    let mut fields = output.splitn(3, '\u{1f}');
+fn parse_step_push_plan_item(record: &str) -> Option<StepPushPlanItem> {
+    let mut fields = record.splitn(3, '\u{1f}');
+    let hash = fields.next()?.trim();
 
-    Ok(StepPushPlanItem {
-        hash: fields.next().unwrap_or(hash).trim().to_string(),
+    if hash.is_empty() {
+        return None;
+    }
+
+    Some(StepPushPlanItem {
+        hash: hash.to_string(),
         short_hash: fields.next().unwrap_or("").trim().to_string(),
         summary: fields.next().unwrap_or("").trim().to_string(),
     })
+}
+
+fn step_push_plan_items(repo_path: &Path, hashes: &[String]) -> AppResult<Vec<StepPushPlanItem>> {
+    if hashes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut args = vec![
+        "log".to_string(),
+        "--no-walk=unsorted".to_string(),
+        "--format=%H%x1f%h%x1f%s%x1e".to_string(),
+    ];
+    args.extend(hashes.iter().cloned());
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = git_text(repo_path, &arg_refs)?;
+
+    Ok(output
+        .split('\u{1e}')
+        .filter_map(parse_step_push_plan_item)
+        .collect())
 }
 
 pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
@@ -322,10 +346,7 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
         return Err(error);
     }
 
-    let items = safe_hashes[..=target_index]
-        .iter()
-        .map(|hash| step_push_plan_item(&repo_path, hash))
-        .collect::<AppResult<Vec<_>>>()?;
+    let items = step_push_plan_items(&repo_path, &safe_hashes[..=target_index])?;
 
     Ok(StepPushPlan {
         branch: branch_status.branch,

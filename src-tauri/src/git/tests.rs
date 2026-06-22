@@ -338,8 +338,15 @@ fn builds_safe_step_push_plan_for_linear_ahead_commits() {
     let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &second_hash).unwrap();
     let plan_hashes: Vec<&str> = plan.items.iter().map(|item| item.hash.as_str()).collect();
 
+    let summaries: Vec<&str> = plan
+        .items
+        .iter()
+        .map(|item| item.summary.as_str())
+        .collect();
+
     assert!(plan.available);
     assert_eq!(plan_hashes, vec![first_hash.as_str(), second_hash.as_str()]);
+    assert_eq!(summaries, vec!["first", "second"]);
 }
 
 #[test]
