@@ -36,6 +36,7 @@
 - command 统一放在 `src/lib/tauri/api.ts`
 - event 统一放在 `src/lib/tauri/events.ts`
 - 不要在页面或组件中散写 `invoke("...")`
+- 涉及仓库刷新、diff 或 push 性能时，同时检查 `page-data.ts` 的缓存/generation key、`page-state.ts` 的 focus guard 和 Rust Git 命令数量
 
 ### 2.3 接口变更
 
@@ -65,6 +66,7 @@
 - 页面逻辑辅助与纯函数：`src/lib/tickgit/*`
 - Tauri command / event 封装：`src/lib/tauri/*`
 - Git 逻辑：`src-tauri/src/git/*`
+- 前端仓库加载缓存和请求去重：`src/lib/tickgit/page-data.ts` / `repository-actions.ts`
 - 后台任务：`src-tauri/src/jobs.rs`
 - 仓库持久化：`src-tauri/src/repo_store.rs`
 - DTO / 公共模型：`src-tauri/src/models.rs` 与 `src/lib/types.ts`
@@ -102,6 +104,7 @@ pnpm format:check
 
 - 前端纯 TypeScript 逻辑优先补 `Vitest` 单元测试
 - Rust 核心逻辑优先补 `cargo test` 单元测试
+- 改动 push / step push 事件时，至少覆盖 `src/lib/tickgit/push-events.test.ts` 与 `cargo test --manifest-path src-tauri/Cargo.toml`
 - 不要求为当前项目默认加入 Svelte 组件测试，除非任务明确需要
 
 ---
