@@ -2,6 +2,7 @@ import type { CommitHistoryFilters, RepositorySummary } from "$lib/types";
 import {
   fetchRepositoryIndex,
   fetchRepositorySnapshot,
+  type CachedCommitDetails,
   type RepositorySnapshot,
   type TickGitPageApi,
 } from "$lib/tickgit/page-data";
@@ -21,6 +22,7 @@ export type LoadRepositoryStateOptions = {
   refreshRemoteTracking?: boolean;
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
+  cachedCommitDetails?: CachedCommitDetails | null;
 };
 
 export type RepositoryStateResult = {
@@ -66,6 +68,7 @@ export async function loadRepositoryStateSnapshot(
         filters: options.filters,
         preferredFilePathFilter: options.preferredFilePathFilter,
         skip: options.historySkip,
+        cachedCommitDetails: options.cachedCommitDetails,
       },
     ),
     api.listLocalBranches(repoPath),

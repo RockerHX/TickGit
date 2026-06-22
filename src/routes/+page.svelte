@@ -31,6 +31,7 @@
   import {
     EMPTY_DIFF_RESULT,
     fetchCommitDetails,
+    type CachedCommitDetails,
   } from "$lib/tickgit/page-data";
   import {
     loadBootstrapRepositoryState,
@@ -211,6 +212,24 @@
   ]
     .filter(Boolean)
     .join(". ");
+
+  function getCachedCommitDetails(
+    preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+  ): CachedCommitDetails | null {
+    if (!selectedCommit || !selectedCommitMeta) {
+      return null;
+    }
+
+    return {
+      hash: selectedCommit.hash,
+      ignoreWhitespace: hideWhitespaceInDiff,
+      preferredFilePathFilter,
+      commitMeta: selectedCommitMeta,
+      commitFiles,
+      selectedFilePath,
+      diffResult,
+    };
+  }
 
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
@@ -477,6 +496,9 @@
             refreshRemoteTracking,
             filters: historyFilters,
             preferredFilePathFilter: historyFilters.filePath,
+            cachedCommitDetails: getCachedCommitDetails(
+              historyFilters.filePath,
+            ),
           }),
         {
           keepSelection,
@@ -591,6 +613,7 @@
           refreshRemoteTracking: true,
           filters: historyFilters,
           preferredFilePathFilter: historyFilters.filePath,
+          cachedCommitDetails: getCachedCommitDetails(historyFilters.filePath),
         },
       );
 

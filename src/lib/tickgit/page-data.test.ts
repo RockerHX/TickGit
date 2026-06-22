@@ -294,6 +294,48 @@ describe("page data", () => {
     );
   });
 
+  it("reuses cached commit details when refreshed overview keeps the same selected commit", async () => {
+    const cachedFiles = [fileChange("src/main.ts")];
+    const getCommitFiles = vi.fn();
+    const getCommitMeta = vi.fn();
+    const getCommitFileDiff = vi.fn();
+
+    const snapshot = await fetchRepositorySnapshot(
+      createApiMock({
+        getCommitHistory: vi
+          .fn()
+          .mockResolvedValue(historyPage([commit("c3")])),
+        getCommitFiles,
+        getCommitMeta,
+        getCommitFileDiff,
+      }),
+      "/repo",
+      50,
+      true,
+      "c3",
+      false,
+      {
+        preferredFilePathFilter: "src/main",
+        cachedCommitDetails: {
+          hash: "c3",
+          ignoreWhitespace: false,
+          preferredFilePathFilter: "src/main",
+          commitFiles: cachedFiles,
+          commitMeta: commitMeta({ body: "cached" }),
+          selectedFilePath: "src/main.ts",
+          diffResult: diffResult("@@ cached"),
+        },
+      },
+    );
+
+    expect(snapshot.commitFiles).toBe(cachedFiles);
+    expect(snapshot.commitMeta).toEqual(commitMeta({ body: "cached" }));
+    expect(snapshot.diffResult).toEqual(diffResult("@@ cached"));
+    expect(getCommitFiles).not.toHaveBeenCalled();
+    expect(getCommitMeta).not.toHaveBeenCalled();
+    expect(getCommitFileDiff).not.toHaveBeenCalled();
+  });
+
   it("passes ignoreWhitespace through commit detail loading", async () => {
     const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
 

@@ -23,10 +23,24 @@ export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
   newImageDataUrl: null,
 };
 
+export type CommitDetailsResult = {
+  commitFiles: CommitFileChange[];
+  commitMeta: CommitMeta;
+  selectedFilePath: string | null;
+  diffResult: CommitFileDiffResult;
+};
+
+export type CachedCommitDetails = CommitDetailsResult & {
+  hash: string;
+  ignoreWhitespace: boolean;
+  preferredFilePathFilter?: string | null;
+};
+
 export type CommitHistoryLoadOptions = {
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
   skip?: number;
+  cachedCommitDetails?: CachedCommitDetails | null;
 };
 
 export type TickGitPageApi = {
@@ -81,7 +95,7 @@ export async function fetchCommitDetails(
   hash: string,
   ignoreWhitespace = false,
   preferredFilePathFilter?: string | null,
-) {
+): Promise<CommitDetailsResult> {
   const [commitFiles, commitMeta] = await Promise.all([
     api.getCommitFiles(repoPath, hash),
     api.getCommitMeta(repoPath, hash),
@@ -107,6 +121,43 @@ export async function fetchCommitDetails(
     commitMeta,
     selectedFilePath,
     diffResult,
+  };
+}
+
+function normalizePreferredFilePathFilter(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
+function reusableCachedCommitDetails(
+  selectedCommit: CommitListItem,
+  ignoreWhitespace: boolean,
+  preferredFilePathFilter: string | null | undefined,
+  cachedDetails: CachedCommitDetails | null | undefined,
+): CommitDetailsResult | null {
+  if (
+    !cachedDetails ||
+    cachedDetails.hash !== selectedCommit.hash ||
+    cachedDetails.ignoreWhitespace !== ignoreWhitespace ||
+    normalizePreferredFilePathFilter(cachedDetails.preferredFilePathFilter) !==
+      normalizePreferredFilePathFilter(preferredFilePathFilter)
+  ) {
+    return null;
+  }
+
+  const selectedFile = pickCommitFileForPathFilter(
+    cachedDetails.commitFiles,
+    preferredFilePathFilter,
+  );
+
+  if ((selectedFile?.path ?? null) !== cachedDetails.selectedFilePath) {
+    return null;
+  }
+
+  return {
+    commitFiles: cachedDetails.commitFiles,
+    commitMeta: cachedDetails.commitMeta,
+    selectedFilePath: cachedDetails.selectedFilePath,
+    diffResult: cachedDetails.diffResult,
   };
 }
 
@@ -160,13 +211,20 @@ export async function fetchRepositorySnapshot(
     };
   }
 
-  const details = await fetchCommitDetails(
-    api,
-    repoPath,
-    selectedCommit.hash,
-    ignoreWhitespace,
-    options.preferredFilePathFilter,
-  );
+  const details =
+    reusableCachedCommitDetails(
+      selectedCommit,
+      ignoreWhitespace,
+      options.preferredFilePathFilter,
+      options.cachedCommitDetails,
+    ) ??
+    (await fetchCommitDetails(
+      api,
+      repoPath,
+      selectedCommit.hash,
+      ignoreWhitespace,
+      options.preferredFilePathFilter,
+    ));
 
   return {
     branchStatus,
