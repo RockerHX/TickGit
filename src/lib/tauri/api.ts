@@ -59,6 +59,7 @@ export const api = {
     filePath: string,
     ignoreWhitespace = false,
     previousPath?: string | null,
+    baseHash?: string | null,
   ) =>
     invoke<CommitFileDiffResult>("get_commit_file_diff", {
       repoPath,
@@ -66,6 +67,7 @@ export const api = {
       filePath,
       previousPath: previousPath ?? null,
       ignoreWhitespace,
+      baseHash: baseHash ?? null,
     }),
   startPushCurrentBranch: (repoPath: string, branch: string) =>
     invoke<PushToCommitJobStarted>("start_push_current_branch", {

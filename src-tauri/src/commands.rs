@@ -116,6 +116,7 @@ pub fn get_commit_file_diff(
     file_path: String,
     previous_path: Option<String>,
     ignore_whitespace: bool,
+    base_hash: Option<String>,
 ) -> AppResult<CommitFileDiffResult> {
     git::get_commit_file_diff(
         &repo_path,
@@ -123,6 +124,7 @@ pub fn get_commit_file_diff(
         &file_path,
         previous_path.as_deref(),
         ignore_whitespace,
+        base_hash.as_deref(),
     )
 }
 

@@ -304,6 +304,7 @@ describe("repository actions", () => {
       "src/matched.ts",
       false,
       null,
+      null,
     );
   });
 });

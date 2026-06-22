@@ -1299,6 +1299,7 @@ fn gets_diff_for_initial_commit() {
         "file.txt",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1309,7 +1310,7 @@ fn gets_diff_for_initial_commit() {
 #[test]
 fn gets_diff_for_non_initial_commit() {
     let repo = init_repo();
-    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let parent_hash = commit_file(&repo.path, "file.txt", "hello\n", "initial");
     let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
 
     let diff = get_commit_file_diff(
@@ -1318,6 +1319,7 @@ fn gets_diff_for_non_initial_commit() {
         "file.txt",
         None,
         false,
+        Some(&parent_hash),
     )
     .unwrap();
 
@@ -1337,6 +1339,7 @@ fn hides_whitespace_only_diff_for_non_initial_commit() {
         "file.txt",
         None,
         false,
+        None,
     )
     .unwrap();
     let hidden_diff = get_commit_file_diff(
@@ -1345,6 +1348,7 @@ fn hides_whitespace_only_diff_for_non_initial_commit() {
         "file.txt",
         None,
         true,
+        None,
     )
     .unwrap();
 
@@ -1365,6 +1369,7 @@ fn gets_diff_for_initial_commit_when_hiding_whitespace() {
         "file.txt",
         None,
         true,
+        None,
     )
     .unwrap();
 
@@ -1375,7 +1380,7 @@ fn gets_diff_for_initial_commit_when_hiding_whitespace() {
 #[test]
 fn gets_rename_diff_when_previous_path_is_available() {
     let repo = init_repo();
-    commit_file(&repo.path, "old.txt", "hello\n", "initial");
+    let parent_hash = commit_file(&repo.path, "old.txt", "hello\n", "initial");
     run_git(&repo.path, &["mv", "old.txt", "new.txt"]);
     run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "rename"]);
     let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
@@ -1386,6 +1391,7 @@ fn gets_rename_diff_when_previous_path_is_available() {
         "new.txt",
         Some("old.txt"),
         false,
+        Some(&parent_hash),
     )
     .unwrap();
 
@@ -1407,6 +1413,7 @@ fn marks_binary_diff_without_text_patch() {
         "data.bin",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1429,6 +1436,7 @@ fn marks_image_diff_by_extension() {
         "image.png",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1466,6 +1474,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
     let modified_diff = get_commit_file_diff(
@@ -1474,6 +1483,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
     let deleted_diff = get_commit_file_diff(
@@ -1482,6 +1492,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1513,6 +1524,7 @@ fn skips_text_for_too_large_diff() {
         "large.txt",
         None,
         false,
+        None,
     )
     .unwrap();
 

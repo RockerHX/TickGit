@@ -789,12 +789,17 @@
     preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
   ) {
     selectedCommit = commit;
-    await loadCommitFiles(commit.hash, preferredFilePathFilter);
+    await loadCommitFiles(
+      commit.hash,
+      preferredFilePathFilter,
+      commit.parents[0] ?? null,
+    );
   }
 
   async function loadCommitFiles(
     hash: string,
     preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+    baseHash: string | null = selectedCommit?.parents[0] ?? null,
   ) {
     const repository = currentRepository;
 
@@ -817,6 +822,7 @@
             hash,
             hideWhitespaceInDiff,
             preferredFilePathFilter,
+            baseHash,
           ),
         { hash, preferredFilePathFilter },
       );
@@ -864,6 +870,7 @@
             filePath,
             hideWhitespaceInDiff,
             selectedFile?.previousPath ?? null,
+            commit.parents[0] ?? null,
           ),
         { filePath, hideWhitespaceInDiff },
       );

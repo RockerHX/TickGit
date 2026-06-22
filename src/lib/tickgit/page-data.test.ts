@@ -54,6 +54,7 @@ function commit(
   hash: string,
   isPushed = false,
   isSafePushTarget = !isPushed,
+  parents: string[] = [],
 ): CommitListItem {
   return {
     hash,
@@ -63,7 +64,7 @@ function commit(
     authorEmail: "tickgit@example.com",
     committedAt: "2026-04-25T12:00:00Z",
     tags: [],
-    parents: [],
+    parents,
     isPushed,
     isSafePushTarget,
     pushBlockedReason:
@@ -200,6 +201,7 @@ describe("page data", () => {
       "src/main.ts",
       false,
       null,
+      null,
     );
   });
 
@@ -230,6 +232,7 @@ describe("page data", () => {
       "c1",
       "src/app.ts",
       false,
+      null,
       null,
     );
   });
@@ -297,6 +300,7 @@ describe("page data", () => {
       "c3",
       "src/main.ts",
       false,
+      null,
       null,
     );
   });
@@ -552,6 +556,7 @@ describe("page data", () => {
       "src/main.ts",
       true,
       null,
+      null,
     );
   });
 
@@ -580,6 +585,7 @@ describe("page data", () => {
       "src/new.ts",
       false,
       "src/old.ts",
+      null,
     );
   });
 
@@ -591,7 +597,11 @@ describe("page data", () => {
         getCommitHistory: vi
           .fn()
           .mockResolvedValue(
-            historyPage([commit("c3"), commit("c2"), commit("c1")]),
+            historyPage([
+              commit("c3", false, true, ["parent-c3"]),
+              commit("c2"),
+              commit("c1"),
+            ]),
           ),
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
         getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
@@ -610,6 +620,7 @@ describe("page data", () => {
       "src/main.ts",
       true,
       null,
+      "parent-c3",
     );
   });
 
@@ -653,6 +664,7 @@ describe("page data", () => {
       "c3",
       "src/filter-match.ts",
       false,
+      null,
       null,
     );
   });

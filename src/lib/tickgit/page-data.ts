@@ -69,6 +69,7 @@ export type TickGitPageApi = {
     filePath: string,
     ignoreWhitespace?: boolean,
     previousPath?: string | null,
+    baseHash?: string | null,
   ) => Promise<CommitFileDiffResult>;
 };
 
@@ -249,6 +250,7 @@ export function fetchCommitFileDiff(
   filePath: string,
   ignoreWhitespace = false,
   previousPath?: string | null,
+  baseHash?: string | null,
 ) {
   const generation = repositoryGeneration(repoPath);
   const key = inflightKey(
@@ -260,6 +262,7 @@ export function fetchCommitFileDiff(
     filePath,
     ignoreWhitespace,
     previousPath ?? null,
+    baseHash ?? null,
   );
 
   return cacheThroughInflight(
@@ -276,6 +279,7 @@ export function fetchCommitFileDiff(
         filePath,
         ignoreWhitespace,
         previousPath,
+        baseHash ?? null,
       ),
   );
 }
@@ -286,6 +290,7 @@ async function fetchCommitDetailsUncached(
   hash: string,
   ignoreWhitespace = false,
   preferredFilePathFilter?: string | null,
+  baseHash?: string | null,
 ): Promise<CommitDetailsResult> {
   const [commitFiles, commitMeta] = await Promise.all([
     api.getCommitFiles(repoPath, hash),
@@ -305,6 +310,7 @@ async function fetchCommitDetailsUncached(
         selectedFile.path,
         ignoreWhitespace,
         selectedFile.previousPath,
+        baseHash,
       )
     : EMPTY_DIFF_RESULT;
 
@@ -322,6 +328,7 @@ export function fetchCommitDetails(
   hash: string,
   ignoreWhitespace = false,
   preferredFilePathFilter?: string | null,
+  baseHash?: string | null,
 ): Promise<CommitDetailsResult> {
   const generation = repositoryGeneration(repoPath);
   const key = inflightKey(
@@ -332,6 +339,7 @@ export function fetchCommitDetails(
     hash,
     ignoreWhitespace,
     normalizePreferredFilePathFilter(preferredFilePathFilter),
+    baseHash ?? null,
   );
 
   return cacheThroughInflight(
@@ -348,6 +356,7 @@ export function fetchCommitDetails(
         hash,
         ignoreWhitespace,
         preferredFilePathFilter,
+        baseHash,
       ),
   );
 }
@@ -452,6 +461,7 @@ async function fetchRepositorySnapshotUncached(
       selectedCommit.hash,
       ignoreWhitespace,
       options.preferredFilePathFilter,
+      selectedCommit.parents[0] ?? null,
     ));
 
   return {

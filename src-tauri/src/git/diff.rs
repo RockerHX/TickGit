@@ -111,12 +111,17 @@ fn diff_base_and_pathspecs<'a>(
     hash: &'a str,
     file_path: &'a str,
     previous_path: Option<&'a str>,
+    base_hash: Option<&'a str>,
 ) -> AppResult<(String, Vec<&'a str>)> {
-    let parents = git_trimmed(repo_path, &["show", "-s", "--format=%P", hash])?;
-    let base = if parents.trim().is_empty() {
-        EMPTY_TREE_HASH.to_string()
+    let base = if let Some(base_hash) = base_hash.map(str::trim).filter(|value| !value.is_empty()) {
+        base_hash.to_string()
     } else {
-        format!("{hash}^")
+        let parents = git_trimmed(repo_path, &["show", "-s", "--format=%P", hash])?;
+        if parents.trim().is_empty() {
+            EMPTY_TREE_HASH.to_string()
+        } else {
+            format!("{hash}^")
+        }
     };
 
     let mut pathspecs = Vec::new();
@@ -239,9 +244,11 @@ pub fn get_commit_file_diff(
     file_path: &str,
     previous_path: Option<&str>,
     ignore_whitespace: bool,
+    base_hash: Option<&str>,
 ) -> AppResult<CommitFileDiffResult> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let (base, pathspecs) = diff_base_and_pathspecs(&repo_path, hash, file_path, previous_path)?;
+    let (base, pathspecs) =
+        diff_base_and_pathspecs(&repo_path, hash, file_path, previous_path, base_hash)?;
     let numstat_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, true);
     let diff_args = build_diff_args(&base, hash, &pathspecs, ignore_whitespace, false);
     let image_data_urls = is_image_path(file_path)
