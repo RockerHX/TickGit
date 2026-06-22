@@ -67,6 +67,20 @@ describe("push events", () => {
     });
 
     expect(
+      toRunningPushToCommitState({
+        jobId: 1,
+        target: "1234567890",
+        targetKind: "commit",
+        status: "preparing",
+      }),
+    ).toEqual({
+      jobId: 1,
+      target: "1234567",
+      targetKind: "commit",
+      status: "preparing",
+    });
+
+    expect(
       toFinishedPushToCommitState({
         jobId: 1,
         target: "origin/main",

@@ -9,6 +9,7 @@ import type {
   PushToCommitFailed,
   PushToCommitFinished,
   PushToCommitJobStarted,
+  PushToCommitProgress,
   PushToCommitUiState,
   StepPushFailed,
   StepPushFinished,
@@ -62,7 +63,12 @@ export function dismissOverlayIfJobMatches<
 }
 
 export function toRunningPushToCommitState(
-  payload: Pick<PushToCommitJobStarted, "jobId" | "target" | "targetKind">,
+  payload: (
+    | Pick<PushToCommitJobStarted, "jobId" | "target" | "targetKind">
+    | PushToCommitProgress
+  ) & {
+    status?: "preparing" | "running";
+  },
 ): PushToCommitUiState {
   const target = formatPushTargetLabel(payload.target, payload.targetKind);
 
@@ -70,7 +76,7 @@ export function toRunningPushToCommitState(
     jobId: payload.jobId,
     target: target.inline,
     targetKind: payload.targetKind,
-    status: "running",
+    status: payload.status ?? "running",
   };
 }
 
@@ -109,15 +115,18 @@ export function toFailedPushToCommitState(
 
 export function toRunningStepPushState(
   payload:
-    | (Pick<StepPushJobStarted, "jobId" | "total"> & { hash: string })
-    | Pick<StepPushProgress, "jobId" | "current" | "total" | "hash">,
+    | (Pick<StepPushJobStarted, "jobId" | "total"> & {
+        hash: string;
+        status?: "preparing" | "running";
+      })
+    | Pick<StepPushProgress, "jobId" | "current" | "total" | "hash" | "status">,
 ): StepPushUiState {
   return {
     jobId: payload.jobId,
     current: "current" in payload ? payload.current : 0,
     total: payload.total,
     hash: payload.hash,
-    status: "running",
+    status: payload.status ?? "running",
   };
 }
 

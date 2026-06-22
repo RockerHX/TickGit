@@ -1,27 +1,17 @@
 import type { CommitHistoryFilters, RepositorySummary } from "$lib/types";
 import {
-  fetchCachedRepositoryOverview,
-  fetchCommitDetailsOnly,
-  fetchRepositoryIndexFast,
-  fetchRepositoryOverviewSnapshot,
   fetchRepositoryIndex,
   fetchRepositorySnapshot,
-  refreshRepositoryStatuses,
-  snapshotFromOverview,
+  type CachedCommitDetails,
   type RepositorySnapshot,
   type TickGitPageApi,
-  type TickGitOptimizedPageApi,
 } from "$lib/tickgit/page-data";
 import { isRepositoryAvailable } from "$lib/tickgit/page-state";
-import type { CommitListItem } from "$lib/types";
 
 export type RepositoryActionsApi = TickGitPageApi & {
   refreshRemoteTracking: (repoPath: string) => Promise<void>;
   listLocalBranches: (repoPath: string) => Promise<string[]>;
 };
-
-export type OptimizedRepositoryActionsApi = RepositoryActionsApi &
-  TickGitOptimizedPageApi;
 
 export type LoadRepositoryStateOptions = {
   pageSize: number;
@@ -32,6 +22,7 @@ export type LoadRepositoryStateOptions = {
   refreshRemoteTracking?: boolean;
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
+  cachedCommitDetails?: CachedCommitDetails | null;
 };
 
 export type RepositoryStateResult = {
@@ -46,67 +37,8 @@ export type BootstrapRepositoryStateResult = {
   repositoryState: RepositoryStateResult | null;
 };
 
-export type OptimizedBootstrapRepositoryStateResult = {
-  repositories: RepositorySummary[];
-  currentRepository: RepositorySummary | null;
-  repositoryState: RepositoryStateResult | null;
-  cacheApplied: boolean;
-};
-
 export async function loadRepositoryIndex(api: TickGitPageApi) {
   return fetchRepositoryIndex(api);
-}
-
-export async function loadRepositoryIndexFast(
-  api: OptimizedRepositoryActionsApi,
-) {
-  return fetchRepositoryIndexFast(api);
-}
-
-export async function refreshRepositoryAvailability(
-  api: OptimizedRepositoryActionsApi,
-  repositories: RepositorySummary[],
-) {
-  return refreshRepositoryStatuses(api, repositories);
-}
-
-export async function loadRepositoryOverviewState(
-  api: OptimizedRepositoryActionsApi,
-  repoPath: string,
-  options: LoadRepositoryStateOptions,
-): Promise<RepositoryStateResult> {
-  const snapshot = await fetchRepositoryOverviewSnapshot(
-    api,
-    repoPath,
-    options.pageSize,
-    options.keepSelection,
-    options.previousSelectedHash,
-    {
-      filters: options.filters,
-      preferredFilePathFilter: options.preferredFilePathFilter,
-      skip: options.historySkip,
-    },
-  );
-
-  return {
-    snapshot,
-    branches: snapshot.branches,
-    remoteRefreshError: null,
-  };
-}
-
-export async function loadCommitDetailsState(
-  api: OptimizedRepositoryActionsApi,
-  repoPath: string,
-  commit: CommitListItem,
-  preferredFilePathFilter?: string | null,
-) {
-  return fetchCommitDetailsOnly(
-    api,
-    repoPath,
-    commit.hash,
-    preferredFilePathFilter,
-  );
 }
 
 export async function loadRepositoryStateSnapshot(
@@ -136,6 +68,7 @@ export async function loadRepositoryStateSnapshot(
         filters: options.filters,
         preferredFilePathFilter: options.preferredFilePathFilter,
         skip: options.historySkip,
+        cachedCommitDetails: options.cachedCommitDetails,
       },
     ),
     api.listLocalBranches(repoPath),
@@ -171,43 +104,5 @@ export async function loadBootstrapRepositoryState(
   return {
     ...repositoryIndex,
     repositoryState,
-  };
-}
-
-export async function loadOptimizedBootstrapRepositoryState(
-  api: OptimizedRepositoryActionsApi,
-  options: LoadRepositoryStateOptions,
-): Promise<OptimizedBootstrapRepositoryStateResult> {
-  const repositoryIndex = await fetchRepositoryIndexFast(api);
-  const currentRepository = repositoryIndex.currentRepository;
-  let repositoryState: RepositoryStateResult | null = null;
-  let cacheApplied = false;
-
-  if (currentRepository && isRepositoryAvailable(currentRepository)) {
-    const cached = await fetchCachedRepositoryOverview(api).catch(() => null);
-    if (
-      cached &&
-      cached.repoPath === currentRepository.path &&
-      cached.skip === (options.historySkip ?? 0) &&
-      cached.limit === options.pageSize
-    ) {
-      const snapshot = snapshotFromOverview(
-        cached.overview,
-        options.keepSelection,
-        options.previousSelectedHash,
-      );
-      repositoryState = {
-        snapshot,
-        branches: snapshot.branches,
-        remoteRefreshError: null,
-      };
-      cacheApplied = true;
-    }
-  }
-
-  return {
-    ...repositoryIndex,
-    repositoryState,
-    cacheApplied,
   };
 }

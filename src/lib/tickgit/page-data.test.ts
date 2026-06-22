@@ -10,8 +10,10 @@ import type {
 } from "$lib/types";
 import {
   fetchCommitDetails,
+  fetchCommitFileDiff,
   fetchRepositoryIndex,
   fetchRepositorySnapshot,
+  invalidateRepositoryCache,
   type TickGitPageApi,
 } from "$lib/tickgit/page-data";
 
@@ -52,6 +54,7 @@ function commit(
   hash: string,
   isPushed = false,
   isSafePushTarget = !isPushed,
+  parents: string[] = [],
 ): CommitListItem {
   return {
     hash,
@@ -61,7 +64,7 @@ function commit(
     authorEmail: "tickgit@example.com",
     committedAt: "2026-04-25T12:00:00Z",
     tags: [],
-    parents: [],
+    parents,
     isPushed,
     isSafePushTarget,
     pushBlockedReason:
@@ -129,6 +132,11 @@ function createApiMock(
     listRepositories: vi.fn().mockResolvedValue([]),
     getCurrentRepository: vi.fn().mockResolvedValue(null),
     getBranchStatus: vi.fn().mockResolvedValue(branchStatus()),
+    getRepositoryRevision: vi.fn().mockResolvedValue({
+      head: "h1",
+      branch: "main",
+      upstream: null,
+    }),
     getCommitHistory: vi.fn().mockResolvedValue(historyPage([])),
     getCommitFiles: vi.fn().mockResolvedValue([]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
@@ -193,6 +201,7 @@ describe("page data", () => {
       "src/main.ts",
       false,
       null,
+      null,
     );
   });
 
@@ -223,6 +232,7 @@ describe("page data", () => {
       "c1",
       "src/app.ts",
       false,
+      null,
       null,
     );
   });
@@ -291,7 +301,239 @@ describe("page data", () => {
       "src/main.ts",
       false,
       null,
+      null,
     );
+  });
+
+  it("reuses cached commit details when refreshed overview keeps the same selected commit", async () => {
+    const cachedFiles = [fileChange("src/main.ts")];
+    const getCommitFiles = vi.fn();
+    const getCommitMeta = vi.fn();
+    const getCommitFileDiff = vi.fn();
+
+    const snapshot = await fetchRepositorySnapshot(
+      createApiMock({
+        getCommitHistory: vi
+          .fn()
+          .mockResolvedValue(historyPage([commit("c3")])),
+        getCommitFiles,
+        getCommitMeta,
+        getCommitFileDiff,
+      }),
+      "/repo",
+      50,
+      true,
+      "c3",
+      false,
+      {
+        preferredFilePathFilter: "src/main",
+        cachedCommitDetails: {
+          hash: "c3",
+          ignoreWhitespace: false,
+          preferredFilePathFilter: "src/main",
+          commitFiles: cachedFiles,
+          commitMeta: commitMeta({ body: "cached" }),
+          selectedFilePath: "src/main.ts",
+          diffResult: diffResult("@@ cached"),
+        },
+      },
+    );
+
+    expect(snapshot.commitFiles).toBe(cachedFiles);
+    expect(snapshot.commitMeta).toEqual(commitMeta({ body: "cached" }));
+    expect(snapshot.diffResult).toEqual(diffResult("@@ cached"));
+    expect(getCommitFiles).not.toHaveBeenCalled();
+    expect(getCommitMeta).not.toHaveBeenCalled();
+    expect(getCommitFileDiff).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates concurrent repository snapshot requests with the same key", async () => {
+    const branchDeferred = deferred<BranchStatus>();
+    const getBranchStatus = vi.fn(() => branchDeferred.promise);
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValue(historyPage([commit("c3")]));
+    const getCommitFiles = vi
+      .fn()
+      .mockResolvedValue([fileChange("src/main.ts")]);
+    const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getBranchStatus,
+      getCommitHistory,
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const first = fetchRepositorySnapshot(api, "/repo", 50, false, null);
+    const second = fetchRepositorySnapshot(api, "/repo", 50, false, null);
+    await Promise.resolve();
+
+    expect(getBranchStatus).toHaveBeenCalledTimes(1);
+
+    branchDeferred.resolve(branchStatus());
+    const [firstSnapshot, secondSnapshot] = await Promise.all([first, second]);
+
+    expect(secondSnapshot).toBe(firstSnapshot);
+    expect(getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(getCommitFiles).toHaveBeenCalledTimes(1);
+    expect(getCommitMeta).toHaveBeenCalledTimes(1);
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent commit details requests with the same key", async () => {
+    const filesDeferred = deferred<CommitFileChange[]>();
+    const getCommitFiles = vi.fn(() => filesDeferred.promise);
+    const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const first = fetchCommitDetails(api, "/repo", "c1", false, "src");
+    const second = fetchCommitDetails(api, "/repo", "c1", false, "src");
+    await Promise.resolve();
+
+    expect(getCommitFiles).toHaveBeenCalledTimes(1);
+
+    filesDeferred.resolve([fileChange("src/main.ts")]);
+    const [firstDetails, secondDetails] = await Promise.all([first, second]);
+
+    expect(secondDetails).toBe(firstDetails);
+    expect(getCommitMeta).toHaveBeenCalledTimes(1);
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent diff requests with the same key", async () => {
+    const diffDeferred = deferred<CommitFileDiffResult>();
+    const getCommitFileDiff = vi.fn(() => diffDeferred.promise);
+    const api = createApiMock({ getCommitFileDiff });
+
+    const first = fetchCommitFileDiff(
+      api,
+      "/repo",
+      "c1",
+      "src/main.ts",
+      false,
+      null,
+    );
+    const second = fetchCommitFileDiff(
+      api,
+      "/repo",
+      "c1",
+      "src/main.ts",
+      false,
+      null,
+    );
+    await Promise.resolve();
+
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+
+    diffDeferred.resolve(diffResult("@@ diff"));
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      diffResult("@@ diff"),
+      diffResult("@@ diff"),
+    ]);
+  });
+
+  it("serves repository snapshots, commit details, and diffs from resolved cache", async () => {
+    const getBranchStatus = vi.fn().mockResolvedValue(branchStatus());
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValue(historyPage([commit("c3")]));
+    const getCommitFiles = vi
+      .fn()
+      .mockResolvedValue([fileChange("src/main.ts")]);
+    const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getBranchStatus,
+      getCommitHistory,
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const firstSnapshot = await fetchRepositorySnapshot(
+      api,
+      "/repo-cache-hit",
+      50,
+      false,
+      null,
+    );
+    const secondSnapshot = await fetchRepositorySnapshot(
+      api,
+      "/repo-cache-hit",
+      50,
+      false,
+      null,
+    );
+    const firstDetails = await fetchCommitDetails(api, "/repo-cache-hit", "c3");
+    const secondDetails = await fetchCommitDetails(
+      api,
+      "/repo-cache-hit",
+      "c3",
+    );
+    const firstDiff = await fetchCommitFileDiff(
+      api,
+      "/repo-cache-hit",
+      "c3",
+      "src/main.ts",
+    );
+    const secondDiff = await fetchCommitFileDiff(
+      api,
+      "/repo-cache-hit",
+      "c3",
+      "src/main.ts",
+    );
+
+    expect(secondSnapshot).toBe(firstSnapshot);
+    expect(secondDetails).toBe(firstDetails);
+    expect(secondDiff).toBe(firstDiff);
+    expect(getBranchStatus).toHaveBeenCalledTimes(1);
+    expect(getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(getCommitFiles).toHaveBeenCalledTimes(1);
+    expect(getCommitMeta).toHaveBeenCalledTimes(1);
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("evicts the least recently used diff cache entries", async () => {
+    const getCommitFileDiff = vi.fn(
+      (
+        _repoPath: string,
+        _hash: string,
+        filePath: string,
+      ): Promise<CommitFileDiffResult> =>
+        Promise.resolve(diffResult(`@@ ${filePath}`)),
+    );
+    const api = createApiMock({ getCommitFileDiff });
+
+    for (let index = 0; index < 121; index += 1) {
+      await fetchCommitFileDiff(api, "/repo-lru", "c1", `src/file-${index}.ts`);
+    }
+
+    await fetchCommitFileDiff(api, "/repo-lru", "c1", "src/file-0.ts");
+
+    expect(
+      getCommitFileDiff.mock.calls.filter(
+        ([, , filePath]) => filePath === "src/file-0.ts",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("invalidates repository cache when generation changes", async () => {
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({ getCommitFileDiff });
+
+    await fetchCommitFileDiff(api, "/repo-generation", "c1", "src/main.ts");
+    await fetchCommitFileDiff(api, "/repo-generation", "c1", "src/main.ts");
+    invalidateRepositoryCache("/repo-generation");
+    await fetchCommitFileDiff(api, "/repo-generation", "c1", "src/main.ts");
+
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(2);
   });
 
   it("passes ignoreWhitespace through commit detail loading", async () => {
@@ -313,6 +555,7 @@ describe("page data", () => {
       "c1",
       "src/main.ts",
       true,
+      null,
       null,
     );
   });
@@ -342,6 +585,7 @@ describe("page data", () => {
       "src/new.ts",
       false,
       "src/old.ts",
+      null,
     );
   });
 
@@ -353,7 +597,11 @@ describe("page data", () => {
         getCommitHistory: vi
           .fn()
           .mockResolvedValue(
-            historyPage([commit("c3"), commit("c2"), commit("c1")]),
+            historyPage([
+              commit("c3", false, true, ["parent-c3"]),
+              commit("c2"),
+              commit("c1"),
+            ]),
           ),
         getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
         getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
@@ -372,6 +620,7 @@ describe("page data", () => {
       "src/main.ts",
       true,
       null,
+      "parent-c3",
     );
   });
 
@@ -415,6 +664,7 @@ describe("page data", () => {
       "c3",
       "src/filter-match.ts",
       false,
+      null,
       null,
     );
   });

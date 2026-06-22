@@ -1,4 +1,4 @@
-use std::{path::Path, process::Command};
+use std::{path::Path, process::Command, time::Instant};
 
 use crate::error::{AppError, AppResult};
 
@@ -12,7 +12,35 @@ enum OutputMode {
     TrimmedText,
 }
 
+fn perf_debug_enabled() -> bool {
+    std::env::var("TICKGIT_PERF").is_ok_and(|value| value == "1")
+}
+
+fn log_git_perf(
+    mode: &str,
+    args: &[&str],
+    started_at: Instant,
+    status_code: Option<i32>,
+    stdout_bytes: usize,
+) {
+    if !perf_debug_enabled() {
+        return;
+    }
+
+    let command = args.first().copied().unwrap_or("unknown");
+    eprintln!(
+        "[tickgit:perf] git mode={mode} command={command} args={} status={} stdout_bytes={} elapsed_ms={:.1}",
+        args.len(),
+        status_code
+            .map(|code| code.to_string())
+            .unwrap_or_else(|| "signal".to_string()),
+        stdout_bytes,
+        started_at.elapsed().as_secs_f64() * 1000.0,
+    );
+}
+
 pub(super) fn git_output_bytes(repo_path: &Path, args: &[&str]) -> AppResult<Vec<u8>> {
+    let started_at = Instant::now();
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_path)
@@ -23,6 +51,13 @@ pub(super) fn git_output_bytes(repo_path: &Path, args: &[&str]) -> AppResult<Vec
         .env("PAGER", "cat")
         .output()
         .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
+    log_git_perf(
+        "bytes",
+        args,
+        started_at,
+        output.status.code(),
+        output.stdout.len(),
+    );
 
     if output.status.success() {
         return Ok(output.stdout);
@@ -49,6 +84,7 @@ fn git_command_with_allowed_exit_codes(
     allowed_exit_codes: &[i32],
 ) -> AppResult<String> {
     let mut command = Command::new("git");
+    let started_at = Instant::now();
 
     if matches!(mode, OutputMode::Text | OutputMode::TrimmedText) {
         command.arg("--no-pager").arg("-c").arg("color.ui=false");
@@ -64,6 +100,17 @@ fn git_command_with_allowed_exit_codes(
         .env("PAGER", "cat")
         .output()
         .map_err(|error| AppError::new("git_unavailable", error.to_string()))?;
+    log_git_perf(
+        match mode {
+            OutputMode::Command => "command",
+            OutputMode::Text => "text",
+            OutputMode::TrimmedText => "trimmed",
+        },
+        args,
+        started_at,
+        output.status.code(),
+        output.stdout.len(),
+    );
 
     if output.status.success()
         || output

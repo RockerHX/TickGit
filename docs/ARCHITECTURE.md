@@ -59,8 +59,8 @@ Svelte 页面与组件
 
 页面编排层使用的非视觉 helper，负责：
 
-- `page-data.ts` / `repository-actions.ts`：仓库索引、远端刷新、快照加载和详情加载编排
-- `page-state.ts`：loading / push / selection 等页面 guard 纯函数
+- `page-data.ts` / `repository-actions.ts`：仓库索引、远端刷新、快照加载、详情加载编排，以及 overview/details/diff 的 inflight 去重、LRU 缓存和 repository generation 失效
+- `page-state.ts`：loading / push / selection / focus revision refresh 等页面 guard 纯函数
 - `push-events.ts`：push / step push event payload 到 UI state 的转换和 overlay 关闭规则
 - `page-helpers.ts`：错误消息和 toast 数据辅助
 - `step-push-plan.ts`：分步推送 plan hashes 提取与确认后启动 job 的状态转换
@@ -76,6 +76,7 @@ Svelte 页面与组件
 当前 Diff Viewer 约束：
 
 - 后端 diff 返回 `CommitFileDiffResult`，包含文本与 binary/image/tooLarge/truncated/byteCount/lineCount metadata
+- 大 diff 在前端使用虚拟滚动，只渲染可视区与 overscan 行；文本解析和高亮优先走 worker，worker 失败时才做主线程降级
 - 前端先判断 diff metadata，binary/image/tooLarge 进入降级提示，不解析为文本 diff
 - 文本 diff 再解析 unified diff，并派生 unified / split 两种视图
 - split rows 仅在 split 模式且 diff ready 时构建
@@ -87,7 +88,7 @@ Svelte 页面与组件
 
 ### `src/lib/tauri/events.ts`
 
-前端唯一事件监听入口，当前仅封装分步推送相关事件。
+前端唯一事件监听入口，封装 step push 与 push to commit/current branch 的进度、完成、失败事件。
 
 ### `src/lib/types.ts`
 
@@ -126,6 +127,11 @@ Git 命令执行规则：
   - `GIT_TERMINAL_PROMPT=0`
 - 所有需要解析纯文本输出的 Git 命令必须显式禁用分页器与颜色输出，避免解析受干扰
 - 仓库有效性校验优先通过 Git 自身判断当前路径是否为 work tree，不依赖 `.git` 目录是否直接存在
+- 普通历史分页使用 `limit + 1` 判断 `hasMore`，首屏不阻塞等待 `rev-list --count`
+- 历史过滤只将 author/message 作为 Git 预过滤下推；query/filePath 仍保留 Rust 端现有语义
+- commit meta 的 body 与 shortstat 使用一次 `git show --shortstat --format=...` 合并读取
+- diff 请求可携带 `baseHash` 复用 `CommitListItem.parents[0]`，未传时后端保留旧 parent 查询兼容逻辑
+- safe step-push 路径使用一次 ancestor 判断结合 `rev-list --first-parent --ancestry-path --reverse` 计算，避免逐 hash `merge-base`
 
 ### `src-tauri/src/jobs.rs`
 
@@ -134,8 +140,10 @@ Git 命令执行规则：
 - 单任务 gate，避免多个 push job 并发执行
 - 分步推送不可取消
 - 分步推送按 plan hashes 顺序推送 commit
-- push current branch / push to commit / step push 均在后端启动前做当前分支与安全校验
-- 通过 Tauri event 回传进度 / 完成 / 失败
+- push current branch / push to commit command 只做参数形状检查和任务 gate reserve，立即返回 job id；后台线程先发 `push-to-commit-progress` 的 `preparing`，再执行 Git 校验与实际 push
+- push to commit/current branch 通过 `push-to-commit-progress` / finished / failed event 回传准备中、运行、完成、失败
+- step push 启动前做一次当前分支与安全路径校验；job 循环内复用预检结果，只保留当前分支 guard 和实际 push
+- 分步推送不可取消
 
 ### `src-tauri/src/repo_store.rs`
 
@@ -143,7 +151,7 @@ Git 命令执行规则：
 
 - 仓库列表
 - 当前选中仓库
-- 仓库 runtime 状态标记：available / missing / invalid
+- 仓库 runtime 状态标记：available / missing / invalid（列表刷新使用固定 4 worker 并发限流，返回顺序保持 store 排序）
 - 从列表移除仓库
 - 重新定位已移动仓库
 - `repositories.json` 读写
@@ -193,12 +201,14 @@ Git 命令执行规则：
 
 ## 6. 核心数据流
 
-### 启动
+### 启动与焦点刷新
 
 1. 读取仓库列表与当前仓库
-2. 刷新 origin 远端跟踪信息并读取分支状态（包含全量 ahead 数、behind 数与 safe step-push 数）
-3. 拉取完整 Commit 历史，并标记哪些未推送 Commit 位于 first-parent 安全路径上
+2. 读取分支状态（包含全量 ahead 数、behind 数与 safe step-push 数）
+3. 拉取当前页 Commit 历史，并标记哪些未推送 Commit 位于 first-parent 安全路径上
 4. 自动加载当前选中 Commit 的文件与 Diff
+5. 前端记录轻量 `RepositoryRevision { head, branch, upstream }` 作为 focus refresh 基线
+6. 应用重新获得焦点时最多 60 秒检查一次 revision；revision 未变则跳过完整仓库刷新，变化时提升 repository generation 并刷新
 
 ### 分步推送
 
@@ -215,10 +225,10 @@ Git 命令执行规则：
 3. 前端历史默认展示完整历史，但只在可安全路径上开放 step push / push to commit
 4. 用户右键 Step Push 时，前端调用 `get_step_push_plan(repo_path, target_hash)`
 5. 后端刷新 origin tracking，判断 behind/diverged/upstream/origin/first-parent 安全性
-6. 可推送时，后端返回旧到新的 plan items；不可推送时，返回结构化 blocked reason
+6. 可推送时，后端批量读取旧到新的 plan items；不可推送时，返回结构化 blocked reason
 7. 前端展示 `StepPushPlanDialog`，用户确认后把同一份 plan hashes 传给 `start_step_push`
 8. `start_step_push` 启动前再次校验 hashes 必须等于后端当前安全路径的连续前缀，避免 stale plan 或篡改请求绕过安全策略
-9. 后端逐个执行 `git push origin <hash>:refs/heads/<branch>`
+9. 后端逐个执行预检后的 `git push origin <hash>:refs/heads/<branch>`，不在循环内重复 fetch / safe path 全量计算
 10. 每成功一步，就把远端分支推进到下一个安全目标
 11. 通过 event 推送进度、完成或失败
 

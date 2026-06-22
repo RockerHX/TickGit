@@ -6,14 +6,13 @@ import type {
   CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
-  CommitDetails,
-  RepositoryIndex,
-  RepositoryOverview,
-  RepositoryOverviewCacheEntry,
-  RepositoryStatusUpdate,
+  RepositoryRevision,
   RepositorySummary,
 } from "$lib/types";
-import { pickCommitFileForPathFilter } from "$lib/tickgit/history";
+import {
+  normalizeHistoryFilters,
+  pickCommitFileForPathFilter,
+} from "$lib/tickgit/history";
 import { pickSelectedCommit } from "$lib/tickgit/page-helpers";
 
 export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
@@ -28,16 +27,31 @@ export const EMPTY_DIFF_RESULT: CommitFileDiffResult = {
   newImageDataUrl: null,
 };
 
+export type CommitDetailsResult = {
+  commitFiles: CommitFileChange[];
+  commitMeta: CommitMeta;
+  selectedFilePath: string | null;
+  diffResult: CommitFileDiffResult;
+};
+
+export type CachedCommitDetails = CommitDetailsResult & {
+  hash: string;
+  ignoreWhitespace: boolean;
+  preferredFilePathFilter?: string | null;
+};
+
 export type CommitHistoryLoadOptions = {
   filters?: CommitHistoryFilters | null;
   preferredFilePathFilter?: string | null;
   skip?: number;
+  cachedCommitDetails?: CachedCommitDetails | null;
 };
 
 export type TickGitPageApi = {
   listRepositories: () => Promise<RepositorySummary[]>;
   getCurrentRepository: () => Promise<RepositorySummary | null>;
   getBranchStatus: (repoPath: string) => Promise<BranchStatus>;
+  getRepositoryRevision: (repoPath: string) => Promise<RepositoryRevision>;
   getCommitHistory: (
     repoPath: string,
     skip: number,
@@ -55,27 +69,12 @@ export type TickGitPageApi = {
     filePath: string,
     ignoreWhitespace?: boolean,
     previousPath?: string | null,
+    baseHash?: string | null,
   ) => Promise<CommitFileDiffResult>;
-};
-
-export type TickGitOptimizedPageApi = TickGitPageApi & {
-  getRepositoryIndexFast: () => Promise<RepositoryIndex>;
-  getCachedRepositoryOverview: () => Promise<RepositoryOverviewCacheEntry | null>;
-  refreshRepositoryStatuses: (
-    paths: string[],
-  ) => Promise<RepositoryStatusUpdate[]>;
-  getRepositoryOverview: (
-    repoPath: string,
-    skip: number,
-    limit: number,
-    filters?: CommitHistoryFilters | null,
-  ) => Promise<RepositoryOverview>;
-  getCommitDetails: (repoPath: string, hash: string) => Promise<CommitDetails>;
 };
 
 export type RepositorySnapshot = {
   branchStatus: BranchStatus;
-  branches: string[];
   commits: CommitListItem[];
   nextSkip: number;
   hasMore: boolean;
@@ -87,6 +86,154 @@ export type RepositorySnapshot = {
   diffResult: CommitFileDiffResult;
 };
 
+const REPOSITORY_SNAPSHOT_CACHE_LIMIT = 12;
+const COMMIT_DETAILS_CACHE_LIMIT = 80;
+const DIFF_CACHE_LIMIT = 120;
+
+type CacheEntry<T> = {
+  repoPath: string;
+  generation: number;
+  value: T;
+};
+
+let nextApiId = 1;
+const apiIds = new WeakMap<TickGitPageApi, number>();
+const repositoryGenerations = new Map<string, number>();
+const repositorySnapshotInflight = new Map<
+  string,
+  Promise<RepositorySnapshot>
+>();
+const commitDetailsInflight = new Map<string, Promise<CommitDetailsResult>>();
+const diffInflight = new Map<string, Promise<CommitFileDiffResult>>();
+const repositorySnapshotCache = new Map<
+  string,
+  CacheEntry<RepositorySnapshot>
+>();
+const commitDetailsCache = new Map<string, CacheEntry<CommitDetailsResult>>();
+const diffCache = new Map<string, CacheEntry<CommitFileDiffResult>>();
+
+function apiId(api: TickGitPageApi) {
+  const existing = apiIds.get(api);
+
+  if (existing) {
+    return existing;
+  }
+
+  const id = nextApiId;
+  nextApiId += 1;
+  apiIds.set(api, id);
+  return id;
+}
+
+function inflightKey(...parts: unknown[]) {
+  return JSON.stringify(parts);
+}
+
+function repositoryGeneration(repoPath: string) {
+  return repositoryGenerations.get(repoPath) ?? 0;
+}
+
+function pruneRepositoryCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  repoPath: string,
+  generation: number,
+) {
+  for (const [key, entry] of cache) {
+    if (entry.repoPath === repoPath && entry.generation !== generation) {
+      cache.delete(key);
+    }
+  }
+}
+
+export function invalidateRepositoryCache(repoPath: string) {
+  const generation = repositoryGeneration(repoPath) + 1;
+  repositoryGenerations.set(repoPath, generation);
+  pruneRepositoryCache(repositorySnapshotCache, repoPath, generation);
+  pruneRepositoryCache(commitDetailsCache, repoPath, generation);
+  pruneRepositoryCache(diffCache, repoPath, generation);
+}
+
+function readCache<T>(cache: Map<string, CacheEntry<T>>, key: string) {
+  const entry = cache.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+function writeCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  entry: CacheEntry<T>,
+  limit: number,
+) {
+  if (entry.generation !== repositoryGeneration(entry.repoPath)) {
+    return;
+  }
+
+  cache.delete(key);
+  cache.set(key, entry);
+
+  while (cache.size > limit) {
+    const oldestKey = cache.keys().next().value;
+
+    if (!oldestKey) {
+      return;
+    }
+
+    cache.delete(oldestKey);
+  }
+}
+
+function cacheThroughInflight<T>(
+  cache: Map<string, CacheEntry<T>>,
+  inflight: Map<string, Promise<T>>,
+  key: string,
+  repoPath: string,
+  generation: number,
+  limit: number,
+  task: () => Promise<T>,
+) {
+  const cached = readCache(cache, key);
+
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+
+  return reuseInflight(inflight, key, async () => {
+    const value = await task();
+    writeCache(cache, key, { repoPath, generation, value }, limit);
+    return value;
+  });
+}
+
+function reuseInflight<T>(
+  inflight: Map<string, Promise<T>>,
+  key: string,
+  task: () => Promise<T>,
+) {
+  const existing = inflight.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  let promise!: Promise<T>;
+  promise = Promise.resolve()
+    .then(task)
+    .finally(() => {
+      if (inflight.get(key) === promise) {
+        inflight.delete(key);
+      }
+    });
+  inflight.set(key, promise);
+  return promise;
+}
+
 export async function fetchRepositoryIndex(api: TickGitPageApi) {
   const [repositories, currentRepository] = await Promise.all([
     api.listRepositories(),
@@ -96,110 +243,55 @@ export async function fetchRepositoryIndex(api: TickGitPageApi) {
   return { repositories, currentRepository };
 }
 
-export async function fetchRepositoryIndexFast(api: TickGitOptimizedPageApi) {
-  return api.getRepositoryIndexFast();
-}
-
-export async function fetchCachedRepositoryOverview(
-  api: TickGitOptimizedPageApi,
-) {
-  return api.getCachedRepositoryOverview();
-}
-
-export async function refreshRepositoryStatuses(
-  api: TickGitOptimizedPageApi,
-  repositories: RepositorySummary[],
-) {
-  const updates = await api.refreshRepositoryStatuses(
-    repositories.map((repository) => repository.path),
-  );
-  const updatesByPath = new Map(
-    updates.map((update) => [update.path, update] as const),
-  );
-
-  return repositories.map((repository) => {
-    const update = updatesByPath.get(repository.path);
-    return update
-      ? {
-          ...repository,
-          status: update.status,
-          disabledReason: update.disabledReason,
-          disabledReasonCode: update.disabledReasonCode,
-        }
-      : repository;
-  });
-}
-
-export async function fetchRepositoryOverviewSnapshot(
-  api: TickGitOptimizedPageApi,
-  repoPath: string,
-  pageSize: number,
-  keepSelection: boolean,
-  previousSelectedHash: string | null,
-  options: CommitHistoryLoadOptions = {},
-): Promise<RepositorySnapshot> {
-  const overview = await api.getRepositoryOverview(
-    repoPath,
-    options.skip ?? 0,
-    pageSize,
-    options.filters,
-  );
-  return snapshotFromOverview(overview, keepSelection, previousSelectedHash);
-}
-
-export function snapshotFromOverview(
-  overview: RepositoryOverview,
-  keepSelection: boolean,
-  previousSelectedHash: string | null,
-): RepositorySnapshot {
-  const commits = overview.history.items;
-  const selectedCommit = pickSelectedCommit(
-    commits,
-    previousSelectedHash,
-    keepSelection,
-  );
-
-  return {
-    branchStatus: overview.branchStatus,
-    branches: overview.branches,
-    commits,
-    nextSkip: overview.history.nextSkip,
-    hasMore: overview.history.hasMore,
-    totalCount: overview.history.totalCount,
-    selectedCommit,
-    commitMeta: null,
-    commitFiles: [],
-    selectedFilePath: null,
-    diffResult: EMPTY_DIFF_RESULT,
-  };
-}
-
-export async function fetchCommitDetailsOnly(
-  api: Pick<TickGitOptimizedPageApi, "getCommitDetails">,
+export function fetchCommitFileDiff(
+  api: TickGitPageApi,
   repoPath: string,
   hash: string,
-  preferredFilePathFilter?: string | null,
+  filePath: string,
+  ignoreWhitespace = false,
+  previousPath?: string | null,
+  baseHash?: string | null,
 ) {
-  const details = await api.getCommitDetails(repoPath, hash);
-  const selectedFile = pickCommitFileForPathFilter(
-    details.files,
-    preferredFilePathFilter,
+  const generation = repositoryGeneration(repoPath);
+  const key = inflightKey(
+    "diff",
+    apiId(api),
+    repoPath,
+    generation,
+    hash,
+    filePath,
+    ignoreWhitespace,
+    previousPath ?? null,
+    baseHash ?? null,
   );
 
-  return {
-    commitFiles: details.files,
-    commitMeta: details.meta,
-    selectedFilePath: selectedFile?.path ?? null,
-  };
+  return cacheThroughInflight(
+    diffCache,
+    diffInflight,
+    key,
+    repoPath,
+    generation,
+    DIFF_CACHE_LIMIT,
+    () =>
+      api.getCommitFileDiff(
+        repoPath,
+        hash,
+        filePath,
+        ignoreWhitespace,
+        previousPath,
+        baseHash ?? null,
+      ),
+  );
 }
 
-export async function fetchCommitDetails(
+async function fetchCommitDetailsUncached(
   api: TickGitPageApi,
   repoPath: string,
   hash: string,
   ignoreWhitespace = false,
   preferredFilePathFilter?: string | null,
-) {
+  baseHash?: string | null,
+): Promise<CommitDetailsResult> {
   const [commitFiles, commitMeta] = await Promise.all([
     api.getCommitFiles(repoPath, hash),
     api.getCommitMeta(repoPath, hash),
@@ -211,12 +303,14 @@ export async function fetchCommitDetails(
   const selectedFilePath = selectedFile?.path ?? null;
   // 没有文件变更时无需再请求 diff；否则既浪费一次 invoke，也会让空详情路径变得不明确。
   const diffResult = selectedFile
-    ? await api.getCommitFileDiff(
+    ? await fetchCommitFileDiff(
+        api,
         repoPath,
         hash,
         selectedFile.path,
         ignoreWhitespace,
         selectedFile.previousPath,
+        baseHash,
       )
     : EMPTY_DIFF_RESULT;
 
@@ -228,7 +322,83 @@ export async function fetchCommitDetails(
   };
 }
 
-export async function fetchRepositorySnapshot(
+export function fetchCommitDetails(
+  api: TickGitPageApi,
+  repoPath: string,
+  hash: string,
+  ignoreWhitespace = false,
+  preferredFilePathFilter?: string | null,
+  baseHash?: string | null,
+): Promise<CommitDetailsResult> {
+  const generation = repositoryGeneration(repoPath);
+  const key = inflightKey(
+    "details",
+    apiId(api),
+    repoPath,
+    generation,
+    hash,
+    ignoreWhitespace,
+    normalizePreferredFilePathFilter(preferredFilePathFilter),
+    baseHash ?? null,
+  );
+
+  return cacheThroughInflight(
+    commitDetailsCache,
+    commitDetailsInflight,
+    key,
+    repoPath,
+    generation,
+    COMMIT_DETAILS_CACHE_LIMIT,
+    () =>
+      fetchCommitDetailsUncached(
+        api,
+        repoPath,
+        hash,
+        ignoreWhitespace,
+        preferredFilePathFilter,
+        baseHash,
+      ),
+  );
+}
+
+function normalizePreferredFilePathFilter(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
+function reusableCachedCommitDetails(
+  selectedCommit: CommitListItem,
+  ignoreWhitespace: boolean,
+  preferredFilePathFilter: string | null | undefined,
+  cachedDetails: CachedCommitDetails | null | undefined,
+): CommitDetailsResult | null {
+  if (
+    !cachedDetails ||
+    cachedDetails.hash !== selectedCommit.hash ||
+    cachedDetails.ignoreWhitespace !== ignoreWhitespace ||
+    normalizePreferredFilePathFilter(cachedDetails.preferredFilePathFilter) !==
+      normalizePreferredFilePathFilter(preferredFilePathFilter)
+  ) {
+    return null;
+  }
+
+  const selectedFile = pickCommitFileForPathFilter(
+    cachedDetails.commitFiles,
+    preferredFilePathFilter,
+  );
+
+  if ((selectedFile?.path ?? null) !== cachedDetails.selectedFilePath) {
+    return null;
+  }
+
+  return {
+    commitFiles: cachedDetails.commitFiles,
+    commitMeta: cachedDetails.commitMeta,
+    selectedFilePath: cachedDetails.selectedFilePath,
+    diffResult: cachedDetails.diffResult,
+  };
+}
+
+async function fetchRepositorySnapshotUncached(
   api: TickGitPageApi,
   repoPath: string,
   pageSize: number,
@@ -266,7 +436,6 @@ export async function fetchRepositorySnapshot(
   if (!selectedCommit) {
     return {
       branchStatus,
-      branches: [],
       commits,
       nextSkip,
       hasMore,
@@ -279,17 +448,24 @@ export async function fetchRepositorySnapshot(
     };
   }
 
-  const details = await fetchCommitDetails(
-    api,
-    repoPath,
-    selectedCommit.hash,
-    ignoreWhitespace,
-    options.preferredFilePathFilter,
-  );
+  const details =
+    reusableCachedCommitDetails(
+      selectedCommit,
+      ignoreWhitespace,
+      options.preferredFilePathFilter,
+      options.cachedCommitDetails,
+    ) ??
+    (await fetchCommitDetails(
+      api,
+      repoPath,
+      selectedCommit.hash,
+      ignoreWhitespace,
+      options.preferredFilePathFilter,
+      selectedCommit.parents[0] ?? null,
+    ));
 
   return {
     branchStatus,
-    branches: [],
     commits,
     nextSkip,
     hasMore,
@@ -300,4 +476,59 @@ export async function fetchRepositorySnapshot(
     selectedFilePath: details.selectedFilePath,
     diffResult: details.diffResult,
   };
+}
+
+export function fetchRepositorySnapshot(
+  api: TickGitPageApi,
+  repoPath: string,
+  pageSize: number,
+  keepSelection: boolean,
+  previousSelectedHash: string | null,
+  ignoreWhitespace = false,
+  options: CommitHistoryLoadOptions = {},
+): Promise<RepositorySnapshot> {
+  const generation = repositoryGeneration(repoPath);
+  const cached = options.cachedCommitDetails
+    ? {
+        hash: options.cachedCommitDetails.hash,
+        ignoreWhitespace: options.cachedCommitDetails.ignoreWhitespace,
+        preferredFilePathFilter: normalizePreferredFilePathFilter(
+          options.cachedCommitDetails.preferredFilePathFilter,
+        ),
+        selectedFilePath: options.cachedCommitDetails.selectedFilePath,
+      }
+    : null;
+  const key = inflightKey(
+    "snapshot",
+    apiId(api),
+    repoPath,
+    generation,
+    pageSize,
+    options.skip ?? 0,
+    keepSelection,
+    previousSelectedHash,
+    ignoreWhitespace,
+    normalizeHistoryFilters(options.filters),
+    normalizePreferredFilePathFilter(options.preferredFilePathFilter),
+    cached,
+  );
+
+  return cacheThroughInflight(
+    repositorySnapshotCache,
+    repositorySnapshotInflight,
+    key,
+    repoPath,
+    generation,
+    REPOSITORY_SNAPSHOT_CACHE_LIMIT,
+    () =>
+      fetchRepositorySnapshotUncached(
+        api,
+        repoPath,
+        pageSize,
+        keepSelection,
+        previousSelectedHash,
+        ignoreWhitespace,
+        options,
+      ),
+  );
 }

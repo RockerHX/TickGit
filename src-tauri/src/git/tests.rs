@@ -1,9 +1,10 @@
 use super::repository::branch_status_for_path;
 use super::{
-    checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
-    list_local_branches, push_current_branch_checked, push_to_commit, refresh_remote_tracking,
-    resolve_repository_path, validate_current_branch, validate_step_push_hashes,
-    BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
+    checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta,
+    get_repository_revision, get_step_push_plan, list_local_branches, push_current_branch_checked,
+    push_to_commit, push_to_commit_prechecked, refresh_remote_tracking, resolve_repository_path,
+    validate_current_branch, validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE,
+    BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
 };
 use crate::{error::AppError, models::CommitHistoryFilters};
 use std::{
@@ -314,6 +315,73 @@ fn separates_total_history_from_safe_step_push_targets_after_merge() {
 }
 
 #[test]
+fn builds_safe_step_push_plan_for_linear_ahead_commits() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.ahead_count, 2);
+    assert_eq!(status.safe_ahead_count, 2);
+
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &second_hash).unwrap();
+    let plan_hashes: Vec<&str> = plan.items.iter().map(|item| item.hash.as_str()).collect();
+
+    let summaries: Vec<&str> = plan
+        .items
+        .iter()
+        .map(|item| item.summary.as_str())
+        .collect();
+
+    assert!(plan.available);
+    assert_eq!(plan_hashes, vec![first_hash.as_str(), second_hash.as_str()]);
+    assert_eq!(summaries, vec!["first", "second"]);
+}
+
+#[test]
+fn blocks_safe_step_push_plan_when_branch_has_diverged() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.behind_count, 1);
+    assert_eq!(status.safe_ahead_count, 0);
+
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &local_hash).unwrap();
+    let reason = plan.blocked_reason.expect("blocked plan reason");
+
+    assert!(!plan.available);
+    assert_eq!(reason.code, "behind_remote");
+}
+
+#[test]
 fn filters_commit_history_by_summary_and_body_case_insensitively() {
     let repo = init_repo();
     let first_hash = commit_file(&repo.path, "first.txt", "first\n", "Initial setup");
@@ -464,6 +532,78 @@ fn filters_commit_history_by_author_name_and_email_case_insensitively() {
     assert_eq!(email_history.items.len(), 1);
     assert_eq!(email_history.items[0].hash, bob_hash);
     assert_eq!(email_history.total_count, 1);
+}
+
+#[test]
+fn filters_commit_history_with_literal_author_and_message_patterns() {
+    let repo = init_repo();
+    run_git(&repo.path, &["config", "user.name", "Alice [Bot]"]);
+    run_git(
+        &repo.path,
+        &["config", "user.email", "alice.bot@example.com"],
+    );
+    let bot_hash = commit_file(&repo.path, "bot.txt", "bot\n", "fix [ui] literal pattern");
+    run_git(&repo.path, &["config", "user.name", "Bob Example"]);
+    run_git(&repo.path, &["config", "user.email", "bob@example.com"]);
+    commit_file(&repo.path, "bob.txt", "bob\n", "fix [api] literal pattern");
+
+    let history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            author: Some("[bot]".to_string()),
+            message: Some("fix [ui]".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.items[0].hash, bot_hash);
+    assert_eq!(history.total_count, 1);
+}
+
+#[test]
+fn paginates_normal_commit_history_with_limit_plus_one() {
+    let repo = init_repo();
+    let first_hash = commit_file(&repo.path, "one.txt", "one\n", "one");
+    let second_hash = commit_file(&repo.path, "two.txt", "two\n", "two");
+    let third_hash = commit_file(&repo.path, "three.txt", "three\n", "three");
+    let fourth_hash = commit_file(&repo.path, "four.txt", "four\n", "four");
+
+    let first_page = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 2, None).unwrap();
+    let second_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        first_page.next_skip,
+        2,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        first_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![fourth_hash.as_str(), third_hash.as_str()]
+    );
+    assert!(first_page.has_more);
+    assert_eq!(first_page.next_skip, 2);
+    assert_eq!(first_page.total_count, 3);
+
+    assert_eq!(
+        second_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![second_hash.as_str(), first_hash.as_str()]
+    );
+    assert!(!second_page.has_more);
+    assert_eq!(second_page.next_skip, 4);
+    assert_eq!(second_page.total_count, 4);
 }
 
 #[test]
@@ -987,6 +1127,69 @@ fn rejects_push_to_commit_when_remote_advanced_without_fetch() {
 }
 
 #[test]
+fn prechecked_step_push_path_pushes_validated_hashes_in_order() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        &[first_hash.clone(), second_hash.clone()],
+    )
+    .unwrap();
+
+    push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &first_hash).unwrap();
+    push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &second_hash).unwrap();
+
+    let origin_head = run_git(
+        &origin.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+    assert_eq!(origin_head, second_hash);
+}
+
+#[test]
+fn prechecked_step_push_path_fails_when_remote_changes() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        std::slice::from_ref(&local_hash),
+    )
+    .unwrap();
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let error =
+        push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &local_hash)
+            .unwrap_err();
+    assert_eq!(error.code, "git_command_failed");
+}
+
+#[test]
 fn rejects_step_push_validation_when_remote_advanced_without_fetch() {
     let repo = init_repo();
     let origin = init_bare_repo();
@@ -1166,6 +1369,7 @@ fn gets_diff_for_initial_commit() {
         "file.txt",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1176,7 +1380,7 @@ fn gets_diff_for_initial_commit() {
 #[test]
 fn gets_diff_for_non_initial_commit() {
     let repo = init_repo();
-    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let parent_hash = commit_file(&repo.path, "file.txt", "hello\n", "initial");
     let second_hash = commit_file(&repo.path, "file.txt", "hello\nworld\n", "second");
 
     let diff = get_commit_file_diff(
@@ -1185,6 +1389,7 @@ fn gets_diff_for_non_initial_commit() {
         "file.txt",
         None,
         false,
+        Some(&parent_hash),
     )
     .unwrap();
 
@@ -1204,6 +1409,7 @@ fn hides_whitespace_only_diff_for_non_initial_commit() {
         "file.txt",
         None,
         false,
+        None,
     )
     .unwrap();
     let hidden_diff = get_commit_file_diff(
@@ -1212,6 +1418,7 @@ fn hides_whitespace_only_diff_for_non_initial_commit() {
         "file.txt",
         None,
         true,
+        None,
     )
     .unwrap();
 
@@ -1232,6 +1439,7 @@ fn gets_diff_for_initial_commit_when_hiding_whitespace() {
         "file.txt",
         None,
         true,
+        None,
     )
     .unwrap();
 
@@ -1242,7 +1450,7 @@ fn gets_diff_for_initial_commit_when_hiding_whitespace() {
 #[test]
 fn gets_rename_diff_when_previous_path_is_available() {
     let repo = init_repo();
-    commit_file(&repo.path, "old.txt", "hello\n", "initial");
+    let parent_hash = commit_file(&repo.path, "old.txt", "hello\n", "initial");
     run_git(&repo.path, &["mv", "old.txt", "new.txt"]);
     run_git(&repo.path, &["commit", "--no-gpg-sign", "-m", "rename"]);
     let rename_hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
@@ -1253,6 +1461,7 @@ fn gets_rename_diff_when_previous_path_is_available() {
         "new.txt",
         Some("old.txt"),
         false,
+        Some(&parent_hash),
     )
     .unwrap();
 
@@ -1274,6 +1483,7 @@ fn marks_binary_diff_without_text_patch() {
         "data.bin",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1296,6 +1506,7 @@ fn marks_image_diff_by_extension() {
         "image.png",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1333,6 +1544,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
     let modified_diff = get_commit_file_diff(
@@ -1341,6 +1553,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
     let deleted_diff = get_commit_file_diff(
@@ -1349,6 +1562,7 @@ fn returns_commit_image_data_urls_for_added_modified_and_deleted_images() {
         "image.svg",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1380,6 +1594,7 @@ fn skips_text_for_too_large_diff() {
         "large.txt",
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -1415,14 +1630,17 @@ fn gets_commit_meta() {
             "-m",
             "follow up",
             "-m",
-            "more context",
+            "more context\n\nmentions 10 insertions before the real shortstat",
         ],
     );
 
     let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
     let meta = get_commit_meta(repo.path.to_string_lossy().as_ref(), &hash).unwrap();
 
-    assert_eq!(meta.body, "more context");
+    assert_eq!(
+        meta.body,
+        "more context\n\nmentions 10 insertions before the real shortstat"
+    );
     assert_eq!(meta.additions, 1);
     assert_eq!(meta.deletions, 0);
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import {
     locale,
     translate,
@@ -24,20 +24,22 @@
   import {
     listenPushToCommitFailed,
     listenPushToCommitFinished,
+    listenPushToCommitProgress,
     listenStepPushFailed,
     listenStepPushFinished,
     listenStepPushProgress,
   } from "$lib/tauri/events";
   import {
     EMPTY_DIFF_RESULT,
-    snapshotFromOverview,
+    fetchCommitDetails,
+    fetchCommitFileDiff,
+    invalidateRepositoryCache,
+    type CachedCommitDetails,
   } from "$lib/tickgit/page-data";
   import {
-    loadCommitDetailsState,
-    loadOptimizedBootstrapRepositoryState,
-    loadRepositoryIndexFast,
-    loadRepositoryOverviewState,
-    refreshRepositoryAvailability,
+    loadBootstrapRepositoryState,
+    loadRepositoryIndex,
+    loadRepositoryStateSnapshot,
     type RepositoryStateResult,
   } from "$lib/tickgit/repository-actions";
   import {
@@ -48,6 +50,7 @@
   } from "$lib/tickgit/history";
   import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
   import {
+    canCheckRepositoryRevisionOnFocus,
     canLoadCommitFiles,
     canLoadDiff,
     canLoadHistory,
@@ -61,6 +64,7 @@
     isContextMenuDisabled,
     isRepositoryAvailable,
     shouldClearRepositoryData,
+    shouldRefreshRepositoryForRevision,
     shouldShowRepositoryUnavailableState,
   } from "$lib/tickgit/page-state";
   import {
@@ -83,6 +87,7 @@
     HISTORY_PAGE_SIZE,
     getPaginationState,
   } from "$lib/tickgit/pagination";
+  import { measureAsync } from "$lib/tickgit/performance";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -90,14 +95,13 @@
   } from "$lib/tickgit/layout";
   import type {
     BranchStatus,
-    CommitDetails,
     CommitHistoryFilters,
     CommitMeta,
     CommitFileChange,
     CommitFileDiffResult,
     CommitListItem,
     PushToCommitUiState,
-    RepositoryOverview,
+    RepositoryRevision,
     RepositorySummary,
     StepPushPlan,
     StepPushUiState,
@@ -108,11 +112,14 @@
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
   const HISTORY_FILTER_DEBOUNCE_MS = 300;
+  const FOCUS_REVISION_THROTTLE_MS = 60_000;
   // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
+  let currentRepositoryRevision: RepositoryRevision | null = null;
+  let lastFocusRevisionCheckedAt = 0;
   let branchStatus: BranchStatus | null = null;
   let localBranches: string[] = [];
 
@@ -131,15 +138,11 @@
   let hasMore = false;
   let historyTotalCount = 0;
   let historyPageIndex = 0;
-  let indexLoading = true;
-  let statusRefreshing = false;
   let loadingHistory = false;
-  let overviewRefreshing = false;
-  let detailsLoading = false;
+  let loadingRepository = true;
+  let loadingFiles = false;
   let loadingDiff = false;
   let syncingRemoteStatus = false;
-  $: loadingRepository = indexLoading || overviewRefreshing;
-  $: loadingFiles = detailsLoading;
 
   let dragActive = false;
   let isPushing = false;
@@ -172,50 +175,11 @@
   let saveWindowSizeTimer: number | null = null;
   let historyFilterTimer: number | null = null;
   let historyRequestId = 0;
-  let overviewRequestId = 0;
-  let detailsRequestId = 0;
-  let diffRequestId = 0;
-  let focusRefreshTimer: number | null = null;
-  const overviewCache = new Map<string, RepositoryOverview>();
-  const commitDetailsCache = new Map<string, CommitDetails>();
-  const diffCache = new Map<string, CommitFileDiffResult>();
-
-  function normalizedFilterKey(filters: CommitHistoryFilters | null) {
-    return JSON.stringify(normalizeHistoryFilters(filters ?? {}));
-  }
-
-  function overviewCacheKey(
-    repoPath: string,
-    skip: number,
-    filters: CommitHistoryFilters | null,
-  ) {
-    return `${repoPath}\u0000${skip}\u0000${PAGE_SIZE}\u0000${normalizedFilterKey(filters)}`;
-  }
-
-  function commitDetailsCacheKey(repoPath: string, hash: string) {
-    return `${repoPath}\u0000${hash}`;
-  }
-
-  function diffCacheKey(
-    repoPath: string,
-    hash: string,
-    filePath: string,
-    previousPath: string | null | undefined,
-    ignoreWhitespace: boolean,
-  ) {
-    return [
-      repoPath,
-      hash,
-      filePath,
-      previousPath ?? "",
-      ignoreWhitespace ? "1" : "0",
-    ].join("\u0000");
-  }
 
   $: canRefreshRemoteStatus =
     canRefreshBlockedBranchStatus({
       currentRepository,
-      loadingRepository: indexLoading || overviewRefreshing,
+      loadingRepository,
       switchingBranch,
       isPushing,
       stepPushState,
@@ -223,7 +187,7 @@
   $: canRunRepositoryManagementNow =
     !managingRepositoryPath &&
     canManageRepositories({
-      loadingRepository: indexLoading || overviewRefreshing,
+      loadingRepository,
       switchingBranch,
       isPushing,
       stepPushState,
@@ -258,6 +222,40 @@
     .filter(Boolean)
     .join(". ");
 
+  function getCachedCommitDetails(
+    preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+  ): CachedCommitDetails | null {
+    if (!selectedCommit || !selectedCommitMeta) {
+      return null;
+    }
+
+    return {
+      hash: selectedCommit.hash,
+      ignoreWhitespace: hideWhitespaceInDiff,
+      preferredFilePathFilter,
+      commitMeta: selectedCommitMeta,
+      commitFiles,
+      selectedFilePath,
+      diffResult,
+    };
+  }
+
+  function resetRepositoryRevisionState() {
+    currentRepositoryRevision = null;
+    lastFocusRevisionCheckedAt = 0;
+  }
+
+  async function rememberCurrentRepositoryRevision(path: string) {
+    try {
+      const revision = await api.getRepositoryRevision(path);
+      if (currentRepository?.path === path) {
+        currentRepositoryRevision = revision;
+      }
+    } catch (error) {
+      console.error("failed to read repository revision", error);
+    }
+  }
+
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
     branchStatus = snapshot.branchStatus;
@@ -287,7 +285,7 @@
     historyTotalCount = 0;
     historyPageIndex = 0;
     loadingHistory = false;
-    detailsLoading = false;
+    loadingFiles = false;
     loadingDiff = false;
     isPushing = false;
     switchingBranch = false;
@@ -295,6 +293,7 @@
     stepPushState = null;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
     repositoryPendingRemoval = null;
+    resetRepositoryRevisionState();
   }
 
   function clearHistoryDetailState() {
@@ -303,7 +302,7 @@
     commitFiles = [];
     selectedFilePath = null;
     diffResult = EMPTY_DIFF_RESULT;
-    detailsLoading = false;
+    loadingFiles = false;
     loadingDiff = false;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
   }
@@ -443,39 +442,33 @@
   }
 
   async function bootstrap() {
-    indexLoading = true;
+    loadingRepository = true;
 
     try {
-      const bootstrapState = await loadOptimizedBootstrapRepositoryState(api, {
-        pageSize: PAGE_SIZE,
-        historySkip: historyPageIndex * PAGE_SIZE,
-        keepSelection: false,
-        previousSelectedHash: null,
-        ignoreWhitespace: hideWhitespaceInDiff,
-        filters: historyFilters,
-        preferredFilePathFilter: historyFilters.filePath,
-      });
+      const bootstrapState = await measureAsync(
+        "page.bootstrap",
+        () =>
+          loadBootstrapRepositoryState(api, {
+            pageSize: PAGE_SIZE,
+            historySkip: historyPageIndex * PAGE_SIZE,
+            keepSelection: false,
+            previousSelectedHash: null,
+            ignoreWhitespace: hideWhitespaceInDiff,
+            filters: historyFilters,
+            preferredFilePathFilter: historyFilters.filePath,
+          }),
+        { pageSize: PAGE_SIZE },
+      );
       repositories = bootstrapState.repositories;
       currentRepository = bootstrapState.currentRepository;
 
       if (bootstrapState.repositoryState) {
         applyRepositoryState(bootstrapState.repositoryState);
-        if (bootstrapState.repositoryState.snapshot.selectedCommit) {
-          void loadCommitFiles(
-            bootstrapState.repositoryState.snapshot.selectedCommit.hash,
-            historyFilters.filePath,
-          );
+        if (currentRepository) {
+          void rememberCurrentRepositoryRevision(currentRepository.path);
         }
       } else if (shouldClearRepositoryData(currentRepository)) {
         clearRepositoryData();
-      }
-
-      void refreshRepositoryStatusesInBackground();
-      if (currentRepository && isRepositoryAvailable(currentRepository)) {
-        void loadRepositoryState(
-          currentRepository.path,
-          Boolean(bootstrapState.repositoryState),
-        );
       }
     } catch (error) {
       notify(
@@ -484,36 +477,18 @@
         "error",
       );
     } finally {
-      indexLoading = false;
+      loadingRepository = false;
     }
   }
 
   async function refreshRepositories() {
-    const repositoryIndex = await loadRepositoryIndexFast(api);
+    const repositoryIndex = await loadRepositoryIndex(api);
+    const previousPath = currentRepository?.path ?? null;
     repositories = repositoryIndex.repositories;
     currentRepository = repositoryIndex.currentRepository;
-    void refreshRepositoryStatusesInBackground();
-  }
 
-  async function refreshRepositoryStatusesInBackground() {
-    if (repositories.length === 0 || statusRefreshing) {
-      return;
-    }
-
-    statusRefreshing = true;
-    try {
-      const refreshed = await refreshRepositoryAvailability(api, repositories);
-      repositories = refreshed;
-      if (currentRepository) {
-        currentRepository =
-          refreshed.find(
-            (repository) => repository.path === currentRepository?.path,
-          ) ?? currentRepository;
-      }
-    } catch {
-      // 状态刷新是后台增强，不打断用户浏览已有数据。
-    } finally {
-      statusRefreshing = false;
+    if ((currentRepository?.path ?? null) !== previousPath) {
+      resetRepositoryRevisionState();
     }
   }
 
@@ -522,7 +497,6 @@
       await api.setCurrentRepository(path);
       await refreshRepositories();
       historyPageIndex = 0;
-      clearHistoryDetailState();
 
       await loadCurrentRepositoryState();
     } catch (error) {
@@ -534,71 +508,50 @@
     }
   }
 
-  async function loadRepositoryState(path: string, keepSelection = false) {
-    const requestId = ++overviewRequestId;
-    const skip = historyPageIndex * PAGE_SIZE;
-    const cacheKey = overviewCacheKey(path, skip, historyFilters);
-    overviewRefreshing = true;
+  async function loadRepositoryState(
+    path: string,
+    keepSelection = false,
+    refreshRemoteTracking = false,
+  ) {
+    loadingRepository = true;
 
     try {
-      const cachedOverview = overviewCache.get(cacheKey);
-      const repositoryState = cachedOverview
-        ? {
-            snapshot: snapshotFromOverview(
-              cachedOverview,
-              keepSelection,
-              selectedCommit?.hash ?? null,
-            ),
-            branches: cachedOverview.branches,
-            remoteRefreshError: null,
-          }
-        : await loadRepositoryOverviewState(api, path, {
+      // 这里依赖 loadRepositoryStateSnapshot 预先补齐全部未推送 commits；
+      // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
+      const repositoryState = await measureAsync(
+        "page.loadRepositoryState",
+        () =>
+          loadRepositoryStateSnapshot(api, path, {
             pageSize: PAGE_SIZE,
-            historySkip: skip,
+            historySkip: historyPageIndex * PAGE_SIZE,
             keepSelection,
             previousSelectedHash: selectedCommit?.hash ?? null,
             ignoreWhitespace: hideWhitespaceInDiff,
+            refreshRemoteTracking,
             filters: historyFilters,
             preferredFilePathFilter: historyFilters.filePath,
-          });
+            cachedCommitDetails: getCachedCommitDetails(
+              historyFilters.filePath,
+            ),
+          }),
+        {
+          keepSelection,
+          refreshRemoteTracking,
+          skip: historyPageIndex * PAGE_SIZE,
+        },
+      );
 
-      if (requestId !== overviewRequestId) {
-        return;
-      }
-
-      if (!cachedOverview) {
-        overviewCache.set(cacheKey, {
-          branchStatus: repositoryState.snapshot.branchStatus,
-          branches: repositoryState.branches,
-          history: {
-            items: repositoryState.snapshot.commits,
-            nextSkip: repositoryState.snapshot.nextSkip,
-            hasMore: repositoryState.snapshot.hasMore,
-            totalCount: repositoryState.snapshot.totalCount,
-            unpushedCount: 0,
-            safeUnpushedCount: 0,
-          },
-        });
-      }
+      notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
-      if (repositoryState.snapshot.selectedCommit) {
-        void loadCommitFiles(
-          repositoryState.snapshot.selectedCommit.hash,
-          historyFilters.filePath,
-        );
-      }
+      void rememberCurrentRepositoryRevision(path);
     } catch (error) {
-      if (requestId === overviewRequestId) {
-        notify(
-          translate($locale, "repository.readFailedTitle"),
-          getErrorMessage(error, $locale),
-          "error",
-        );
-      }
+      notify(
+        translate($locale, "repository.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
-      if (requestId === overviewRequestId) {
-        overviewRefreshing = false;
-      }
+      loadingRepository = false;
     }
   }
 
@@ -610,7 +563,7 @@
       !canSwitchBranch(
         {
           currentRepository: repository,
-          loadingRepository: overviewRefreshing || indexLoading,
+          loadingRepository,
           switchingBranch,
           isPushing,
           stepPushState,
@@ -623,11 +576,12 @@
     }
 
     switchingBranch = true;
-    overviewRefreshing = true;
+    loadingRepository = true;
     historyPageIndex = 0;
 
     try {
       await api.checkoutBranch(repository.path, branch);
+      invalidateRepositoryCache(repository.path);
       await loadRepositoryState(repository.path);
       notify(
         translate($locale, "branch.switchedTitle"),
@@ -641,26 +595,50 @@
         "error",
       );
     } finally {
-      overviewRefreshing = false;
+      loadingRepository = false;
       switchingBranch = false;
     }
   }
 
   async function refreshCurrentRepositoryOnFocus() {
     const repository = currentRepository;
+    const now = Date.now();
 
     if (
       !repository ||
-      !canRefreshCurrentRepositoryOnFocus({
+      !canCheckRepositoryRevisionOnFocus({
         currentRepository: repository,
-        loadingRepository: overviewRefreshing,
+        loadingRepository,
         loadingHistory,
+        lastCheckedAt: lastFocusRevisionCheckedAt,
+        now,
+        throttleMs: FOCUS_REVISION_THROTTLE_MS,
       })
     ) {
       return;
     }
 
-    await loadCurrentRepositoryState(true);
+    lastFocusRevisionCheckedAt = now;
+
+    try {
+      const nextRevision = await api.getRepositoryRevision(repository.path);
+
+      if (
+        !shouldRefreshRepositoryForRevision(
+          currentRepositoryRevision,
+          nextRevision,
+        )
+      ) {
+        currentRepositoryRevision = nextRevision;
+        return;
+      }
+
+      currentRepositoryRevision = nextRevision;
+      invalidateRepositoryCache(repository.path);
+      await loadCurrentRepositoryState(true);
+    } catch (error) {
+      console.error("failed to refresh repository revision", error);
+    }
   }
 
   async function fetchRemoteStatusManually() {
@@ -670,7 +648,7 @@
       !repository ||
       !canRefreshBlockedBranchStatus({
         currentRepository: repository,
-        loadingRepository: overviewRefreshing || indexLoading,
+        loadingRepository,
         switchingBranch,
         isPushing,
         stepPushState,
@@ -681,10 +659,10 @@
     }
 
     syncingRemoteStatus = true;
+    invalidateRepositoryCache(repository.path);
 
     try {
-      await api.refreshRemoteTracking(repository.path);
-      const repositoryState = await loadRepositoryOverviewState(
+      const repositoryState = await loadRepositoryStateSnapshot(
         api,
         repository.path,
         {
@@ -693,18 +671,16 @@
           keepSelection: true,
           previousSelectedHash: selectedCommit?.hash ?? null,
           ignoreWhitespace: hideWhitespaceInDiff,
+          refreshRemoteTracking: true,
           filters: historyFilters,
           preferredFilePathFilter: historyFilters.filePath,
+          cachedCommitDetails: getCachedCommitDetails(historyFilters.filePath),
         },
       );
 
+      notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
-      if (repositoryState.snapshot.selectedCommit) {
-        void loadCommitFiles(
-          repositoryState.snapshot.selectedCommit.hash,
-          historyFilters.filePath,
-        );
-      }
+      void rememberCurrentRepositoryRevision(repository.path);
     } catch (error) {
       notify(
         translate($locale, "repository.readFailedTitle"),
@@ -736,51 +712,26 @@
     loadingHistory = true;
 
     try {
-      const skip = targetPageIndex * PAGE_SIZE;
-      const cacheKey = overviewCacheKey(repository.path, skip, filters);
-      const cachedOverview = overviewCache.get(cacheKey);
-      const repositoryState = cachedOverview
-        ? {
-            snapshot: snapshotFromOverview(cachedOverview, false, null),
-            branches: cachedOverview.branches,
-            remoteRefreshError: null,
-          }
-        : await loadRepositoryOverviewState(api, repository.path, {
-            pageSize: PAGE_SIZE,
-            historySkip: skip,
-            keepSelection: false,
-            previousSelectedHash: null,
-            ignoreWhitespace: hideWhitespaceInDiff,
-            filters,
-            preferredFilePathFilter: filters.filePath,
-          });
+      const page = await api.getCommitHistory(
+        repository.path,
+        targetPageIndex * PAGE_SIZE,
+        PAGE_SIZE,
+        filters,
+      );
 
       if (requestId !== historyRequestId) {
         return;
       }
 
-      if (!cachedOverview) {
-        overviewCache.set(cacheKey, {
-          branchStatus: repositoryState.snapshot.branchStatus,
-          branches: repositoryState.branches,
-          history: {
-            items: repositoryState.snapshot.commits,
-            nextSkip: repositoryState.snapshot.nextSkip,
-            hasMore: repositoryState.snapshot.hasMore,
-            totalCount: repositoryState.snapshot.totalCount,
-            unpushedCount: 0,
-            safeUnpushedCount: 0,
-          },
-        });
-      }
       historyPageIndex = targetPageIndex;
-      applyRepositoryState(repositoryState);
+      commits = page.items;
+      nextSkip = page.nextSkip;
+      hasMore = page.hasMore;
+      historyTotalCount = page.totalCount;
 
-      if (repositoryState.snapshot.selectedCommit) {
-        await loadCommitFiles(
-          repositoryState.snapshot.selectedCommit.hash,
-          filters.filePath,
-        );
+      const selected = page.items[0] ?? null;
+      if (selected) {
+        await selectCommit(selected, filters.filePath);
       } else {
         clearHistoryDetailState();
       }
@@ -799,8 +750,24 @@
     }
   }
 
+  function waitForAnimationFrame() {
+    return new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => resolve());
+        return;
+      }
+
+      setTimeout(resolve, 0);
+    });
+  }
+
+  async function paintLoadingState() {
+    await tick();
+    await waitForAnimationFrame();
+  }
+
   function changeHistoryPage(pageIndex: number) {
-    if (loadingHistory || indexLoading) {
+    if (loadingHistory || loadingRepository) {
       return;
     }
 
@@ -823,12 +790,17 @@
     preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
   ) {
     selectedCommit = commit;
-    await loadCommitFiles(commit.hash, preferredFilePathFilter);
+    await loadCommitFiles(
+      commit.hash,
+      preferredFilePathFilter,
+      commit.parents[0] ?? null,
+    );
   }
 
   async function loadCommitFiles(
     hash: string,
     preferredFilePathFilter: string | null = historyFilters.filePath ?? null,
+    baseHash: string | null = selectedCommit?.parents[0] ?? null,
   ) {
     const repository = currentRepository;
 
@@ -836,73 +808,38 @@
       return;
     }
 
-    const requestId = ++detailsRequestId;
-    detailsLoading = true;
+    loadingFiles = true;
     selectedFilePath = null;
     diffResult = EMPTY_DIFF_RESULT;
+    await paintLoadingState();
 
     try {
-      const commit =
-        commits.find((item) => item.hash === hash) ?? selectedCommit;
-      if (!commit) {
-        return;
-      }
-
-      const cacheKey = commitDetailsCacheKey(repository.path, commit.hash);
-      const cachedDetails = commitDetailsCache.get(cacheKey);
-      const details = cachedDetails
-        ? {
-            commitFiles: cachedDetails.files,
-            commitMeta: cachedDetails.meta,
-            selectedFilePath:
-              cachedDetails.files.find((file) =>
-                preferredFilePathFilter
-                  ? file.path
-                      .toLowerCase()
-                      .includes(preferredFilePathFilter.toLowerCase()) ||
-                    file.displayPath
-                      .toLowerCase()
-                      .includes(preferredFilePathFilter.toLowerCase())
-                  : false,
-              )?.path ??
-              cachedDetails.files[0]?.path ??
-              null,
-          }
-        : await loadCommitDetailsState(
+      const details = await measureAsync(
+        "page.loadCommitFiles",
+        () =>
+          fetchCommitDetails(
             api,
             repository.path,
-            commit,
+            hash,
+            hideWhitespaceInDiff,
             preferredFilePathFilter,
-          );
-      if (requestId !== detailsRequestId) {
-        return;
-      }
-
-      if (!cachedDetails) {
-        commitDetailsCache.set(cacheKey, {
-          meta: details.commitMeta,
-          files: details.commitFiles,
-        });
-      }
+            baseHash,
+          ),
+        { hash, preferredFilePathFilter },
+      );
       selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
       selectedFilePath = details.selectedFilePath;
-      if (details.selectedFilePath) {
-        void loadDiff(details.selectedFilePath);
-      }
+      diffResult = details.diffResult;
     } catch (error) {
-      if (requestId === detailsRequestId) {
-        selectedCommitMeta = null;
-        notify(
-          translate($locale, "commit.detailsFailedTitle"),
-          getErrorMessage(error, $locale),
-          "error",
-        );
-      }
+      selectedCommitMeta = null;
+      notify(
+        translate($locale, "commit.detailsFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
-      if (requestId === detailsRequestId) {
-        detailsLoading = false;
-      }
+      loadingFiles = false;
     }
   }
 
@@ -918,49 +855,35 @@
       return;
     }
 
-    const requestId = ++diffRequestId;
     loadingDiff = true;
     selectedFilePath = filePath;
+    await paintLoadingState();
 
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);
-      const cacheKey = diffCacheKey(
-        repository.path,
-        commit.hash,
-        filePath,
-        selectedFile?.previousPath,
-        hideWhitespaceInDiff,
+      diffResult = await measureAsync(
+        "page.loadDiff",
+        () =>
+          fetchCommitFileDiff(
+            api,
+            repository.path,
+            commit.hash,
+            filePath,
+            hideWhitespaceInDiff,
+            selectedFile?.previousPath ?? null,
+            commit.parents[0] ?? null,
+          ),
+        { filePath, hideWhitespaceInDiff },
       );
-      const cachedDiff = diffCache.get(cacheKey);
-      const nextDiffResult =
-        cachedDiff ??
-        (await api.getCommitFileDiff(
-          repository.path,
-          commit.hash,
-          filePath,
-          hideWhitespaceInDiff,
-          selectedFile?.previousPath ?? null,
-        ));
-      if (requestId !== diffRequestId) {
-        return;
-      }
-      if (!cachedDiff) {
-        diffCache.set(cacheKey, nextDiffResult);
-      }
-      diffResult = nextDiffResult;
     } catch (error) {
-      if (requestId === diffRequestId) {
-        diffResult = EMPTY_DIFF_RESULT;
-        notify(
-          translate($locale, "diff.readFailedTitle"),
-          getErrorMessage(error, $locale),
-          "error",
-        );
-      }
+      diffResult = EMPTY_DIFF_RESULT;
+      notify(
+        translate($locale, "diff.readFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
     } finally {
-      if (requestId === diffRequestId) {
-        loadingDiff = false;
-      }
+      loadingDiff = false;
     }
   }
 
@@ -1137,7 +1060,12 @@
         repository.path,
         status.branch,
       );
-      pushToCommitState = toRunningPushToCommitState(started);
+      if (pushToCommitState?.jobId !== started.jobId) {
+        pushToCommitState = toRunningPushToCommitState({
+          ...started,
+          status: "preparing",
+        });
+      }
     } catch (error) {
       isPushing = false;
       notify(
@@ -1204,7 +1132,12 @@
         branch: status.branch,
         hash: commit.hash,
       });
-      pushToCommitState = toRunningPushToCommitState(started);
+      if (pushToCommitState?.jobId !== started.jobId) {
+        pushToCommitState = toRunningPushToCommitState({
+          ...started,
+          status: "preparing",
+        });
+      }
     } catch (error) {
       isPushing = false;
       notify(
@@ -1326,6 +1259,13 @@
       );
 
       disposers.push(
+        await listenPushToCommitProgress((payload) => {
+          pushToCommitState = toRunningPushToCommitState(payload);
+          isPushing = true;
+        }),
+      );
+
+      disposers.push(
         await listenPushToCommitFinished((payload) => {
           const target = formatPushTargetLabel(
             payload.target,
@@ -1334,6 +1274,9 @@
           );
           pushToCommitState = toFinishedPushToCommitState(payload);
           isPushing = false;
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "push.successTitle"),
@@ -1358,6 +1301,9 @@
         await listenPushToCommitFailed((payload) => {
           pushToCommitState = toFailedPushToCommitState(payload, $locale);
           isPushing = false;
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "push.failedTitle"),
@@ -1385,6 +1331,9 @@
       disposers.push(
         await listenStepPushFinished((payload) => {
           stepPushState = toFinishedStepPushState(payload, stepPushState);
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "stepPush.completeTitle"),
@@ -1406,6 +1355,9 @@
       disposers.push(
         await listenStepPushFailed((payload) => {
           stepPushState = toFailedStepPushState(payload, $locale);
+          if (currentRepository) {
+            invalidateRepositoryCache(currentRepository.path);
+          }
 
           notify(
             translate($locale, "stepPush.failedTitle"),
@@ -1430,14 +1382,7 @@
             return;
           }
 
-          if (focusRefreshTimer) {
-            window.clearTimeout(focusRefreshTimer);
-          }
-
-          focusRefreshTimer = window.setTimeout(() => {
-            focusRefreshTimer = null;
-            void refreshCurrentRepositoryOnFocus();
-          }, 500);
+          void refreshCurrentRepositoryOnFocus();
         }),
       );
 
@@ -1489,9 +1434,6 @@
       }
       if (historyFilterTimer) {
         window.clearTimeout(historyFilterTimer);
-      }
-      if (focusRefreshTimer) {
-        window.clearTimeout(focusRefreshTimer);
       }
     };
   });
@@ -1563,8 +1505,7 @@
       {branchStatus}
       branchDisabled={isBranchSwitcherDisabled({
         currentRepository,
-        loadingRepository:
-          indexLoading || switchingBranch || syncingRemoteStatus,
+        loadingRepository: loadingRepository || syncingRemoteStatus,
         switchingBranch,
         isPushing,
         stepPushState,
@@ -1618,7 +1559,7 @@
               class="h-8 shrink-0 rounded-sm border border-amber-300/35 bg-amber-300/10 px-3 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/18 disabled:cursor-not-allowed disabled:opacity-55"
               disabled={!canRefreshBlockedBranchStatus({
                 currentRepository,
-                loadingRepository: indexLoading || overviewRefreshing,
+                loadingRepository,
                 switchingBranch,
                 isPushing,
                 stepPushState,
@@ -1733,8 +1674,7 @@
         filters={historyFilters}
         activeFilterCount={activeHistoryFilterCount}
         selectedHash={selectedCommit?.hash ?? null}
-        loading={loadingHistory ||
-          ((indexLoading || overviewRefreshing) && commits.length === 0)}
+        loading={loadingHistory || loadingRepository}
         totalCount={historyTotalCount}
         pageIndex={historyPageIndex}
         pageSize={PAGE_SIZE}

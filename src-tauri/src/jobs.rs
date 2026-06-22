@@ -14,8 +14,8 @@ use crate::{
     git,
     models::{
         PushTargetKind, PushToCommitFailed, PushToCommitFinished, PushToCommitJobStarted,
-        PushToCommitRequest, StepPushFailed, StepPushFinished, StepPushJobStarted,
-        StepPushProgress, StepPushRequest,
+        PushToCommitProgress, PushToCommitRequest, StepPushFailed, StepPushFinished,
+        StepPushJobStarted, StepPushProgress, StepPushRequest,
     },
 };
 
@@ -23,6 +23,7 @@ pub const STEP_PUSH_PROGRESS_EVENT: &str = "step-push-progress";
 pub const STEP_PUSH_FINISHED_EVENT: &str = "step-push-finished";
 pub const STEP_PUSH_FAILED_EVENT: &str = "step-push-failed";
 pub const PUSH_TO_COMMIT_FINISHED_EVENT: &str = "push-to-commit-finished";
+pub const PUSH_TO_COMMIT_PROGRESS_EVENT: &str = "push-to-commit-progress";
 pub const PUSH_TO_COMMIT_FAILED_EVENT: &str = "push-to-commit-failed";
 const REMOTE_NAME: &str = "origin";
 
@@ -64,6 +65,51 @@ impl PushExecutionGate {
             running_task: Arc::new(Mutex::new(None)),
         }
     }
+}
+
+fn validate_non_empty(value: &str, code: &str, message: &str) -> AppResult<()> {
+    if value.trim().is_empty() {
+        return Err(AppError::new(code, message));
+    }
+
+    Ok(())
+}
+
+fn emit_push_to_commit_progress(
+    app: &AppHandle,
+    job_id: u64,
+    target: &str,
+    target_kind: PushTargetKind,
+    status: &str,
+) {
+    let _ = app.emit(
+        PUSH_TO_COMMIT_PROGRESS_EVENT,
+        PushToCommitProgress {
+            job_id,
+            target: target.to_string(),
+            target_kind,
+            status: status.to_string(),
+        },
+    );
+}
+
+fn emit_push_to_commit_failed(
+    app: &AppHandle,
+    job_id: u64,
+    target: &str,
+    target_kind: PushTargetKind,
+    error: AppError,
+) {
+    let _ = app.emit(
+        PUSH_TO_COMMIT_FAILED_EVENT,
+        PushToCommitFailed {
+            job_id,
+            target: target.to_string(),
+            target_kind,
+            message: error.message,
+            code: error.code,
+        },
+    );
 }
 
 fn clear_running_job(running_job: &Arc<Mutex<Option<u64>>>, job_id: u64) {
@@ -138,7 +184,7 @@ pub fn start_step_push(
 
     thread::spawn(move || {
         for (index, hash) in hashes.iter().enumerate() {
-            if let Err(error) = git::push_to_commit(&repo_path, &branch, hash) {
+            if let Err(error) = git::push_to_commit_prechecked(&repo_path, &branch, hash) {
                 let _ = app.emit(
                     STEP_PUSH_FAILED_EVENT,
                     StepPushFailed {
@@ -185,13 +231,9 @@ pub fn start_push_to_commit(
     gate: State<'_, PushExecutionGate>,
     request: PushToCommitRequest,
 ) -> AppResult<PushToCommitJobStarted> {
-    let branch = git::validate_current_branch(&request.repo_path, &request.branch)?;
-
-    if request.hash.trim().is_empty() {
-        return Err(AppError::new("invalid_hash", "目标 Commit 不能为空"));
-    }
-
-    git::validate_push_target(&request.repo_path, &request.hash)?;
+    validate_non_empty(&request.repo_path, "invalid_repository", "仓库路径不能为空")?;
+    validate_non_empty(&request.branch, "invalid_branch", "目标分支不能为空")?;
+    validate_non_empty(&request.hash, "invalid_hash", "目标 Commit 不能为空")?;
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
@@ -213,22 +255,53 @@ pub fn start_push_to_commit(
     }
 
     let repo_path = request.repo_path.clone();
+    let requested_branch = request.branch.clone();
     let hash = request.hash.clone();
     let event_target = hash.clone();
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
-        if let Err(error) = git::push_to_commit(&repo_path, &branch, &hash) {
-            let _ = app.emit(
-                PUSH_TO_COMMIT_FAILED_EVENT,
-                PushToCommitFailed {
+        emit_push_to_commit_progress(
+            &app,
+            job_id,
+            &event_target,
+            PushTargetKind::Commit,
+            "preparing",
+        );
+
+        let branch = match git::validate_current_branch(&repo_path, &requested_branch) {
+            Ok(branch) => branch,
+            Err(error) => {
+                emit_push_to_commit_failed(
+                    &app,
                     job_id,
-                    target: event_target,
-                    target_kind: PushTargetKind::Commit,
-                    message: error.message,
-                    code: error.code,
-                },
-            );
+                    &event_target,
+                    PushTargetKind::Commit,
+                    error,
+                );
+                clear_running_job(&running_job, job_id);
+                clear_push_execution(&running_task, &task_key_for_thread);
+                return;
+            }
+        };
+
+        if let Err(error) = git::validate_push_target(&repo_path, &hash) {
+            emit_push_to_commit_failed(&app, job_id, &event_target, PushTargetKind::Commit, error);
+            clear_running_job(&running_job, job_id);
+            clear_push_execution(&running_task, &task_key_for_thread);
+            return;
+        }
+
+        emit_push_to_commit_progress(
+            &app,
+            job_id,
+            &event_target,
+            PushTargetKind::Commit,
+            "running",
+        );
+
+        if let Err(error) = git::push_to_commit(&repo_path, &branch, &hash) {
+            emit_push_to_commit_failed(&app, job_id, &event_target, PushTargetKind::Commit, error);
             clear_running_job(&running_job, job_id);
             clear_push_execution(&running_task, &task_key_for_thread);
             return;
@@ -260,7 +333,8 @@ pub fn start_push_current_branch(
     repo_path: String,
     branch: String,
 ) -> AppResult<PushToCommitJobStarted> {
-    let branch = git::validate_current_branch(&repo_path, &branch)?;
+    validate_non_empty(&repo_path, "invalid_repository", "仓库路径不能为空")?;
+    validate_non_empty(&branch, "invalid_branch", "目标分支不能为空")?;
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
@@ -286,16 +360,29 @@ pub fn start_push_current_branch(
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
+        emit_push_to_commit_progress(
+            &app,
+            job_id,
+            &target_for_thread,
+            PushTargetKind::Branch,
+            "preparing",
+        );
+
+        emit_push_to_commit_progress(
+            &app,
+            job_id,
+            &target_for_thread,
+            PushTargetKind::Branch,
+            "running",
+        );
+
         if let Err(error) = git::push_current_branch_checked(&repo_path, &branch) {
-            let _ = app.emit(
-                PUSH_TO_COMMIT_FAILED_EVENT,
-                PushToCommitFailed {
-                    job_id,
-                    target: target_for_thread.clone(),
-                    target_kind: PushTargetKind::Branch,
-                    message: error.message,
-                    code: error.code,
-                },
+            emit_push_to_commit_failed(
+                &app,
+                job_id,
+                &target_for_thread,
+                PushTargetKind::Branch,
+                error,
             );
             clear_running_job(&running_job, job_id);
             clear_push_execution(&running_task, &task_key_for_thread);
@@ -323,8 +410,18 @@ pub fn start_push_current_branch(
 
 #[cfg(test)]
 mod tests {
-    use super::{clear_push_execution, clear_running_job, reserve_push_execution};
+    use super::{
+        clear_push_execution, clear_running_job, reserve_push_execution, validate_non_empty,
+    };
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn rejects_empty_push_request_fields() {
+        let error = validate_non_empty("  ", "invalid_hash", "目标 Commit 不能为空").unwrap_err();
+
+        assert_eq!(error.code, "invalid_hash");
+        assert_eq!(error.message, "目标 Commit 不能为空");
+    }
 
     #[test]
     fn rejects_parallel_push_execution_reservations() {

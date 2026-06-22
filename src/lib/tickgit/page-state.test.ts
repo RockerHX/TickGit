@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type {
   BranchStatus,
+  RepositoryRevision,
   RepositorySummary,
   StepPushUiState,
 } from "$lib/types";
 import {
   canLoadCommitFiles,
+  canCheckRepositoryRevisionOnFocus,
   canLoadDiff,
   canLoadHistory,
   canPushCurrentBranch,
@@ -15,6 +17,8 @@ import {
   canStartTargetCommitPush,
   canSwitchBranch,
   isRepositoryAvailable,
+  repositoryRevisionsEqual,
+  shouldRefreshRepositoryForRevision,
   isBranchSwitcherDisabled,
   isContextMenuDisabled,
   shouldClearRepositoryData,
@@ -49,6 +53,17 @@ function branchStatus(overrides: Partial<BranchStatus> = {}): BranchStatus {
     detached: false,
     pushAvailable: true,
     disabledReason: null,
+    ...overrides,
+  };
+}
+
+function revision(
+  overrides: Partial<RepositoryRevision> = {},
+): RepositoryRevision {
+  return {
+    head: "h1",
+    branch: "main",
+    upstream: "u1",
     ...overrides,
   };
 }
@@ -169,6 +184,40 @@ describe("page state", () => {
     expect(shouldShowRepositoryUnavailableState(repo)).toBe(false);
     expect(shouldClearRepositoryData(null)).toBe(true);
     expect(shouldShowRepositoryUnavailableState(null)).toBe(false);
+  });
+
+  it("throttles focus revision checks and skips unchanged revisions", () => {
+    const repo = repository();
+
+    expect(
+      canCheckRepositoryRevisionOnFocus({
+        currentRepository: repo,
+        loadingRepository: false,
+        loadingHistory: false,
+        lastCheckedAt: 1_000,
+        now: 62_000,
+        throttleMs: 60_000,
+      }),
+    ).toBe(true);
+    expect(
+      canCheckRepositoryRevisionOnFocus({
+        currentRepository: repo,
+        loadingRepository: false,
+        loadingHistory: false,
+        lastCheckedAt: 10_000,
+        now: 20_000,
+        throttleMs: 60_000,
+      }),
+    ).toBe(false);
+
+    expect(repositoryRevisionsEqual(revision(), revision())).toBe(true);
+    expect(shouldRefreshRepositoryForRevision(null, revision())).toBe(false);
+    expect(shouldRefreshRepositoryForRevision(revision(), revision())).toBe(
+      false,
+    );
+    expect(
+      shouldRefreshRepositoryForRevision(revision(), revision({ head: "h2" })),
+    ).toBe(true);
   });
 
   it("blocks git loading when the current repository is unavailable", () => {

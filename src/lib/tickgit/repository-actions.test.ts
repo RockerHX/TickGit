@@ -115,6 +115,11 @@ function createApiMock(
     refreshRemoteTracking: vi.fn().mockResolvedValue(undefined),
     listLocalBranches: vi.fn().mockResolvedValue(["main"]),
     getBranchStatus: vi.fn().mockResolvedValue(branchStatus()),
+    getRepositoryRevision: vi.fn().mockResolvedValue({
+      head: "h1",
+      branch: "main",
+      upstream: null,
+    }),
     getCommitHistory: vi.fn().mockResolvedValue(historyPage(commits)),
     getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),
@@ -204,6 +209,42 @@ describe("repository actions", () => {
     expect(api.getBranchStatus).toHaveBeenCalledWith("/repo-a");
   });
 
+  it("passes cached commit details into snapshot loading", async () => {
+    const cachedFiles = [fileChange("src/main.ts")];
+    const getCommitFiles = vi.fn();
+    const getCommitMeta = vi.fn();
+    const getCommitFileDiff = vi.fn();
+    const api = createApiMock({
+      getCommitHistory: vi.fn().mockResolvedValue(historyPage([commit("c1")])),
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const state = await loadRepositoryStateSnapshot(api, "/repo-a", {
+      pageSize: 50,
+      keepSelection: true,
+      previousSelectedHash: "c1",
+      ignoreWhitespace: false,
+      preferredFilePathFilter: "src/main",
+      cachedCommitDetails: {
+        hash: "c1",
+        ignoreWhitespace: false,
+        preferredFilePathFilter: "src/main",
+        commitFiles: cachedFiles,
+        commitMeta: commitMeta(),
+        selectedFilePath: "src/main.ts",
+        diffResult: diffResult("@@ cached"),
+      },
+    });
+
+    expect(state.snapshot.commitFiles).toBe(cachedFiles);
+    expect(state.snapshot.diffResult).toEqual(diffResult("@@ cached"));
+    expect(getCommitFiles).not.toHaveBeenCalled();
+    expect(getCommitMeta).not.toHaveBeenCalled();
+    expect(getCommitFileDiff).not.toHaveBeenCalled();
+  });
+
   it("keeps loading snapshot when manual remote refresh fails", async () => {
     const remoteRefreshError = new Error("fetch failed");
     const api = createApiMock({
@@ -262,6 +303,7 @@ describe("repository actions", () => {
       "c1",
       "src/matched.ts",
       false,
+      null,
       null,
     );
   });

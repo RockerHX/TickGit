@@ -24,6 +24,8 @@
               {translate($locale, "push.finished")}
             {:else if state.status === "failed"}
               {translate($locale, "push.failedTitle")}
+            {:else if state.status === "preparing"}
+              {translate($locale, "push.preparing")}
             {:else}
               {state.targetKind === "commit"
                 ? translate($locale, "push.uploadingCommit")
@@ -47,7 +49,10 @@
                   : "border-sky-500/40 bg-sky-500/10 text-sky-200"
             }`}
           >
-            {#if state.status === "running"}{translate(
+            {#if state.status === "preparing"}{translate(
+                $locale,
+                "push.preparingShort",
+              )}{:else if state.status === "running"}{translate(
                 $locale,
                 "push.uploading",
               )}{:else if state.status === "finished"}{translate(

@@ -1,6 +1,7 @@
 import type {
   BranchStatus,
   CommitListItem,
+  RepositoryRevision,
   RepositorySummary,
   StepPushUiState,
 } from "$lib/types";
@@ -80,6 +81,41 @@ export function canRefreshCurrentRepositoryOnFocus(
     isRepositoryAvailable(state.currentRepository) &&
     !state.loadingRepository &&
     !state.loadingHistory
+  );
+}
+
+export function repositoryRevisionsEqual(
+  left: RepositoryRevision | null,
+  right: RepositoryRevision | null,
+) {
+  return (
+    Boolean(left && right) &&
+    left?.head === right?.head &&
+    left?.branch === right?.branch &&
+    left?.upstream === right?.upstream
+  );
+}
+
+export function canCheckRepositoryRevisionOnFocus(
+  state: RepositoryLoadState & {
+    loadingHistory: boolean;
+    lastCheckedAt: number;
+    now: number;
+    throttleMs: number;
+  },
+) {
+  return (
+    canRefreshCurrentRepositoryOnFocus(state) &&
+    state.now - state.lastCheckedAt >= state.throttleMs
+  );
+}
+
+export function shouldRefreshRepositoryForRevision(
+  currentRevision: RepositoryRevision | null,
+  nextRevision: RepositoryRevision,
+) {
+  return Boolean(
+    currentRevision && !repositoryRevisionsEqual(currentRevision, nextRevision),
   );
 }
 

@@ -21,6 +21,12 @@ export type BranchStatus = {
   disabledReasonCode?: string | null;
 };
 
+export type RepositoryRevision = {
+  head: string;
+  branch: string;
+  upstream: string | null;
+};
+
 export type CommitListItem = {
   hash: string;
   shortHash: string;
@@ -158,6 +164,13 @@ export type PushToCommitFinished = {
   targetKind: PushTargetKind;
 };
 
+export type PushToCommitProgress = {
+  jobId: number;
+  target: string;
+  targetKind: PushTargetKind;
+  status: "preparing" | "running";
+};
+
 export type PushToCommitFailed = {
   jobId: number;
   target: string;
@@ -176,7 +189,7 @@ export type StepPushProgress = {
   current: number;
   total: number;
   hash: string;
-  status: "running";
+  status: "preparing" | "running";
 };
 
 export type StepPushFinished = {
@@ -210,7 +223,7 @@ export type StepPushUiState = {
   current: number;
   total: number;
   hash: string;
-  status: "running" | "finished" | "failed";
+  status: "preparing" | "running" | "finished" | "failed";
   message?: string;
   code?: string | null;
 };
@@ -219,7 +232,7 @@ export type PushToCommitUiState = {
   jobId: number;
   target: string;
   targetKind: PushTargetKind;
-  status: "running" | "finished" | "failed";
+  status: "preparing" | "running" | "finished" | "failed";
   message?: string;
   code?: string | null;
 };

@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    command::{git_run, git_trimmed},
+    command::{git_run, git_text, git_trimmed},
     repository::{
         branch_status_for_path, current_branch_matching, resolve_repository_path,
         sync_origin_tracking,
@@ -81,39 +81,29 @@ pub(super) fn safe_unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResul
         .collect())
 }
 
-fn first_parent_unpushed_hashes_in_push_order(
-    repo_path: &Path,
-    upstream: &str,
-) -> AppResult<Vec<String>> {
+fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+    if !is_ancestor(repo_path, upstream, "HEAD")? {
+        return Ok(Vec::new());
+    }
+
     let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
-    let mut hashes: Vec<String> = output
+    let output = git_trimmed(
+        repo_path,
+        &[
+            "rev-list",
+            "--first-parent",
+            "--ancestry-path",
+            "--reverse",
+            &range,
+        ],
+    )?;
+
+    Ok(output
         .lines()
         .map(str::trim)
         .filter(|hash| !hash.is_empty())
         .map(ToOwned::to_owned)
-        .collect();
-    hashes.reverse();
-    Ok(hashes)
-}
-
-pub(super) fn safe_unpushed_hashes_in_push_order(
-    repo_path: &Path,
-    upstream: &str,
-) -> AppResult<Vec<String>> {
-    let hashes = first_parent_unpushed_hashes_in_push_order(repo_path, upstream)?;
-    let mut first_safe_index = None;
-    for (index, hash) in hashes.iter().enumerate() {
-        if is_ancestor(repo_path, upstream, hash)? {
-            first_safe_index = Some(index);
-            break;
-        }
-    }
-    let Some(first_safe_index) = first_safe_index else {
-        return Ok(Vec::new());
-    };
-
-    Ok(hashes[first_safe_index..].to_vec())
+        .collect())
 }
 
 fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
@@ -262,15 +252,39 @@ fn step_push_branch_blocked_reason(
     }
 }
 
-fn step_push_plan_item(repo_path: &Path, hash: &str) -> AppResult<StepPushPlanItem> {
-    let output = git_trimmed(repo_path, &["show", "-s", "--format=%H%x1f%h%x1f%s", hash])?;
-    let mut fields = output.splitn(3, '\u{1f}');
+fn parse_step_push_plan_item(record: &str) -> Option<StepPushPlanItem> {
+    let mut fields = record.splitn(3, '\u{1f}');
+    let hash = fields.next()?.trim();
 
-    Ok(StepPushPlanItem {
-        hash: fields.next().unwrap_or(hash).trim().to_string(),
+    if hash.is_empty() {
+        return None;
+    }
+
+    Some(StepPushPlanItem {
+        hash: hash.to_string(),
         short_hash: fields.next().unwrap_or("").trim().to_string(),
         summary: fields.next().unwrap_or("").trim().to_string(),
     })
+}
+
+fn step_push_plan_items(repo_path: &Path, hashes: &[String]) -> AppResult<Vec<StepPushPlanItem>> {
+    if hashes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut args = vec![
+        "log".to_string(),
+        "--no-walk=unsorted".to_string(),
+        "--format=%H%x1f%h%x1f%s%x1e".to_string(),
+    ];
+    args.extend(hashes.iter().cloned());
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = git_text(repo_path, &arg_refs)?;
+
+    Ok(output
+        .split('\u{1e}')
+        .filter_map(parse_step_push_plan_item)
+        .collect())
 }
 
 pub fn validate_push_target(repo_path: &str, hash: &str) -> AppResult<()> {
@@ -332,10 +346,7 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
         return Err(error);
     }
 
-    let items = safe_hashes[..=target_index]
-        .iter()
-        .map(|hash| step_push_plan_item(&repo_path, hash))
-        .collect::<AppResult<Vec<_>>>()?;
+    let items = step_push_plan_items(&repo_path, &safe_hashes[..=target_index])?;
 
     Ok(StepPushPlan {
         branch: branch_status.branch,
@@ -363,6 +374,13 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
     let repo_path = resolve_repository_path(repo_path)?;
     let branch = current_branch_matching(&repo_path, branch)?;
     ensure_safe_push_target(&repo_path, hash)?;
+    let refspec = format!("{hash}:refs/heads/{branch}");
+    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
+}
+
+pub fn push_to_commit_prechecked(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let branch = current_branch_matching(&repo_path, branch)?;
     let refspec = format!("{hash}:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }

@@ -33,6 +33,7 @@ pub fn run() {
             commands::remove_repository,
             commands::relocate_repository,
             commands::get_branch_status,
+            commands::get_repository_revision,
             commands::refresh_remote_tracking,
             commands::list_local_branches,
             commands::checkout_branch,

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::{AppError, AppResult},
-    models::BranchStatus,
+    models::{BranchStatus, RepositoryRevision},
 };
 
 use super::{
@@ -249,4 +249,23 @@ pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
     }
 
     git_run(&repo_path, &["checkout", branch])
+}
+
+pub fn get_repository_revision(repo_path: &str) -> AppResult<RepositoryRevision> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let head = git_trimmed(&repo_path, &["rev-parse", "HEAD"])?;
+    let (branch, detached) = current_branch_name(&repo_path)?;
+    let upstream = if detached {
+        None
+    } else {
+        git_trimmed(&repo_path, &["rev-parse", "@{upstream}"])
+            .ok()
+            .filter(|value| !value.is_empty())
+    };
+
+    Ok(RepositoryRevision {
+        head,
+        branch,
+        upstream,
+    })
 }

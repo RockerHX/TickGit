@@ -27,6 +27,14 @@ pub struct StoredRepository {
     pub last_opened_at: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryRevision {
+    pub head: String,
+    pub branch: String,
+    pub upstream: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchStatus {
@@ -255,6 +263,15 @@ pub struct PushToCommitFinished {
     pub job_id: u64,
     pub target: String,
     pub target_kind: PushTargetKind,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PushToCommitProgress {
+    pub job_id: u64,
+    pub target: String,
+    pub target_kind: PushTargetKind,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
