@@ -232,9 +232,7 @@ pub fn get_commit_history(
 
         (items, item_count, has_more, total_count)
     } else {
-        let total_count = git_trimmed(&repo_path, &["rev-list", "--count", "HEAD"])?
-            .parse::<usize>()
-            .unwrap_or(0);
+        let query_limit = limit.saturating_add(1);
         let output = git_trimmed(
             &repo_path,
             &[
@@ -243,7 +241,7 @@ pub fn get_commit_history(
                 "--skip",
                 &skip.to_string(),
                 "-n",
-                &limit.to_string(),
+                &query_limit.to_string(),
                 "--date=iso-strict",
                 "--decorate=short",
                 "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1e",
@@ -251,10 +249,14 @@ pub fn get_commit_history(
             ],
         )?;
 
-        let items =
+        let mut items =
             parse_commit_history(&output, &unpushed, &safe_push_targets, unsafe_push_reason);
+        let has_more = items.len() > limit;
+        if has_more {
+            items.truncate(limit);
+        }
         let item_count = items.len();
-        let has_more = skip + item_count < total_count;
+        let total_count = skip + item_count + usize::from(has_more);
 
         (items, item_count, has_more, total_count)
     };

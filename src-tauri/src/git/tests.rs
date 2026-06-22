@@ -528,6 +528,48 @@ fn filters_commit_history_by_author_name_and_email_case_insensitively() {
 }
 
 #[test]
+fn paginates_normal_commit_history_with_limit_plus_one() {
+    let repo = init_repo();
+    let first_hash = commit_file(&repo.path, "one.txt", "one\n", "one");
+    let second_hash = commit_file(&repo.path, "two.txt", "two\n", "two");
+    let third_hash = commit_file(&repo.path, "three.txt", "three\n", "three");
+    let fourth_hash = commit_file(&repo.path, "four.txt", "four\n", "four");
+
+    let first_page = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 2, None).unwrap();
+    let second_page = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        first_page.next_skip,
+        2,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        first_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![fourth_hash.as_str(), third_hash.as_str()]
+    );
+    assert!(first_page.has_more);
+    assert_eq!(first_page.next_skip, 2);
+    assert_eq!(first_page.total_count, 3);
+
+    assert_eq!(
+        second_page
+            .items
+            .iter()
+            .map(|item| item.hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![second_hash.as_str(), first_hash.as_str()]
+    );
+    assert!(!second_page.has_more);
+    assert_eq!(second_page.next_skip, 4);
+    assert_eq!(second_page.total_count, 4);
+}
+
+#[test]
 fn paginates_filtered_commit_history_after_metadata_filters() {
     let repo = init_repo();
     let first_hash = commit_file(&repo.path, "one.txt", "one\n", "ticket one");
