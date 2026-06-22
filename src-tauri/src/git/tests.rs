@@ -528,6 +528,36 @@ fn filters_commit_history_by_author_name_and_email_case_insensitively() {
 }
 
 #[test]
+fn filters_commit_history_with_literal_author_and_message_patterns() {
+    let repo = init_repo();
+    run_git(&repo.path, &["config", "user.name", "Alice [Bot]"]);
+    run_git(
+        &repo.path,
+        &["config", "user.email", "alice.bot@example.com"],
+    );
+    let bot_hash = commit_file(&repo.path, "bot.txt", "bot\n", "fix [ui] literal pattern");
+    run_git(&repo.path, &["config", "user.name", "Bob Example"]);
+    run_git(&repo.path, &["config", "user.email", "bob@example.com"]);
+    commit_file(&repo.path, "bob.txt", "bob\n", "fix [api] literal pattern");
+
+    let history = get_commit_history(
+        repo.path.to_string_lossy().as_ref(),
+        0,
+        10,
+        Some(CommitHistoryFilters {
+            author: Some("[bot]".to_string()),
+            message: Some("fix [ui]".to_string()),
+            ..CommitHistoryFilters::default()
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.items[0].hash, bot_hash);
+    assert_eq!(history.total_count, 1);
+}
+
+#[test]
 fn paginates_normal_commit_history_with_limit_plus_one() {
     let repo = init_repo();
     let first_hash = commit_file(&repo.path, "one.txt", "one\n", "one");

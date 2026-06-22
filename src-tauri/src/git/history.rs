@@ -56,6 +56,41 @@ fn contains_normalized(value: &str, needle: &str) -> bool {
     value.to_ascii_lowercase().contains(needle)
 }
 
+fn git_basic_regex_literal(value: &str) -> String {
+    value.chars().fold(String::new(), |mut escaped, character| {
+        if matches!(character, '.' | '^' | '$' | '*' | '[' | ']' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+        escaped
+    })
+}
+
+fn filtered_history_log_args(filters: &NormalizedCommitHistoryFilters) -> Vec<String> {
+    let mut args = vec![
+        "log".to_string(),
+        "--topo-order".to_string(),
+        "--date=iso-strict".to_string(),
+        "--decorate=short".to_string(),
+        "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1f%B%x1e".to_string(),
+    ];
+
+    if filters.author.is_some() || filters.message.is_some() {
+        args.push("--regexp-ignore-case".to_string());
+    }
+
+    if let Some(author) = filters.author.as_deref() {
+        args.push(format!("--author={}", git_basic_regex_literal(author)));
+    }
+
+    if let Some(message) = filters.message.as_deref() {
+        args.push(format!("--grep={}", git_basic_regex_literal(message)));
+    }
+
+    args.push("HEAD".to_string());
+    args
+}
+
 fn commit_record_matches_metadata(record: &str, filters: &NormalizedCommitHistoryFilters) -> bool {
     if !filters.has_commit_metadata_filters() {
         return true;
@@ -187,17 +222,9 @@ pub fn get_commit_history(
     };
 
     let (items, item_count, has_more, total_count) = if filters.has_filters() {
-        let output = git_trimmed(
-            &repo_path,
-            &[
-                "log",
-                "--topo-order",
-                "--date=iso-strict",
-                "--decorate=short",
-                "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%D%x1f%P%x1f%B%x1e",
-                "HEAD",
-            ],
-        )?;
+        let log_args = filtered_history_log_args(&filters);
+        let log_arg_refs: Vec<&str> = log_args.iter().map(String::as_str).collect();
+        let output = git_trimmed(&repo_path, &log_arg_refs)?;
         let mut matched_records: Vec<&str> = Vec::new();
         for record in output
             .split('\u{1e}')
