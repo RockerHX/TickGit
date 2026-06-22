@@ -24,6 +24,7 @@
   import {
     listenPushToCommitFailed,
     listenPushToCommitFinished,
+    listenPushToCommitProgress,
     listenStepPushFailed,
     listenStepPushFinished,
     listenStepPushProgress,
@@ -1059,7 +1060,12 @@
         repository.path,
         status.branch,
       );
-      pushToCommitState = toRunningPushToCommitState(started);
+      if (pushToCommitState?.jobId !== started.jobId) {
+        pushToCommitState = toRunningPushToCommitState({
+          ...started,
+          status: "preparing",
+        });
+      }
     } catch (error) {
       isPushing = false;
       notify(
@@ -1126,7 +1132,12 @@
         branch: status.branch,
         hash: commit.hash,
       });
-      pushToCommitState = toRunningPushToCommitState(started);
+      if (pushToCommitState?.jobId !== started.jobId) {
+        pushToCommitState = toRunningPushToCommitState({
+          ...started,
+          status: "preparing",
+        });
+      }
     } catch (error) {
       isPushing = false;
       notify(
@@ -1244,6 +1255,13 @@
           } else if (payload.type === "drop") {
             void handleDrop(payload.paths);
           }
+        }),
+      );
+
+      disposers.push(
+        await listenPushToCommitProgress((payload) => {
+          pushToCommitState = toRunningPushToCommitState(payload);
+          isPushing = true;
         }),
       );
 

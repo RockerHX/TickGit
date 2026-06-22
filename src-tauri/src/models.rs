@@ -225,6 +225,15 @@ pub struct PushToCommitFinished {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct PushToCommitProgress {
+    pub job_id: u64,
+    pub target: String,
+    pub target_kind: PushTargetKind,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PushToCommitFailed {
     pub job_id: u64,
     pub target: String,

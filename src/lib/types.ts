@@ -132,6 +132,13 @@ export type PushToCommitFinished = {
   targetKind: PushTargetKind;
 };
 
+export type PushToCommitProgress = {
+  jobId: number;
+  target: string;
+  targetKind: PushTargetKind;
+  status: "preparing" | "running";
+};
+
 export type PushToCommitFailed = {
   jobId: number;
   target: string;
@@ -193,7 +200,7 @@ export type PushToCommitUiState = {
   jobId: number;
   target: string;
   targetKind: PushTargetKind;
-  status: "running" | "finished" | "failed";
+  status: "preparing" | "running" | "finished" | "failed";
   message?: string;
   code?: string | null;
 };

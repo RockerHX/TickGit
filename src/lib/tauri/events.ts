@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type {
   PushToCommitFailed,
   PushToCommitFinished,
+  PushToCommitProgress,
   StepPushFailed,
   StepPushFinished,
   StepPushProgress,
@@ -11,6 +12,7 @@ export const STEP_PUSH_PROGRESS_EVENT = "step-push-progress";
 export const STEP_PUSH_FINISHED_EVENT = "step-push-finished";
 export const STEP_PUSH_FAILED_EVENT = "step-push-failed";
 export const PUSH_TO_COMMIT_FINISHED_EVENT = "push-to-commit-finished";
+export const PUSH_TO_COMMIT_PROGRESS_EVENT = "push-to-commit-progress";
 export const PUSH_TO_COMMIT_FAILED_EVENT = "push-to-commit-failed";
 
 export async function listenStepPushProgress(
@@ -40,6 +42,17 @@ export async function listenStepPushFailed(
 ) {
   return getCurrentWindow().listen<StepPushFailed>(
     STEP_PUSH_FAILED_EVENT,
+    (event) => {
+      handler(event.payload);
+    },
+  );
+}
+
+export async function listenPushToCommitProgress(
+  handler: (payload: PushToCommitProgress) => void,
+) {
+  return getCurrentWindow().listen<PushToCommitProgress>(
+    PUSH_TO_COMMIT_PROGRESS_EVENT,
     (event) => {
       handler(event.payload);
     },
