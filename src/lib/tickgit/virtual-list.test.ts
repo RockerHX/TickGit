@@ -70,6 +70,20 @@ describe("virtual list window", () => {
     });
   });
 
+  it("keeps large file lists bounded to the visible window", () => {
+    const window = getVirtualWindow({
+      totalRows: 1000,
+      scrollTop: 4200,
+      viewportHeight: 420,
+      rowHeight: 42,
+      overscanRows: 12,
+    });
+
+    expect(window.endIndex - window.startIndex).toBeLessThan(1000);
+    expect(window.endIndex - window.startIndex).toBeLessThanOrEqual(34);
+    expect(window.startIndex).toBe(88);
+  });
+
   it("normalizes invalid numeric input", () => {
     expect(
       getVirtualWindow({
