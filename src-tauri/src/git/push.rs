@@ -356,3 +356,10 @@ pub fn push_to_commit(repo_path: &str, branch: &str, hash: &str) -> AppResult<()
     let refspec = format!("{hash}:refs/heads/{branch}");
     git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
 }
+
+pub fn push_to_commit_prechecked(repo_path: &str, branch: &str, hash: &str) -> AppResult<()> {
+    let repo_path = resolve_repository_path(repo_path)?;
+    let branch = current_branch_matching(&repo_path, branch)?;
+    let refspec = format!("{hash}:refs/heads/{branch}");
+    git_run(&repo_path, &["push", REMOTE_NAME, &refspec])
+}

@@ -2,9 +2,9 @@ use super::repository::branch_status_for_path;
 use super::{
     checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta,
     get_repository_revision, get_step_push_plan, list_local_branches, push_current_branch_checked,
-    push_to_commit, refresh_remote_tracking, resolve_repository_path, validate_current_branch,
-    validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
-    UNSAFE_PUSH_TARGET_MESSAGE,
+    push_to_commit, push_to_commit_prechecked, refresh_remote_tracking, resolve_repository_path,
+    validate_current_branch, validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE,
+    BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
 };
 use crate::{error::AppError, models::CommitHistoryFilters};
 use std::{
@@ -1117,6 +1117,69 @@ fn rejects_push_to_commit_when_remote_advanced_without_fetch() {
 
     assert_eq!(error.code, "push_unavailable");
     assert_eq!(error.message, BRANCH_BEHIND_REMOTE_MESSAGE);
+}
+
+#[test]
+fn prechecked_step_push_path_pushes_validated_hashes_in_order() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        &[first_hash.clone(), second_hash.clone()],
+    )
+    .unwrap();
+
+    push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &first_hash).unwrap();
+    push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &second_hash).unwrap();
+
+    let origin_head = run_git(
+        &origin.path,
+        &["rev-parse", &format!("refs/heads/{branch}")],
+    );
+    assert_eq!(origin_head, second_hash);
+}
+
+#[test]
+fn prechecked_step_push_path_fails_when_remote_changes() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+    validate_step_push_hashes(
+        repo.path.to_string_lossy().as_ref(),
+        std::slice::from_ref(&local_hash),
+    )
+    .unwrap();
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let error =
+        push_to_commit_prechecked(repo.path.to_string_lossy().as_ref(), &branch, &local_hash)
+            .unwrap_err();
+    assert_eq!(error.code, "git_command_failed");
 }
 
 #[test]

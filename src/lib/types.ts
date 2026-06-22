@@ -157,7 +157,7 @@ export type StepPushProgress = {
   current: number;
   total: number;
   hash: string;
-  status: "running";
+  status: "preparing" | "running";
 };
 
 export type StepPushFinished = {
@@ -191,7 +191,7 @@ export type StepPushUiState = {
   current: number;
   total: number;
   hash: string;
-  status: "running" | "finished" | "failed";
+  status: "preparing" | "running" | "finished" | "failed";
   message?: string;
   code?: string | null;
 };

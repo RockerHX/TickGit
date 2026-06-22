@@ -115,15 +115,18 @@ export function toFailedPushToCommitState(
 
 export function toRunningStepPushState(
   payload:
-    | (Pick<StepPushJobStarted, "jobId" | "total"> & { hash: string })
-    | Pick<StepPushProgress, "jobId" | "current" | "total" | "hash">,
+    | (Pick<StepPushJobStarted, "jobId" | "total"> & {
+        hash: string;
+        status?: "preparing" | "running";
+      })
+    | Pick<StepPushProgress, "jobId" | "current" | "total" | "hash" | "status">,
 ): StepPushUiState {
   return {
     jobId: payload.jobId,
     current: "current" in payload ? payload.current : 0,
     total: payload.total,
     hash: payload.hash,
-    status: "running",
+    status: payload.status ?? "running",
   };
 }
 

@@ -184,7 +184,7 @@ pub fn start_step_push(
 
     thread::spawn(move || {
         for (index, hash) in hashes.iter().enumerate() {
-            if let Err(error) = git::push_to_commit(&repo_path, &branch, hash) {
+            if let Err(error) = git::push_to_commit_prechecked(&repo_path, &branch, hash) {
                 let _ = app.emit(
                     STEP_PUSH_FAILED_EVENT,
                     StepPushFailed {
