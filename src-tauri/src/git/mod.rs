@@ -12,8 +12,8 @@ pub use push::{
     validate_step_push_hashes,
 };
 pub use repository::{
-    checkout_branch, get_branch_status, list_local_branches, refresh_remote_tracking,
-    resolve_repository_path, validate_current_branch,
+    checkout_branch, get_branch_status, get_repository_revision, list_local_branches,
+    refresh_remote_tracking, resolve_repository_path, validate_current_branch,
 };
 
 const REMOTE_NAME: &str = "origin";

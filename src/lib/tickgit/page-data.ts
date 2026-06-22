@@ -6,6 +6,7 @@ import type {
   CommitFileDiffResult,
   CommitHistoryPage,
   CommitListItem,
+  RepositoryRevision,
   RepositorySummary,
 } from "$lib/types";
 import {
@@ -50,6 +51,7 @@ export type TickGitPageApi = {
   listRepositories: () => Promise<RepositorySummary[]>;
   getCurrentRepository: () => Promise<RepositorySummary | null>;
   getBranchStatus: (repoPath: string) => Promise<BranchStatus>;
+  getRepositoryRevision: (repoPath: string) => Promise<RepositoryRevision>;
   getCommitHistory: (
     repoPath: string,
     skip: number,

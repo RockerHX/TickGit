@@ -21,6 +21,12 @@ export type BranchStatus = {
   disabledReasonCode?: string | null;
 };
 
+export type RepositoryRevision = {
+  head: string;
+  branch: string;
+  upstream: string | null;
+};
+
 export type CommitListItem = {
   hash: string;
   shortHash: string;

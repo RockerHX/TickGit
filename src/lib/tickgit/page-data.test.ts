@@ -131,6 +131,11 @@ function createApiMock(
     listRepositories: vi.fn().mockResolvedValue([]),
     getCurrentRepository: vi.fn().mockResolvedValue(null),
     getBranchStatus: vi.fn().mockResolvedValue(branchStatus()),
+    getRepositoryRevision: vi.fn().mockResolvedValue({
+      head: "h1",
+      branch: "main",
+      upstream: null,
+    }),
     getCommitHistory: vi.fn().mockResolvedValue(historyPage([])),
     getCommitFiles: vi.fn().mockResolvedValue([]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),

@@ -8,6 +8,7 @@ import type {
   CommitHistoryPage,
   PushToCommitJobStarted,
   PushToCommitRequest,
+  RepositoryRevision,
   RepositorySummary,
   StepPushJobStarted,
   StepPushPlan,
@@ -28,6 +29,8 @@ export const api = {
     invoke<RepositorySummary>("relocate_repository", { oldPath, newPath }),
   getBranchStatus: (repoPath: string) =>
     invoke<BranchStatus>("get_branch_status", { repoPath }),
+  getRepositoryRevision: (repoPath: string) =>
+    invoke<RepositoryRevision>("get_repository_revision", { repoPath }),
   refreshRemoteTracking: (repoPath: string) =>
     invoke<void>("refresh_remote_tracking", { repoPath }),
   listLocalBranches: (repoPath: string) =>

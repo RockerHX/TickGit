@@ -49,6 +49,7 @@
   } from "$lib/tickgit/history";
   import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
   import {
+    canCheckRepositoryRevisionOnFocus,
     canLoadCommitFiles,
     canLoadDiff,
     canLoadHistory,
@@ -62,6 +63,7 @@
     isContextMenuDisabled,
     isRepositoryAvailable,
     shouldClearRepositoryData,
+    shouldRefreshRepositoryForRevision,
     shouldShowRepositoryUnavailableState,
   } from "$lib/tickgit/page-state";
   import {
@@ -98,6 +100,7 @@
     CommitFileDiffResult,
     CommitListItem,
     PushToCommitUiState,
+    RepositoryRevision,
     RepositorySummary,
     StepPushPlan,
     StepPushUiState,
@@ -108,11 +111,14 @@
   const TOAST_TIMEOUT = 3400;
   const WINDOW_RESIZE_SAVE_DEBOUNCE_MS = 300;
   const HISTORY_FILTER_DEBOUNCE_MS = 300;
+  const FOCUS_REVISION_THROTTLE_MS = 60_000;
   // 失败态既会自动消失，也允许用户手动关闭，避免错误浮层长时间阻塞界面。
   const PUSH_OVERLAY_DISMISS_MS = 3600;
 
   let repositories: RepositorySummary[] = [];
   let currentRepository: RepositorySummary | null = null;
+  let currentRepositoryRevision: RepositoryRevision | null = null;
+  let lastFocusRevisionCheckedAt = 0;
   let branchStatus: BranchStatus | null = null;
   let localBranches: string[] = [];
 
@@ -233,6 +239,22 @@
     };
   }
 
+  function resetRepositoryRevisionState() {
+    currentRepositoryRevision = null;
+    lastFocusRevisionCheckedAt = 0;
+  }
+
+  async function rememberCurrentRepositoryRevision(path: string) {
+    try {
+      const revision = await api.getRepositoryRevision(path);
+      if (currentRepository?.path === path) {
+        currentRepositoryRevision = revision;
+      }
+    } catch (error) {
+      console.error("failed to read repository revision", error);
+    }
+  }
+
   function applyRepositoryState(state: RepositoryStateResult) {
     const { snapshot, branches } = state;
     branchStatus = snapshot.branchStatus;
@@ -270,6 +292,7 @@
     stepPushState = null;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
     repositoryPendingRemoval = null;
+    resetRepositoryRevisionState();
   }
 
   function clearHistoryDetailState() {
@@ -440,6 +463,9 @@
 
       if (bootstrapState.repositoryState) {
         applyRepositoryState(bootstrapState.repositoryState);
+        if (currentRepository) {
+          void rememberCurrentRepositoryRevision(currentRepository.path);
+        }
       } else if (shouldClearRepositoryData(currentRepository)) {
         clearRepositoryData();
       }
@@ -456,8 +482,13 @@
 
   async function refreshRepositories() {
     const repositoryIndex = await loadRepositoryIndex(api);
+    const previousPath = currentRepository?.path ?? null;
     repositories = repositoryIndex.repositories;
     currentRepository = repositoryIndex.currentRepository;
+
+    if ((currentRepository?.path ?? null) !== previousPath) {
+      resetRepositoryRevisionState();
+    }
   }
 
   async function switchRepository(path: string) {
@@ -511,6 +542,7 @@
 
       notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
+      void rememberCurrentRepositoryRevision(path);
     } catch (error) {
       notify(
         translate($locale, "repository.readFailedTitle"),
@@ -569,19 +601,43 @@
 
   async function refreshCurrentRepositoryOnFocus() {
     const repository = currentRepository;
+    const now = Date.now();
 
     if (
       !repository ||
-      !canRefreshCurrentRepositoryOnFocus({
+      !canCheckRepositoryRevisionOnFocus({
         currentRepository: repository,
         loadingRepository,
         loadingHistory,
+        lastCheckedAt: lastFocusRevisionCheckedAt,
+        now,
+        throttleMs: FOCUS_REVISION_THROTTLE_MS,
       })
     ) {
       return;
     }
 
-    await loadCurrentRepositoryState(true);
+    lastFocusRevisionCheckedAt = now;
+
+    try {
+      const nextRevision = await api.getRepositoryRevision(repository.path);
+
+      if (
+        !shouldRefreshRepositoryForRevision(
+          currentRepositoryRevision,
+          nextRevision,
+        )
+      ) {
+        currentRepositoryRevision = nextRevision;
+        return;
+      }
+
+      currentRepositoryRevision = nextRevision;
+      invalidateRepositoryCache(repository.path);
+      await loadCurrentRepositoryState(true);
+    } catch (error) {
+      console.error("failed to refresh repository revision", error);
+    }
   }
 
   async function fetchRemoteStatusManually() {
@@ -623,6 +679,7 @@
 
       notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
+      void rememberCurrentRepositoryRevision(repository.path);
     } catch (error) {
       notify(
         translate($locale, "repository.readFailedTitle"),

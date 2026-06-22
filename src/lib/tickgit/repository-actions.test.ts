@@ -115,6 +115,11 @@ function createApiMock(
     refreshRemoteTracking: vi.fn().mockResolvedValue(undefined),
     listLocalBranches: vi.fn().mockResolvedValue(["main"]),
     getBranchStatus: vi.fn().mockResolvedValue(branchStatus()),
+    getRepositoryRevision: vi.fn().mockResolvedValue({
+      head: "h1",
+      branch: "main",
+      upstream: null,
+    }),
     getCommitHistory: vi.fn().mockResolvedValue(historyPage(commits)),
     getCommitFiles: vi.fn().mockResolvedValue([fileChange("src/main.ts")]),
     getCommitMeta: vi.fn().mockResolvedValue(commitMeta()),

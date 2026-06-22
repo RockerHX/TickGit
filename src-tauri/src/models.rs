@@ -27,6 +27,14 @@ pub struct StoredRepository {
     pub last_opened_at: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryRevision {
+    pub head: String,
+    pub branch: String,
+    pub upstream: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchStatus {

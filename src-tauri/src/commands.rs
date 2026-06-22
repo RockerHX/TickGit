@@ -6,7 +6,7 @@ use crate::{
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
         CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest,
-        RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
+        RepositoryRevision, RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -67,6 +67,11 @@ pub fn relocate_repository(
 #[tauri::command]
 pub fn get_branch_status(repo_path: String) -> AppResult<BranchStatus> {
     git::get_branch_status(&repo_path)
+}
+
+#[tauri::command]
+pub fn get_repository_revision(repo_path: String) -> AppResult<RepositoryRevision> {
+    git::get_repository_revision(&repo_path)
 }
 
 #[tauri::command]
