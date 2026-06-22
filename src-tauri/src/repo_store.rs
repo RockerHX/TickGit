@@ -1,7 +1,11 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Arc, Mutex,
+    },
+    thread,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -20,6 +24,7 @@ const DEFAULT_WINDOW_HEIGHT_RATIO: f64 = 0.75;
 const MIN_WINDOW_WIDTH: f64 = 720.0;
 const MIN_WINDOW_HEIGHT: f64 = 480.0;
 const MAX_SAVED_WINDOW_RATIO_BEFORE_RESET: f64 = 0.95;
+const REPOSITORY_STATUS_WORKERS: usize = 4;
 
 pub struct RepositoryStoreState {
     lock: Mutex<()>,
@@ -129,6 +134,55 @@ fn repository_summary(repository: &StoredRepository) -> RepositorySummary {
         disabled_reason,
         disabled_reason_code,
     }
+}
+
+fn refresh_repository_statuses(repositories: &[StoredRepository]) -> Vec<RepositorySummary> {
+    if repositories.is_empty() {
+        return Vec::new();
+    }
+
+    let worker_count = repositories.len().min(REPOSITORY_STATUS_WORKERS);
+    let repositories = Arc::new(repositories.to_vec());
+    let next_index = Arc::new(AtomicUsize::new(0));
+    let (sender, receiver) = mpsc::channel();
+    let mut handles = Vec::with_capacity(worker_count);
+
+    for _ in 0..worker_count {
+        let repositories = Arc::clone(&repositories);
+        let next_index = Arc::clone(&next_index);
+        let sender = sender.clone();
+
+        handles.push(thread::spawn(move || loop {
+            let index = next_index.fetch_add(1, Ordering::Relaxed);
+
+            if index >= repositories.len() {
+                break;
+            }
+
+            if sender
+                .send((index, repository_summary(&repositories[index])))
+                .is_err()
+            {
+                break;
+            }
+        }));
+    }
+
+    drop(sender);
+
+    let mut summaries = vec![None; repositories.len()];
+    for (index, summary) in receiver {
+        summaries[index] = Some(summary);
+    }
+
+    for handle in handles {
+        handle.join().expect("repository status worker panicked");
+    }
+
+    summaries
+        .into_iter()
+        .map(|summary| summary.expect("repository status missing"))
+        .collect()
 }
 
 fn add_repository_to_store(
@@ -367,11 +421,15 @@ pub fn list_repositories(
     app: &AppHandle,
     state: State<'_, RepositoryStoreState>,
 ) -> AppResult<Vec<RepositorySummary>> {
-    let _guard = state.lock.lock().expect("repository store poisoned");
-    let path = store_path(app)?;
-    let mut repositories = read_store(&path)?.repositories;
-    sort_repositories(&mut repositories);
-    Ok(repositories.iter().map(repository_summary).collect())
+    let repositories = {
+        let _guard = state.lock.lock().expect("repository store poisoned");
+        let path = store_path(app)?;
+        let mut repositories = read_store(&path)?.repositories;
+        sort_repositories(&mut repositories);
+        repositories
+    };
+
+    Ok(refresh_repository_statuses(&repositories))
 }
 
 pub fn add_repository(
@@ -448,8 +506,9 @@ pub fn relocate_repository(
 mod tests {
     use super::{
         add_repository_to_store, find_current_repository, normalize_repository_store_path,
-        read_store, relocate_repository_in_store, remove_repository_from_store, repository_summary,
-        set_current_repository_in_store, sort_repositories, write_store,
+        read_store, refresh_repository_statuses, relocate_repository_in_store,
+        remove_repository_from_store, repository_summary, set_current_repository_in_store,
+        sort_repositories, write_store,
     };
     use crate::models::{RepositoryConfig, RepositoryStatus, StoredRepository, WindowSizeConfig};
     use std::{
@@ -604,6 +663,31 @@ mod tests {
             invalid_summary.disabled_reason.as_deref(),
             Some("当前目录不是 Git 仓库")
         );
+    }
+
+    #[test]
+    fn refreshes_repository_statuses_in_input_order() {
+        let available = init_repo();
+        let invalid = TestDir::new("plain-repo-status");
+        let missing_path = env::temp_dir().join(format!(
+            "tickgit-missing-status-{}",
+            NEXT_TEST_ID.fetch_add(1, Ordering::SeqCst)
+        ));
+        let repositories = vec![
+            repository(missing_path.to_string_lossy().as_ref(), 30),
+            repository(available.path.to_string_lossy().as_ref(), 20),
+            repository(invalid.path.to_string_lossy().as_ref(), 10),
+        ];
+
+        let summaries = refresh_repository_statuses(&repositories);
+
+        assert_eq!(summaries.len(), 3);
+        assert_eq!(summaries[0].path, repositories[0].path);
+        assert_eq!(summaries[1].path, repositories[1].path);
+        assert_eq!(summaries[2].path, repositories[2].path);
+        assert_eq!(summaries[0].status, RepositoryStatus::Missing);
+        assert_eq!(summaries[1].status, RepositoryStatus::Available);
+        assert_eq!(summaries[2].status, RepositoryStatus::Invalid);
     }
 
     #[test]
