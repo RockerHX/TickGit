@@ -81,36 +81,29 @@ pub(super) fn safe_unpushed_hashes(repo_path: &Path, upstream: &str) -> AppResul
         .collect())
 }
 
-fn first_parent_unpushed_hashes_in_push_order(
-    repo_path: &Path,
-    upstream: &str,
-) -> AppResult<Vec<String>> {
+fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
+    if !is_ancestor(repo_path, upstream, "HEAD")? {
+        return Ok(Vec::new());
+    }
+
     let range = format!("{upstream}..HEAD");
-    let output = git_trimmed(repo_path, &["rev-list", "--first-parent", &range])?;
-    let mut hashes: Vec<String> = output
+    let output = git_trimmed(
+        repo_path,
+        &[
+            "rev-list",
+            "--first-parent",
+            "--ancestry-path",
+            "--reverse",
+            &range,
+        ],
+    )?;
+
+    Ok(output
         .lines()
         .map(str::trim)
         .filter(|hash| !hash.is_empty())
         .map(ToOwned::to_owned)
-        .collect();
-    hashes.reverse();
-    Ok(hashes)
-}
-
-fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppResult<Vec<String>> {
-    let hashes = first_parent_unpushed_hashes_in_push_order(repo_path, upstream)?;
-    let mut first_safe_index = None;
-    for (index, hash) in hashes.iter().enumerate() {
-        if is_ancestor(repo_path, upstream, hash)? {
-            first_safe_index = Some(index);
-            break;
-        }
-    }
-    let Some(first_safe_index) = first_safe_index else {
-        return Ok(Vec::new());
-    };
-
-    Ok(hashes[first_safe_index..].to_vec())
+        .collect())
 }
 
 fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {

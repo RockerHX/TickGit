@@ -315,6 +315,66 @@ fn separates_total_history_from_safe_step_push_targets_after_merge() {
 }
 
 #[test]
+fn builds_safe_step_push_plan_for_linear_ahead_commits() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let first_hash = commit_file(&repo.path, "first.txt", "first\n", "first");
+    let second_hash = commit_file(&repo.path, "second.txt", "second\n", "second");
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.ahead_count, 2);
+    assert_eq!(status.safe_ahead_count, 2);
+
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &second_hash).unwrap();
+    let plan_hashes: Vec<&str> = plan.items.iter().map(|item| item.hash.as_str()).collect();
+
+    assert!(plan.available);
+    assert_eq!(plan_hashes, vec![first_hash.as_str(), second_hash.as_str()]);
+}
+
+#[test]
+fn blocks_safe_step_push_plan_when_branch_has_diverged() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.behind_count, 1);
+    assert_eq!(status.safe_ahead_count, 0);
+
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &local_hash).unwrap();
+    let reason = plan.blocked_reason.expect("blocked plan reason");
+
+    assert!(!plan.available);
+    assert_eq!(reason.code, "behind_remote");
+}
+
+#[test]
 fn filters_commit_history_by_summary_and_body_case_insensitively() {
     let repo = init_repo();
     let first_hash = commit_file(&repo.path, "first.txt", "first\n", "Initial setup");
