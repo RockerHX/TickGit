@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import {
     locale,
     translate,
@@ -665,6 +665,22 @@
     }
   }
 
+  function waitForAnimationFrame() {
+    return new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => resolve());
+        return;
+      }
+
+      setTimeout(resolve, 0);
+    });
+  }
+
+  async function paintLoadingState() {
+    await tick();
+    await waitForAnimationFrame();
+  }
+
   function changeHistoryPage(pageIndex: number) {
     if (loadingHistory || loadingRepository) {
       return;
@@ -705,6 +721,7 @@
     loadingFiles = true;
     selectedFilePath = null;
     diffResult = EMPTY_DIFF_RESULT;
+    await paintLoadingState();
 
     try {
       const details = await measureAsync(
@@ -749,6 +766,7 @@
 
     loadingDiff = true;
     selectedFilePath = filePath;
+    await paintLoadingState();
 
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);

@@ -15,7 +15,7 @@ use super::{
 // Git 约定的空树对象。初始提交没有 parent 时，使用它与目标提交做 diff，
 // 才能和普通提交一样统一走 diff 参数（例如 -w 忽略空白）逻辑。
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-const MAX_DIFF_BYTES: usize = 1024 * 1024;
+const MAX_DIFF_BYTES: usize = 512 * 1024;
 const MAX_DIFF_LINES: usize = 5000;
 const MAX_IMAGE_PREVIEW_BYTES: usize = 2 * 1024 * 1024;
 
