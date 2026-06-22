@@ -223,7 +223,7 @@ pub fn list_local_branches(repo_path: &str) -> AppResult<Vec<String>> {
 
 pub(super) fn list_local_branches_for_path(repo_path: &Path) -> AppResult<Vec<String>> {
     let output = git_trimmed(
-        &repo_path,
+        repo_path,
         &[
             "for-each-ref",
             "--sort=refname",
