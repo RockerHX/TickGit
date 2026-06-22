@@ -43,6 +43,7 @@ export type DiffWorkerResponse = {
   id: number;
   parsedDiff: HighlightedParsedTextDiff;
   splitRows: HighlightedSplitDiffRow[];
+  error?: string;
 };
 
 function highlightLine(
@@ -65,6 +66,17 @@ function highlightParsedDiff(
       ...hunk,
       lines: hunk.lines.map((line) => highlightLine(line, filePath)),
     })),
+  };
+}
+
+function emptyHighlightedParsedDiff(
+  parseError = false,
+): HighlightedParsedTextDiff {
+  return {
+    hunks: [],
+    isEmpty: true,
+    maxLineNumberWidth: 1,
+    parseError,
   };
 }
 
@@ -96,18 +108,35 @@ function highlightSplitRows(
   });
 }
 
-self.onmessage = (event: MessageEvent<DiffWorkerRequest>) => {
-  const { id, diffText, filePath, mode } = event.data;
-  const parsedDiff = parseUnifiedDiff(diffText);
-  const highlighted = highlightParsedDiff(parsedDiff, filePath);
-  const splitRows = highlightSplitRows(
-    getSplitDiffRowsForMode(parsedDiff, mode),
-    highlighted,
-  );
+export function processDiffWorkerRequest(
+  request: DiffWorkerRequest,
+): DiffWorkerResponse {
+  try {
+    const { id, diffText, filePath, mode } = request;
+    const parsedDiff = parseUnifiedDiff(diffText);
+    const highlighted = highlightParsedDiff(parsedDiff, filePath);
+    const splitRows = highlightSplitRows(
+      getSplitDiffRowsForMode(parsedDiff, mode),
+      highlighted,
+    );
 
-  self.postMessage({
-    id,
-    parsedDiff: highlighted,
-    splitRows,
-  } satisfies DiffWorkerResponse);
-};
+    return {
+      id,
+      parsedDiff: highlighted,
+      splitRows,
+    };
+  } catch (error) {
+    return {
+      id: request.id,
+      parsedDiff: emptyHighlightedParsedDiff(true),
+      splitRows: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+if (typeof self !== "undefined") {
+  self.onmessage = (event: MessageEvent<DiffWorkerRequest>) => {
+    self.postMessage(processDiffWorkerRequest(event.data));
+  };
+}

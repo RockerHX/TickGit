@@ -308,9 +308,13 @@
     );
     diffWorker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
       if (event.data.id !== diffWorkerRequestId) {
+        diffWorkerRequestStarts.delete(event.data.id);
         return;
       }
 
+      if (event.data.error) {
+        console.error("diff worker failed", event.data.error);
+      }
       parsedDiff = event.data.parsedDiff;
       splitRows = event.data.splitRows;
       resetViewerScroll();
