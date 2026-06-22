@@ -336,11 +336,14 @@ fn commit_files_for_resolved_path(
 
 pub fn get_commit_meta(repo_path: &str, hash: &str) -> AppResult<CommitMeta> {
     let repo_path = resolve_repository_path(repo_path)?;
-    let body = git_text(&repo_path, &["show", "-s", "--format=%b", hash])?
-        .trim()
-        .to_string();
-    let shortstat = git_trimmed(&repo_path, &["show", "--shortstat", "--format=", hash])?;
-    let (additions, deletions) = parse_shortstat(&shortstat);
+    let output = git_text(
+        &repo_path,
+        &["show", "--shortstat", "--format=%b%x1e", hash],
+    )?;
+    let mut sections = output.splitn(2, '\u{1e}');
+    let body = sections.next().unwrap_or_default().trim().to_string();
+    let shortstat = sections.next().unwrap_or_default();
+    let (additions, deletions) = parse_shortstat(shortstat);
 
     Ok(CommitMeta {
         body,

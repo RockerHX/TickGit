@@ -1548,14 +1548,17 @@ fn gets_commit_meta() {
             "-m",
             "follow up",
             "-m",
-            "more context",
+            "more context\n\nmentions 10 insertions before the real shortstat",
         ],
     );
 
     let hash = run_git(&repo.path, &["rev-parse", "HEAD"]);
     let meta = get_commit_meta(repo.path.to_string_lossy().as_ref(), &hash).unwrap();
 
-    assert_eq!(meta.body, "more context");
+    assert_eq!(
+        meta.body,
+        "more context\n\nmentions 10 insertions before the real shortstat"
+    );
     assert_eq!(meta.additions, 1);
     assert_eq!(meta.deletions, 0);
 }
