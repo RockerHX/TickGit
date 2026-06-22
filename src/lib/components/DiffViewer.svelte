@@ -20,6 +20,7 @@
   } from "$lib/tickgit/diff";
   import { writeClipboardText } from "$lib/tickgit/clipboard";
   import { highlightDiffContent } from "$lib/tickgit/diff-highlight";
+  import { logPerfDuration, perfNow } from "$lib/tickgit/performance";
   import type {
     DiffWorkerRequest,
     DiffWorkerResponse,
@@ -65,6 +66,7 @@
   let hunkCopyResetTimer: ReturnType<typeof setTimeout> | null = null;
   let diffWorker: Worker | null = null;
   let diffWorkerRequestId = 0;
+  const diffWorkerRequestStarts = new Map<number, number>();
 
   // Unified / Split 共用同一份解析结果，避免两套渲染路径各自维护 diff 语义。
   $: diffText = diffResult.text;
@@ -135,10 +137,16 @@
   ) {
     const requestId = ++diffWorkerRequestId;
     if (!diffWorker) {
+      const startedAt = perfNow();
       processDiffOnMainThread(nextDiffText, filePath, nextMode);
+      logPerfDuration("diff.process.main", startedAt, {
+        mode: nextMode,
+        byteCount: nextDiffText.length,
+      });
       return;
     }
 
+    diffWorkerRequestStarts.set(requestId, perfNow());
     diffWorker.postMessage({
       id: requestId,
       diffText: nextDiffText,
@@ -258,6 +266,14 @@
 
       parsedDiff = event.data.parsedDiff;
       splitRows = event.data.splitRows;
+      const startedAt = diffWorkerRequestStarts.get(event.data.id);
+      if (startedAt !== undefined) {
+        logPerfDuration("diff.process.worker", startedAt, {
+          mode,
+          byteCount: diffText.length,
+        });
+        diffWorkerRequestStarts.delete(event.data.id);
+      }
     };
     scheduleDiffProcessing(diffText, selectedFilePath, mode);
   });
@@ -266,6 +282,7 @@
     if (hunkCopyResetTimer) {
       clearTimeout(hunkCopyResetTimer);
     }
+    diffWorkerRequestStarts.clear();
     diffWorker?.terminate();
   });
 </script>

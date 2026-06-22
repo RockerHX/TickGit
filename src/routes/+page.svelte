@@ -81,6 +81,7 @@
     HISTORY_PAGE_SIZE,
     getPaginationState,
   } from "$lib/tickgit/pagination";
+  import { measureAsync } from "$lib/tickgit/performance";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -399,15 +400,20 @@
     loadingRepository = true;
 
     try {
-      const bootstrapState = await loadBootstrapRepositoryState(api, {
-        pageSize: PAGE_SIZE,
-        historySkip: historyPageIndex * PAGE_SIZE,
-        keepSelection: false,
-        previousSelectedHash: null,
-        ignoreWhitespace: hideWhitespaceInDiff,
-        filters: historyFilters,
-        preferredFilePathFilter: historyFilters.filePath,
-      });
+      const bootstrapState = await measureAsync(
+        "page.bootstrap",
+        () =>
+          loadBootstrapRepositoryState(api, {
+            pageSize: PAGE_SIZE,
+            historySkip: historyPageIndex * PAGE_SIZE,
+            keepSelection: false,
+            previousSelectedHash: null,
+            ignoreWhitespace: hideWhitespaceInDiff,
+            filters: historyFilters,
+            preferredFilePathFilter: historyFilters.filePath,
+          }),
+        { pageSize: PAGE_SIZE },
+      );
       repositories = bootstrapState.repositories;
       currentRepository = bootstrapState.currentRepository;
 
@@ -459,16 +465,25 @@
     try {
       // 这里依赖 loadRepositoryStateSnapshot 预先补齐全部未推送 commits；
       // 否则右键推送到某个 commit / 分步推送时，目标列表可能只拿到第一页。
-      const repositoryState = await loadRepositoryStateSnapshot(api, path, {
-        pageSize: PAGE_SIZE,
-        historySkip: historyPageIndex * PAGE_SIZE,
-        keepSelection,
-        previousSelectedHash: selectedCommit?.hash ?? null,
-        ignoreWhitespace: hideWhitespaceInDiff,
-        refreshRemoteTracking,
-        filters: historyFilters,
-        preferredFilePathFilter: historyFilters.filePath,
-      });
+      const repositoryState = await measureAsync(
+        "page.loadRepositoryState",
+        () =>
+          loadRepositoryStateSnapshot(api, path, {
+            pageSize: PAGE_SIZE,
+            historySkip: historyPageIndex * PAGE_SIZE,
+            keepSelection,
+            previousSelectedHash: selectedCommit?.hash ?? null,
+            ignoreWhitespace: hideWhitespaceInDiff,
+            refreshRemoteTracking,
+            filters: historyFilters,
+            preferredFilePathFilter: historyFilters.filePath,
+          }),
+        {
+          keepSelection,
+          refreshRemoteTracking,
+          skip: historyPageIndex * PAGE_SIZE,
+        },
+      );
 
       notifyRemoteRefreshError(repositoryState);
       applyRepositoryState(repositoryState);
@@ -692,12 +707,17 @@
     diffResult = EMPTY_DIFF_RESULT;
 
     try {
-      const details = await fetchCommitDetails(
-        api,
-        repository.path,
-        hash,
-        hideWhitespaceInDiff,
-        preferredFilePathFilter,
+      const details = await measureAsync(
+        "page.loadCommitFiles",
+        () =>
+          fetchCommitDetails(
+            api,
+            repository.path,
+            hash,
+            hideWhitespaceInDiff,
+            preferredFilePathFilter,
+          ),
+        { hash, preferredFilePathFilter },
       );
       selectedCommitMeta = details.commitMeta;
       commitFiles = details.commitFiles;
@@ -732,12 +752,17 @@
 
     try {
       const selectedFile = commitFiles.find((file) => file.path === filePath);
-      diffResult = await api.getCommitFileDiff(
-        repository.path,
-        commit.hash,
-        filePath,
-        hideWhitespaceInDiff,
-        selectedFile?.previousPath ?? null,
+      diffResult = await measureAsync(
+        "page.loadDiff",
+        () =>
+          api.getCommitFileDiff(
+            repository.path,
+            commit.hash,
+            filePath,
+            hideWhitespaceInDiff,
+            selectedFile?.previousPath ?? null,
+          ),
+        { filePath, hideWhitespaceInDiff },
       );
     } catch (error) {
       diffResult = EMPTY_DIFF_RESULT;
