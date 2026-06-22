@@ -31,6 +31,7 @@
   import {
     EMPTY_DIFF_RESULT,
     fetchCommitDetails,
+    fetchCommitFileDiff,
     type CachedCommitDetails,
   } from "$lib/tickgit/page-data";
   import {
@@ -796,7 +797,8 @@
       diffResult = await measureAsync(
         "page.loadDiff",
         () =>
-          api.getCommitFileDiff(
+          fetchCommitFileDiff(
+            api,
             repository.path,
             commit.hash,
             filePath,

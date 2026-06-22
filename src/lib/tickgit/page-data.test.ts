@@ -10,6 +10,7 @@ import type {
 } from "$lib/types";
 import {
   fetchCommitDetails,
+  fetchCommitFileDiff,
   fetchRepositoryIndex,
   fetchRepositorySnapshot,
   type TickGitPageApi,
@@ -334,6 +335,98 @@ describe("page data", () => {
     expect(getCommitFiles).not.toHaveBeenCalled();
     expect(getCommitMeta).not.toHaveBeenCalled();
     expect(getCommitFileDiff).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates concurrent repository snapshot requests with the same key", async () => {
+    const branchDeferred = deferred<BranchStatus>();
+    const getBranchStatus = vi.fn(() => branchDeferred.promise);
+    const getCommitHistory = vi
+      .fn()
+      .mockResolvedValue(historyPage([commit("c3")]));
+    const getCommitFiles = vi
+      .fn()
+      .mockResolvedValue([fileChange("src/main.ts")]);
+    const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getBranchStatus,
+      getCommitHistory,
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const first = fetchRepositorySnapshot(api, "/repo", 50, false, null);
+    const second = fetchRepositorySnapshot(api, "/repo", 50, false, null);
+    await Promise.resolve();
+
+    expect(getBranchStatus).toHaveBeenCalledTimes(1);
+
+    branchDeferred.resolve(branchStatus());
+    const [firstSnapshot, secondSnapshot] = await Promise.all([first, second]);
+
+    expect(secondSnapshot).toBe(firstSnapshot);
+    expect(getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(getCommitFiles).toHaveBeenCalledTimes(1);
+    expect(getCommitMeta).toHaveBeenCalledTimes(1);
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent commit details requests with the same key", async () => {
+    const filesDeferred = deferred<CommitFileChange[]>();
+    const getCommitFiles = vi.fn(() => filesDeferred.promise);
+    const getCommitMeta = vi.fn().mockResolvedValue(commitMeta());
+    const getCommitFileDiff = vi.fn().mockResolvedValue(diffResult("@@ diff"));
+    const api = createApiMock({
+      getCommitFiles,
+      getCommitMeta,
+      getCommitFileDiff,
+    });
+
+    const first = fetchCommitDetails(api, "/repo", "c1", false, "src");
+    const second = fetchCommitDetails(api, "/repo", "c1", false, "src");
+    await Promise.resolve();
+
+    expect(getCommitFiles).toHaveBeenCalledTimes(1);
+
+    filesDeferred.resolve([fileChange("src/main.ts")]);
+    const [firstDetails, secondDetails] = await Promise.all([first, second]);
+
+    expect(secondDetails).toBe(firstDetails);
+    expect(getCommitMeta).toHaveBeenCalledTimes(1);
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent diff requests with the same key", async () => {
+    const diffDeferred = deferred<CommitFileDiffResult>();
+    const getCommitFileDiff = vi.fn(() => diffDeferred.promise);
+    const api = createApiMock({ getCommitFileDiff });
+
+    const first = fetchCommitFileDiff(
+      api,
+      "/repo",
+      "c1",
+      "src/main.ts",
+      false,
+      null,
+    );
+    const second = fetchCommitFileDiff(
+      api,
+      "/repo",
+      "c1",
+      "src/main.ts",
+      false,
+      null,
+    );
+    await Promise.resolve();
+
+    expect(getCommitFileDiff).toHaveBeenCalledTimes(1);
+
+    diffDeferred.resolve(diffResult("@@ diff"));
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      diffResult("@@ diff"),
+      diffResult("@@ diff"),
+    ]);
   });
 
   it("passes ignoreWhitespace through commit detail loading", async () => {
