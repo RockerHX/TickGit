@@ -7,6 +7,7 @@
     translateErrorCode,
   } from "$lib/i18n";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import CommitContextMenu from "$lib/components/CommitContextMenu.svelte";
   import ConfirmRepositoryRemoveDialog from "$lib/components/ConfirmRepositoryRemoveDialog.svelte";
@@ -89,6 +90,7 @@
   } from "$lib/tickgit/pagination";
   import { measureAsync } from "$lib/tickgit/performance";
   import { textSelectionEnabled } from "$lib/tickgit/preferences";
+  import { writeClipboardText } from "$lib/tickgit/clipboard";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -399,6 +401,81 @@
     window.setTimeout(() => {
       toasts = toasts.filter((item) => item.id !== id);
     }, TOAST_TIMEOUT);
+  }
+
+  async function copyRepositoryName(repository: RepositorySummary) {
+    try {
+      await writeClipboardText(repository.name);
+      notify(
+        translate($locale, "repository.contextCopiedNameTitle"),
+        repository.name,
+        "success",
+      );
+    } catch (error) {
+      notify(
+        translate($locale, "repository.contextActionFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    }
+  }
+
+  async function copyRepositoryPath(repository: RepositorySummary) {
+    try {
+      await writeClipboardText(repository.path);
+      notify(
+        translate($locale, "repository.contextCopiedPathTitle"),
+        repository.path,
+        "success",
+      );
+    } catch (error) {
+      notify(
+        translate($locale, "repository.contextActionFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    }
+  }
+
+  async function viewRepositoryOnGithub(url: string) {
+    try {
+      await openUrl(url);
+      notify(
+        translate($locale, "repository.contextOpenedTitle"),
+        translate($locale, "repository.contextOpenedGithub"),
+        "success",
+      );
+    } catch (error) {
+      notify(
+        translate($locale, "repository.contextActionFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    }
+  }
+
+  async function runRepositoryAction(
+    repository: RepositorySummary,
+    action: (repoPath: string) => Promise<void>,
+    successMessageKey:
+      | "repository.contextOpenedTerminal"
+      | "repository.contextRevealedFinder"
+      | "repository.contextOpenedVSCode",
+  ) {
+    try {
+      await action(repository.path);
+      notify(
+        translate($locale, "repository.contextOpenedTitle"),
+        translate($locale, successMessageKey),
+        "success",
+      );
+    } catch (error) {
+      notify(
+        translate($locale, "repository.contextActionFailedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    }
   }
 
   function setHistoryFilters(filters: CommitHistoryFilters) {
@@ -1533,6 +1610,30 @@
         requestRepositoryRemoval(event.detail.path)}
       on:repositoryRelocate={(event) =>
         relocateRepositoryPath(event.detail.path)}
+      on:repositoryCopyName={(event) =>
+        copyRepositoryName(event.detail.repository)}
+      on:repositoryCopyPath={(event) =>
+        copyRepositoryPath(event.detail.repository)}
+      on:repositoryViewGithub={(event) =>
+        viewRepositoryOnGithub(event.detail.url)}
+      on:repositoryOpenTerminal={(event) =>
+        runRepositoryAction(
+          event.detail.repository,
+          api.openTerminalAtRepository,
+          "repository.contextOpenedTerminal",
+        )}
+      on:repositoryRevealInFinder={(event) =>
+        runRepositoryAction(
+          event.detail.repository,
+          api.revealRepositoryInFileManager,
+          "repository.contextRevealedFinder",
+        )}
+      on:repositoryOpenInVSCode={(event) =>
+        runRepositoryAction(
+          event.detail.repository,
+          api.openRepositoryInVSCode,
+          "repository.contextOpenedVSCode",
+        )}
       on:branchChange={(event) => switchBranch(event.detail.branch)}
       on:push={pushCurrentBranch}
       on:refresh={fetchRemoteStatusManually}

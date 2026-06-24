@@ -30,6 +30,12 @@
     repositoryChange: { path: string };
     repositoryRemove: { path: string };
     repositoryRelocate: { path: string };
+    repositoryCopyName: { repository: RepositorySummary };
+    repositoryCopyPath: { repository: RepositorySummary };
+    repositoryViewGithub: { repository: RepositorySummary; url: string };
+    repositoryOpenTerminal: { repository: RepositorySummary };
+    repositoryRevealInFinder: { repository: RepositorySummary };
+    repositoryOpenInVSCode: { repository: RepositorySummary };
     branchChange: { branch: string };
     push: void;
     refresh: void;
@@ -60,6 +66,31 @@
           dispatch("repositoryRemove", { path: event.detail.path })}
         on:relocate={(event) =>
           dispatch("repositoryRelocate", { path: event.detail.path })}
+        on:copyName={(event) =>
+          dispatch("repositoryCopyName", {
+            repository: event.detail.repository,
+          })}
+        on:copyPath={(event) =>
+          dispatch("repositoryCopyPath", {
+            repository: event.detail.repository,
+          })}
+        on:viewGithub={(event) =>
+          dispatch("repositoryViewGithub", {
+            repository: event.detail.repository,
+            url: event.detail.url,
+          })}
+        on:openTerminal={(event) =>
+          dispatch("repositoryOpenTerminal", {
+            repository: event.detail.repository,
+          })}
+        on:revealInFinder={(event) =>
+          dispatch("repositoryRevealInFinder", {
+            repository: event.detail.repository,
+          })}
+        on:openInVSCode={(event) =>
+          dispatch("repositoryOpenInVSCode", {
+            repository: event.detail.repository,
+          })}
       />
     </div>
 

@@ -4,12 +4,13 @@
   import {
     filterRepositories,
     formatRepositoryPath,
-    repositoryStatusBadgeLabel,
     repositoryStatusLabel,
     repositoryStatusMessage,
     repositoryStatusTone,
   } from "$lib/tickgit/repositories";
+  import { api } from "$lib/tauri/api";
   import RepositoryCard from "$lib/components/RepositoryCard.svelte";
+  import RepositoryContextMenu from "$lib/components/RepositoryContextMenu.svelte";
   import type { RepositorySummary } from "$lib/types";
 
   export let repositories: RepositorySummary[] = [];
@@ -20,11 +21,26 @@
     change: { path: string };
     remove: { path: string };
     relocate: { path: string };
+    copyName: { repository: RepositorySummary };
+    copyPath: { repository: RepositorySummary };
+    viewGithub: { repository: RepositorySummary; url: string };
+    openTerminal: { repository: RepositorySummary };
+    revealInFinder: { repository: RepositorySummary };
+    openInVSCode: { repository: RepositorySummary };
   }>();
 
   let open = false;
   let filterText = "";
   let container: HTMLDivElement | null = null;
+  let repositoryContextMenu = {
+    open: false,
+    x: 0,
+    y: 0,
+    repository: null as RepositorySummary | null,
+  };
+  let githubUrl: string | null = null;
+  let githubLoading = false;
+  let githubRequestId = 0;
 
   $: currentRepository =
     repositories.find((repository) => repository.path === currentPath) ?? null;
@@ -43,16 +59,113 @@
   }
 
   function selectRepository(path: string) {
+    closeRepositoryContextMenu();
     close();
     dispatch("change", { path });
   }
 
   function removeRepository(path: string) {
+    closeRepositoryContextMenu();
     dispatch("remove", { path });
   }
 
   function relocateRepository(path: string) {
+    closeRepositoryContextMenu();
     dispatch("relocate", { path });
+  }
+
+  function closeRepositoryContextMenu() {
+    repositoryContextMenu = {
+      open: false,
+      x: 0,
+      y: 0,
+      repository: null,
+    };
+    githubUrl = null;
+    githubLoading = false;
+    githubRequestId += 1;
+  }
+
+  async function loadGithubUrl(
+    repository: RepositorySummary,
+    requestId: number,
+  ) {
+    if (repository.status !== "available") {
+      return;
+    }
+
+    githubLoading = true;
+
+    try {
+      const url = await api.getRepositoryGithubUrl(repository.path);
+      if (requestId === githubRequestId) {
+        githubUrl = url;
+      }
+    } catch {
+      if (requestId === githubRequestId) {
+        githubUrl = null;
+      }
+    } finally {
+      if (requestId === githubRequestId) {
+        githubLoading = false;
+      }
+    }
+  }
+
+  function openRepositoryContextMenu(
+    repository: RepositorySummary | null,
+    x: number,
+    y: number,
+  ) {
+    if (!repository) {
+      return;
+    }
+
+    repositoryContextMenu = { open: true, x, y, repository };
+    githubUrl = null;
+    githubLoading = false;
+
+    const requestId = ++githubRequestId;
+    void loadGithubUrl(repository, requestId);
+  }
+
+  function handleRepositoryRowContextMenu(
+    event: MouseEvent,
+    repository: RepositorySummary,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    openRepositoryContextMenu(repository, event.clientX, event.clientY);
+  }
+
+  function copyRepositoryName(repository: RepositorySummary) {
+    closeRepositoryContextMenu();
+    dispatch("copyName", { repository });
+  }
+
+  function copyRepositoryPath(repository: RepositorySummary) {
+    closeRepositoryContextMenu();
+    dispatch("copyPath", { repository });
+  }
+
+  function viewRepositoryOnGithub(repository: RepositorySummary, url: string) {
+    closeRepositoryContextMenu();
+    dispatch("viewGithub", { repository, url });
+  }
+
+  function openRepositoryInTerminal(repository: RepositorySummary) {
+    closeRepositoryContextMenu();
+    dispatch("openTerminal", { repository });
+  }
+
+  function revealRepositoryInFinder(repository: RepositorySummary) {
+    closeRepositoryContextMenu();
+    dispatch("revealInFinder", { repository });
+  }
+
+  function openRepositoryInVSCode(repository: RepositorySummary) {
+    closeRepositoryContextMenu();
+    dispatch("openInVSCode", { repository });
   }
 
   function handleWindowClick(event: MouseEvent) {
@@ -71,6 +184,12 @@
     repository={currentRepository}
     {open}
     on:toggle={toggleOpen}
+    on:contextMenu={(event) =>
+      openRepositoryContextMenu(
+        currentRepository,
+        event.detail.x,
+        event.detail.y,
+      )}
   />
 
   {#if open}
@@ -119,6 +238,8 @@
                   ? "bg-tg-blue/80 text-white"
                   : "text-tg-text-primary hover:bg-white/[0.05]"
               }`}
+              on:contextmenu={(event) =>
+                handleRepositoryRowContextMenu(event, repository)}
             >
               <button
                 class="flex min-w-0 flex-1 items-start gap-2.5 rounded-md px-1 py-1 text-left"
@@ -193,4 +314,25 @@
       </div>
     </div>
   {/if}
+
+  <RepositoryContextMenu
+    open={repositoryContextMenu.open}
+    x={repositoryContextMenu.x}
+    y={repositoryContextMenu.y}
+    repository={repositoryContextMenu.repository}
+    {githubUrl}
+    {githubLoading}
+    {managementDisabled}
+    on:copyName={(event) => copyRepositoryName(event.detail.repository)}
+    on:copyPath={(event) => copyRepositoryPath(event.detail.repository)}
+    on:viewGithub={(event) =>
+      viewRepositoryOnGithub(event.detail.repository, event.detail.url)}
+    on:openTerminal={(event) =>
+      openRepositoryInTerminal(event.detail.repository)}
+    on:revealInFinder={(event) =>
+      revealRepositoryInFinder(event.detail.repository)}
+    on:openInVSCode={(event) => openRepositoryInVSCode(event.detail.repository)}
+    on:remove={(event) => removeRepository(event.detail.repository.path)}
+    on:close={closeRepositoryContextMenu}
+  />
 </div>

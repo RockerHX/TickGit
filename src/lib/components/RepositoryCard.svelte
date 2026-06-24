@@ -13,7 +13,10 @@
   export let repository: RepositorySummary | null = null;
   export let open = false;
 
-  const dispatch = createEventDispatcher<{ toggle: void }>();
+  const dispatch = createEventDispatcher<{
+    toggle: void;
+    contextMenu: { x: number; y: number };
+  }>();
 
   $: displayPath = repository ? formatRepositoryPath(repository.path) : null;
   $: statusLabel = repository
@@ -34,6 +37,12 @@
   function toggle() {
     dispatch("toggle");
   }
+
+  function openContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dispatch("contextMenu", { x: event.clientX, y: event.clientY });
+  }
 </script>
 
 <button
@@ -48,6 +57,7 @@
   aria-label={cardLabel}
   title={cardTitle}
   on:click|stopPropagation={toggle}
+  on:contextmenu={openContextMenu}
 >
   <span
     class="tg-icon-tile flex h-8 w-8 shrink-0 items-center justify-center transition group-hover:shadow-[0_12px_24px_rgba(37,99,235,0.32)]"
