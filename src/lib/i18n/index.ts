@@ -127,6 +127,7 @@ const ERROR_CODE_KEYS: Partial<Record<string, TranslationKey>> = {
   window_not_found: "error.windowNotFound",
   git_unavailable: "error.gitUnavailable",
   git_command_failed: "error.gitCommandFailed",
+  external_tool_unavailable: "error.externalToolUnavailable",
   invalid_repository: "error.invalidRepository",
   invalid_branch: "error.invalidBranch",
   detached_head: "push.detachedHead",

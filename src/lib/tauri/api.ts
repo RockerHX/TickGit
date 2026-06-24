@@ -27,6 +27,14 @@ export const api = {
     invoke<RepositorySummary | null>("remove_repository", { path }),
   relocateRepository: (oldPath: string, newPath: string) =>
     invoke<RepositorySummary>("relocate_repository", { oldPath, newPath }),
+  getRepositoryGithubUrl: (repoPath: string) =>
+    invoke<string | null>("get_repository_github_url", { repoPath }),
+  revealRepositoryInFileManager: (repoPath: string) =>
+    invoke<void>("reveal_repository_in_file_manager", { repoPath }),
+  openTerminalAtRepository: (repoPath: string) =>
+    invoke<void>("open_terminal_at_repository", { repoPath }),
+  openRepositoryInVSCode: (repoPath: string) =>
+    invoke<void>("open_repository_in_vscode", { repoPath }),
   getBranchStatus: (repoPath: string) =>
     invoke<BranchStatus>("get_branch_status", { repoPath }),
   getRepositoryRevision: (repoPath: string) =>
