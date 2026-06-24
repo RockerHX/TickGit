@@ -238,6 +238,7 @@
                   ? "bg-tg-blue/80 text-white"
                   : "text-tg-text-primary hover:bg-white/[0.05]"
               }`}
+              role="presentation"
               on:contextmenu={(event) =>
                 handleRepositoryRowContextMenu(event, repository)}
             >
