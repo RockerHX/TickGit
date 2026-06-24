@@ -1,4 +1,5 @@
 import type { RepositorySummary } from "$lib/types";
+import type { TranslationKey } from "$lib/i18n";
 
 export type RepositoryContextMenuActionId =
   | "copyName"
@@ -12,7 +13,7 @@ export type RepositoryContextMenuActionId =
 export type RepositoryContextMenuActionState = {
   id: RepositoryContextMenuActionId;
   disabled: boolean;
-  disabledReasonKey: string | null;
+  disabledReasonKey: TranslationKey | null;
 };
 
 export type RepositoryContextMenuStateInput = {
@@ -35,7 +36,7 @@ const ACTION_IDS: RepositoryContextMenuActionId[] = [
 function actionState(
   id: RepositoryContextMenuActionId,
   disabled: boolean,
-  disabledReasonKey: string | null = null,
+  disabledReasonKey: TranslationKey | null = null,
 ): RepositoryContextMenuActionState {
   return {
     id,
