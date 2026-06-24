@@ -6,6 +6,8 @@
   import {
     commitInfoDefaultCollapsed,
     setCommitInfoDefaultCollapsed,
+    setTextSelectionEnabled,
+    textSelectionEnabled,
   } from "$lib/tickgit/preferences";
 
   export let open = false;
@@ -209,6 +211,44 @@
               <span
                 class={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow transition ${
                   $commitInfoDefaultCollapsed ? "left-[22px]" : "left-1"
+                }`}
+                aria-hidden="true"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tg-card px-4 py-3">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div
+                id="settings-text-selection-title"
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-tg-text-muted"
+              >
+                {translate($locale, "settings.textSelection")}
+              </div>
+              <p class="mt-2 text-sm font-medium text-tg-text-secondary">
+                {translate($locale, "settings.textSelectionEnabled")}
+              </p>
+              <p class="mt-1 text-xs leading-5 text-tg-text-secondary/80">
+                {translate($locale, "settings.textSelectionEnabledDescription")}
+              </p>
+            </div>
+            <button
+              type="button"
+              class={`tg-focus-ring relative mt-1 h-6 w-11 shrink-0 rounded-full border transition ${
+                $textSelectionEnabled
+                  ? "border-tg-blue-soft/55 bg-tg-blue/70"
+                  : "border-tg-border-soft bg-white/[0.08]"
+              }`}
+              role="switch"
+              aria-labelledby="settings-text-selection-title"
+              aria-checked={$textSelectionEnabled}
+              on:click={() => setTextSelectionEnabled(!$textSelectionEnabled)}
+            >
+              <span
+                class={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow transition ${
+                  $textSelectionEnabled ? "left-[22px]" : "left-1"
                 }`}
                 aria-hidden="true"
               ></span>

@@ -27,6 +27,10 @@ export const resources = {
     "settings.commitInfoDefaultCollapsed": "Collapse commit info by default",
     "settings.commitInfoDefaultCollapsedDescription":
       "Newly selected commits open with the compact header when this is enabled.",
+    "settings.textSelection": "Text selection",
+    "settings.textSelectionEnabled": "Allow dragging to select page text",
+    "settings.textSelectionEnabledDescription":
+      "When enabled, you can drag to select repository, branch, commit, and diff text. When disabled, TickGit keeps a more desktop-app-like control interaction.",
     "settings.close": "Close settings",
     "repository.current": "Current Repository",
     "repository.select": "Select repository",
@@ -288,6 +292,10 @@ export const resources = {
     "settings.commitInfoDefaultCollapsed": "默认折叠 Commit 信息",
     "settings.commitInfoDefaultCollapsedDescription":
       "开启后，新选择的 Commit 会默认显示紧凑头部。",
+    "settings.textSelection": "文本选择",
+    "settings.textSelectionEnabled": "允许拖拽选择页面文字",
+    "settings.textSelectionEnabledDescription":
+      "开启后可以拖动选择仓库、分支、Commit 和 Diff 等页面文字；关闭后保持更接近桌面应用控件的交互。",
     "settings.close": "关闭设置",
     "repository.current": "当前仓库",
     "repository.select": "选择仓库",
