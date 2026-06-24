@@ -115,6 +115,45 @@ body {
   color: var(--tg-text-secondary);
 }
 
+.tg-text-selection-disabled,
+.tg-text-selection-disabled
+  :where(*:not(input):not(textarea):not([contenteditable="true"])) {
+  user-select: none;
+}
+
+.tg-text-selection-enabled {
+  user-select: text;
+}
+
+.tg-text-selection-enabled :where(input, textarea, [contenteditable="true"]) {
+  user-select: text;
+}
+
+.tg-text-selection-enabled
+  :where(
+    button,
+    select,
+    [role="switch"],
+    .tg-control,
+    .tg-focus-ring,
+    .cursor-col-resize
+  ) {
+  user-select: none;
+}
+
+.tg-text-selection-enabled
+  :where(
+    .tg-card,
+    .tg-panel,
+    [class*="font-mono"],
+    [class*="break-all"],
+    [class*="truncate"],
+    [class*="leading-"]
+  )
+  :where(span, p, div, code, pre) {
+  user-select: text;
+}
+
 .tg-panel {
   border: 1px solid var(--tg-border-soft);
   background: var(--tg-bg-panel);
