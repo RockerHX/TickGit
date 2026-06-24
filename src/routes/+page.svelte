@@ -88,6 +88,7 @@
     getPaginationState,
   } from "$lib/tickgit/pagination";
   import { measureAsync } from "$lib/tickgit/performance";
+  import { textSelectionEnabled } from "$lib/tickgit/preferences";
   import {
     MAX_LEFT_PANE_WIDTH,
     MIN_LEFT_PANE_WIDTH,
@@ -1493,7 +1494,13 @@
   on:close={closeContextMenu}
 />
 
-<main class="tg-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
+<main
+  class={`tg-app-shell flex h-screen min-h-0 flex-col overflow-hidden ${
+    $textSelectionEnabled
+      ? "tg-text-selection-enabled"
+      : "tg-text-selection-disabled"
+  }`}
+>
   <header
     class="relative z-30 shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
   >
