@@ -1,5 +1,6 @@
 mod commands;
 mod error;
+mod external;
 mod git;
 mod jobs;
 mod models;
@@ -27,6 +28,10 @@ pub fn run() {
             commands::get_current_repository,
             commands::remove_repository,
             commands::relocate_repository,
+            commands::get_repository_github_url,
+            commands::reveal_repository_in_file_manager,
+            commands::open_terminal_at_repository,
+            commands::open_repository_in_vscode,
             commands::get_branch_status,
             commands::get_repository_revision,
             commands::refresh_remote_tracking,

@@ -2,7 +2,7 @@ use tauri::{AppHandle, State};
 
 use crate::{
     error::AppResult,
-    git, jobs,
+    external, git, jobs,
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
         CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest,
@@ -62,6 +62,26 @@ pub fn relocate_repository(
     new_path: String,
 ) -> AppResult<RepositorySummary> {
     repo_store::relocate_repository(&app, state, old_path, new_path)
+}
+
+#[tauri::command]
+pub fn get_repository_github_url(repo_path: String) -> AppResult<Option<String>> {
+    external::get_repository_github_url(&repo_path)
+}
+
+#[tauri::command]
+pub fn reveal_repository_in_file_manager(repo_path: String) -> AppResult<()> {
+    external::reveal_repository_in_file_manager(&repo_path)
+}
+
+#[tauri::command]
+pub fn open_terminal_at_repository(repo_path: String) -> AppResult<()> {
+    external::open_terminal_at_repository(&repo_path)
+}
+
+#[tauri::command]
+pub fn open_repository_in_vscode(repo_path: String) -> AppResult<()> {
+    external::open_repository_in_vscode(&repo_path)
 }
 
 #[tauri::command]
