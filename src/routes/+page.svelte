@@ -1258,6 +1258,11 @@
     const requestId = ++stepPushPlanRequestId;
 
     try {
+      await paintLoadingState();
+      if (requestId !== stepPushPlanRequestId) {
+        return;
+      }
+
       const plan = await api.getStepPushPlan(repository.path, commit.hash);
       if (requestId !== stepPushPlanRequestId) {
         return;
