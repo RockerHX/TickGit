@@ -7,6 +7,7 @@ import {
   normalizeLocale,
   resources,
   translate,
+  translateErrorCode,
   type TranslationKey,
 } from "$lib/i18n";
 
@@ -66,6 +67,19 @@ describe("i18n resources", () => {
   it("falls back to the key for unknown keys", () => {
     expect(translate("en-US", "missing.key" as TranslationKey)).toBe(
       "missing.key",
+    );
+  });
+
+  it("translates checkout blocked error codes", () => {
+    expect(
+      translateErrorCode("en-US", "checkout_blocked_by_local_changes"),
+    ).toBe(
+      "Local uncommitted changes would be overwritten by the target branch. Git blocked the switch. Commit, stage, stash, or discard those changes and try again.",
+    );
+    expect(
+      translateErrorCode("zh-CN", "checkout_blocked_by_untracked_files"),
+    ).toBe(
+      "未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
     );
   });
 });

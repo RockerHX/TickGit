@@ -291,6 +291,10 @@ export const resources = {
     "error.invalidRepository":
       "The selected path is not a valid Git repository",
     "error.invalidBranch": "Target branch cannot be empty",
+    "error.checkoutBlockedByLocalChanges":
+      "Local uncommitted changes would be overwritten by the target branch. Git blocked the switch. Commit, stage, stash, or discard those changes and try again.",
+    "error.checkoutBlockedByUntrackedFiles":
+      "Untracked files would be overwritten by the target branch. Git blocked the switch. Move, delete, add to version control, or stash those files and try again.",
     "error.missingOrigin": "The current repository has no origin remote.",
     "error.nonOriginUpstream": "The current branch upstream is not origin.",
   },
@@ -558,6 +562,10 @@ export const resources = {
     "error.externalToolUnavailable": "该操作所需的外部工具不可用",
     "error.invalidRepository": "选择的路径不是有效 Git 仓库",
     "error.invalidBranch": "目标分支不能为空",
+    "error.checkoutBlockedByLocalChanges":
+      "本地未提交修改会被目标分支覆盖，Git 已阻止切换。请先提交、暂存、stash 或丢弃这些修改后重试。",
+    "error.checkoutBlockedByUntrackedFiles":
+      "未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
     "error.missingOrigin": "当前仓库未配置 origin 远端。",
     "error.nonOriginUpstream": "当前分支的上游不是 origin 远端。",
   },

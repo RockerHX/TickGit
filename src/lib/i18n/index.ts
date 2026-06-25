@@ -130,6 +130,8 @@ const ERROR_CODE_KEYS: Partial<Record<string, TranslationKey>> = {
   external_tool_unavailable: "error.externalToolUnavailable",
   invalid_repository: "error.invalidRepository",
   invalid_branch: "error.invalidBranch",
+  checkout_blocked_by_local_changes: "error.checkoutBlockedByLocalChanges",
+  checkout_blocked_by_untracked_files: "error.checkoutBlockedByUntrackedFiles",
   detached_head: "push.detachedHead",
   branch_mismatch: "push.branchMismatch",
   missing_origin: "error.missingOrigin",
