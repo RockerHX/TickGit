@@ -166,9 +166,6 @@ pub fn start_step_push(
 ) -> AppResult<StepPushJobStarted> {
     validate_step_push_request_shape(&request)?;
 
-    let branch = git::validate_current_branch(&request.repo_path, &request.branch)?;
-    git::validate_step_push_hashes(&request.repo_path, &request.hashes)?;
-
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
     let running_job = Arc::clone(&jobs.running_job);
     let task_key = format!("step-push:{job_id}");
@@ -190,11 +187,61 @@ pub fn start_step_push(
 
     let total = request.hashes.len();
     let repo_path = request.repo_path.clone();
+    let requested_branch = request.branch.clone();
     let hashes = request.hashes.clone();
+    let first_hash = hashes[0].clone();
     let delay_ms = request.delay_ms.unwrap_or(1500);
     let task_key_for_thread = task_key.clone();
 
     thread::spawn(move || {
+        let _ = app.emit(
+            STEP_PUSH_PROGRESS_EVENT,
+            StepPushProgress {
+                job_id,
+                current: 0,
+                total,
+                hash: first_hash.clone(),
+                status: "preparing".to_string(),
+            },
+        );
+
+        let branch = match git::validate_current_branch(&repo_path, &requested_branch) {
+            Ok(branch) => branch,
+            Err(error) => {
+                let _ = app.emit(
+                    STEP_PUSH_FAILED_EVENT,
+                    StepPushFailed {
+                        job_id,
+                        current: 0,
+                        total,
+                        hash: first_hash.clone(),
+                        message: error.message,
+                        code: error.code,
+                    },
+                );
+                clear_running_job(&running_job, job_id);
+                clear_push_execution(&running_task, &task_key_for_thread);
+                return;
+            }
+        };
+
+        if let Err(error) = git::validate_step_push_hashes(&repo_path, &hashes) {
+            let _ = app.emit(
+                STEP_PUSH_FAILED_EVENT,
+                StepPushFailed {
+                    job_id,
+                    current: 0,
+                    total,
+                    hash: first_hash.clone(),
+                    message: error.message,
+                    code: error.code,
+                },
+            );
+            clear_running_job(&running_job, job_id);
+            clear_push_execution(&running_task, &task_key_for_thread);
+            return;
+        }
+
         for (index, hash) in hashes.iter().enumerate() {
             if let Err(error) = git::push_to_commit_prechecked(&repo_path, &branch, hash) {
                 let _ = app.emit(
