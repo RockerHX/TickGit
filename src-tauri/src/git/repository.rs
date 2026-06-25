@@ -12,6 +12,15 @@ use super::{
     BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE, REMOTE_NAME,
 };
 
+const CHECKOUT_BLOCKED_BY_LOCAL_CHANGES_PATTERN: &str =
+    "Your local changes to the following files would be overwritten by checkout";
+const CHECKOUT_BLOCKED_BY_UNTRACKED_FILES_PATTERN: &str =
+    "The following untracked working tree files would be overwritten by checkout";
+const CHECKOUT_BLOCKED_BY_LOCAL_CHANGES_MESSAGE: &str =
+    "本地未提交修改会被目标分支覆盖，Git 已阻止切换。请先提交、暂存、stash 或丢弃这些修改后重试。";
+const CHECKOUT_BLOCKED_BY_UNTRACKED_FILES_MESSAGE: &str =
+    "未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。";
+
 pub(super) fn current_branch_name(repo_path: &Path) -> AppResult<(String, bool)> {
     let branch = git_trimmed(repo_path, &["branch", "--show-current"])?;
 
@@ -240,6 +249,34 @@ pub(super) fn list_local_branches_for_path(repo_path: &Path) -> AppResult<Vec<St
         .collect())
 }
 
+fn classify_checkout_error(error: AppError) -> AppError {
+    if error.code != "git_command_failed" {
+        return error;
+    }
+
+    if error
+        .message
+        .contains(CHECKOUT_BLOCKED_BY_LOCAL_CHANGES_PATTERN)
+    {
+        return AppError::new(
+            "checkout_blocked_by_local_changes",
+            CHECKOUT_BLOCKED_BY_LOCAL_CHANGES_MESSAGE,
+        );
+    }
+
+    if error
+        .message
+        .contains(CHECKOUT_BLOCKED_BY_UNTRACKED_FILES_PATTERN)
+    {
+        return AppError::new(
+            "checkout_blocked_by_untracked_files",
+            CHECKOUT_BLOCKED_BY_UNTRACKED_FILES_MESSAGE,
+        );
+    }
+
+    error
+}
+
 pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
     let repo_path = resolve_repository_path(repo_path)?;
     let branch = branch.trim();
@@ -248,7 +285,7 @@ pub fn checkout_branch(repo_path: &str, branch: &str) -> AppResult<()> {
         return Err(AppError::new("invalid_branch", "目标分支不能为空"));
     }
 
-    git_run(&repo_path, &["checkout", branch])
+    git_run(&repo_path, &["checkout", branch]).map_err(classify_checkout_error)
 }
 
 pub fn get_repository_revision(repo_path: &str) -> AppResult<RepositoryRevision> {
