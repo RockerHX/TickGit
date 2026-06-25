@@ -100,6 +100,12 @@ describe("page state", () => {
         "feature",
       ),
     ).toBe(false);
+    expect(
+      canSwitchBranch(
+        { ...base, stepPushState: stepPushState("preparing") },
+        "feature",
+      ),
+    ).toBe(false);
   });
 
   it("allows blocked branch refresh only when repository controls are idle", () => {
@@ -122,6 +128,12 @@ describe("page state", () => {
       canRefreshBlockedBranchStatus({
         ...base,
         stepPushState: stepPushState("running"),
+      }),
+    ).toBe(false);
+    expect(
+      canRefreshBlockedBranchStatus({
+        ...base,
+        stepPushState: stepPushState("preparing"),
       }),
     ).toBe(false);
   });
@@ -150,6 +162,12 @@ describe("page state", () => {
     expect(canPushCurrentBranch({ ...base, switchingBranch: true })).toBe(
       false,
     );
+    expect(
+      canPushCurrentBranch({
+        ...base,
+        stepPushState: stepPushState("preparing"),
+      }),
+    ).toBe(false);
   });
 
   it("guards repository refresh and commit loading", () => {
@@ -271,6 +289,9 @@ describe("page state", () => {
     expect(
       canStartStepPush({ ...base, stepPushState: stepPushState("running") }),
     ).toBe(false);
+    expect(
+      canStartStepPush({ ...base, stepPushState: stepPushState("preparing") }),
+    ).toBe(false);
   });
 
   it("derives branch switcher and context menu disabled states", () => {
@@ -292,6 +313,12 @@ describe("page state", () => {
       isContextMenuDisabled({
         ...base,
         stepPushState: stepPushState("running"),
+      }),
+    ).toBe(true);
+    expect(
+      isContextMenuDisabled({
+        ...base,
+        stepPushState: stepPushState("preparing"),
       }),
     ).toBe(true);
   });

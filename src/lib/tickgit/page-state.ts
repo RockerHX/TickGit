@@ -29,7 +29,9 @@ export type CommitActionState = PageBusyState & {
 };
 
 export function isStepPushRunning(stepPushState: StepPushStatus) {
-  return stepPushState?.status === "running";
+  return (
+    stepPushState?.status === "preparing" || stepPushState?.status === "running"
+  );
 }
 
 export function isRepositoryAvailable(repository: RepositorySummary | null) {
