@@ -75,6 +75,21 @@ fn validate_non_empty(value: &str, code: &str, message: &str) -> AppResult<()> {
     Ok(())
 }
 
+fn validate_step_push_request_shape(request: &StepPushRequest) -> AppResult<()> {
+    validate_non_empty(&request.repo_path, "invalid_repository", "仓库路径不能为空")?;
+    validate_non_empty(&request.branch, "invalid_branch", "目标分支不能为空")?;
+
+    if request.hashes.is_empty() {
+        return Err(AppError::new("empty_hashes", "没有可推送的 Commit"));
+    }
+
+    for hash in &request.hashes {
+        validate_non_empty(hash, "invalid_hash", "目标 Commit 不能为空")?;
+    }
+
+    Ok(())
+}
+
 fn emit_push_to_commit_progress(
     app: &AppHandle,
     job_id: u64,
@@ -149,12 +164,9 @@ pub fn start_step_push(
     gate: State<'_, PushExecutionGate>,
     request: StepPushRequest,
 ) -> AppResult<StepPushJobStarted> {
+    validate_step_push_request_shape(&request)?;
+
     let branch = git::validate_current_branch(&request.repo_path, &request.branch)?;
-
-    if request.hashes.is_empty() {
-        return Err(AppError::new("empty_hashes", "没有可推送的 Commit"));
-    }
-
     git::validate_step_push_hashes(&request.repo_path, &request.hashes)?;
 
     let job_id = jobs.next_job_id.fetch_add(1, Ordering::SeqCst);
@@ -412,13 +424,47 @@ pub fn start_push_current_branch(
 mod tests {
     use super::{
         clear_push_execution, clear_running_job, reserve_push_execution, validate_non_empty,
+        validate_step_push_request_shape,
     };
+    use crate::models::StepPushRequest;
     use std::sync::{Arc, Mutex};
 
     #[test]
     fn rejects_empty_push_request_fields() {
         let error = validate_non_empty("  ", "invalid_hash", "目标 Commit 不能为空").unwrap_err();
 
+        assert_eq!(error.code, "invalid_hash");
+        assert_eq!(error.message, "目标 Commit 不能为空");
+    }
+
+    #[test]
+    fn rejects_invalid_step_push_request_shape() {
+        let mut request = StepPushRequest {
+            repo_path: "repo".to_string(),
+            branch: "main".to_string(),
+            hashes: vec!["abc123".to_string()],
+            delay_ms: None,
+        };
+
+        request.repo_path = "  ".to_string();
+        let error = validate_step_push_request_shape(&request).unwrap_err();
+        assert_eq!(error.code, "invalid_repository");
+        assert_eq!(error.message, "仓库路径不能为空");
+
+        request.repo_path = "repo".to_string();
+        request.branch = "  ".to_string();
+        let error = validate_step_push_request_shape(&request).unwrap_err();
+        assert_eq!(error.code, "invalid_branch");
+        assert_eq!(error.message, "目标分支不能为空");
+
+        request.branch = "main".to_string();
+        request.hashes = Vec::new();
+        let error = validate_step_push_request_shape(&request).unwrap_err();
+        assert_eq!(error.code, "empty_hashes");
+        assert_eq!(error.message, "没有可推送的 Commit");
+
+        request.hashes = vec!["abc123".to_string(), "  ".to_string()];
+        let error = validate_step_push_request_shape(&request).unwrap_err();
         assert_eq!(error.code, "invalid_hash");
         assert_eq!(error.message, "目标 Commit 不能为空");
     }
