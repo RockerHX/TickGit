@@ -28,6 +28,8 @@
               {translate($locale, "stepPush.finished")}
             {:else if state.status === "failed"}
               {translate($locale, "stepPush.failed")}
+            {:else if state.status === "preparing"}
+              {translate($locale, "stepPush.preparing")}
             {:else}
               {translate($locale, "stepPush.running")}
             {/if}
