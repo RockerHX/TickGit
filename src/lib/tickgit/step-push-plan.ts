@@ -58,5 +58,6 @@ export async function startStepPushFromPlan(
   return toRunningStepPushState({
     ...started,
     hash: hashes[0],
+    status: "preparing",
   });
 }

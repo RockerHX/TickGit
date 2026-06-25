@@ -42,7 +42,7 @@ describe("step push plan", () => {
       current: 0,
       total: 2,
       hash: "c1",
-      status: "running",
+      status: "preparing",
     });
   });
 
