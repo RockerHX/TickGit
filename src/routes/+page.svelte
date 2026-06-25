@@ -49,7 +49,11 @@
     historyFiltersEqual,
     normalizeHistoryFilters,
   } from "$lib/tickgit/history";
-  import { createToastItem, getErrorMessage } from "$lib/tickgit/page-helpers";
+  import {
+    createToastItem,
+    getBranchSwitchErrorMessage,
+    getErrorMessage,
+  } from "$lib/tickgit/page-helpers";
   import {
     canCheckRepositoryRevisionOnFocus,
     canLoadCommitFiles,
@@ -669,7 +673,7 @@
     } catch (error) {
       notify(
         translate($locale, "branch.switchFailedTitle"),
-        getErrorMessage(error, $locale),
+        getBranchSwitchErrorMessage(error, branch, $locale),
         "error",
       );
     } finally {
