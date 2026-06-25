@@ -1681,3 +1681,75 @@ fn rejects_empty_checkout_branch() {
     let after = branch_status_for_path(&repo.path).unwrap().branch;
     assert_eq!(after, before);
 }
+
+#[test]
+fn blocks_checkout_when_local_changes_would_be_overwritten() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    let current_branch = current_test_branch(&repo.path);
+    run_git(&repo.path, &["branch", "feature"]);
+
+    run_git(&repo.path, &["checkout", "feature"]);
+    commit_file(&repo.path, "file.txt", "feature change\n", "feature update");
+    run_git(&repo.path, &["checkout", &current_branch]);
+
+    write_file(&repo.path, "file.txt", "local change\n");
+
+    let error = checkout_branch(repo.path.to_string_lossy().as_ref(), "feature").unwrap_err();
+
+    assert_app_error(
+        error,
+        "checkout_blocked_by_local_changes",
+        "本地未提交修改会被目标分支覆盖，Git 已阻止切换。请先提交、暂存、stash 或丢弃这些修改后重试。",
+    );
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.branch, current_branch);
+}
+
+#[test]
+fn blocks_checkout_when_untracked_files_would_be_overwritten() {
+    let repo = init_repo();
+    commit_file(&repo.path, "base.txt", "hello\n", "initial");
+    let current_branch = current_test_branch(&repo.path);
+    run_git(&repo.path, &["branch", "feature"]);
+
+    run_git(&repo.path, &["checkout", "feature"]);
+    commit_file(&repo.path, "conflict.txt", "tracked on feature\n", "feature file");
+    run_git(&repo.path, &["checkout", &current_branch]);
+
+    write_file(&repo.path, "conflict.txt", "local untracked\n");
+
+    let error = checkout_branch(repo.path.to_string_lossy().as_ref(), "feature").unwrap_err();
+
+    assert_app_error(
+        error,
+        "checkout_blocked_by_untracked_files",
+        "未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
+    );
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.branch, current_branch);
+}
+
+#[test]
+fn allows_checkout_with_dirty_worktree_when_changes_do_not_conflict() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "hello\n", "initial");
+    commit_file(&repo.path, "local-only.txt", "base\n", "add local file");
+    let current_branch = current_test_branch(&repo.path);
+    run_git(&repo.path, &["branch", "feature"]);
+
+    run_git(&repo.path, &["checkout", "feature"]);
+    commit_file(&repo.path, "other.txt", "feature only\n", "feature file");
+    run_git(&repo.path, &["checkout", &current_branch]);
+
+    write_file(&repo.path, "local-only.txt", "dirty change\n");
+
+    checkout_branch(repo.path.to_string_lossy().as_ref(), "feature").unwrap();
+
+    let status = branch_status_for_path(&repo.path).unwrap();
+    assert_eq!(status.branch, "feature");
+    assert_eq!(
+        fs::read_to_string(repo.path.join("local-only.txt")).unwrap(),
+        "dirty change\n",
+    );
+}
