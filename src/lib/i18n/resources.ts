@@ -249,7 +249,8 @@ export const resources = {
     "stepPush.previewDescription":
       "TickGit will push each commit in the order verified by the backend.",
     "stepPush.closePreview": "Close step push preview",
-    "stepPush.loadingPlan": "Generating step push plan…",
+    "stepPush.loadingPlan":
+      "Checking remote status and generating the step push preview…",
     "stepPush.unavailable": "Step push is currently unavailable",
     "stepPush.branch": "Branch",
     "stepPush.commits": "{count} commits",
@@ -528,7 +529,7 @@ export const resources = {
     "stepPush.previewDescription":
       "TickGit 将按后端校验后的顺序逐个推送 Commit。",
     "stepPush.closePreview": "关闭分步推送预览",
-    "stepPush.loadingPlan": "正在生成分步推送计划…",
+    "stepPush.loadingPlan": "正在检查远端状态并生成分步推送预览...",
     "stepPush.unavailable": "当前不可分步推送",
     "stepPush.branch": "分支",
     "stepPush.commits": "{count} 个 Commit",
