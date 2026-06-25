@@ -1,7 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::{
-    error::AppResult,
+    error::{AppError, AppResult},
     external, git, jobs,
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
@@ -170,8 +170,13 @@ pub fn save_window_size(
 }
 
 #[tauri::command]
-pub fn get_step_push_plan(repo_path: String, target_hash: String) -> AppResult<StepPushPlan> {
-    git::get_step_push_plan(&repo_path, &target_hash)
+pub async fn get_step_push_plan(
+    repo_path: String,
+    target_hash: String,
+) -> AppResult<StepPushPlan> {
+    tauri::async_runtime::spawn_blocking(move || git::get_step_push_plan(&repo_path, &target_hash))
+        .await
+        .map_err(|_| AppError::new("step_push_plan_task_failed", "生成分步推送预览任务失败"))?
 }
 
 #[tauri::command]
