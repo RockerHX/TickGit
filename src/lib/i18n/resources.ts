@@ -102,6 +102,10 @@ export const resources = {
     "branch.switchedTitle": "Branch switched",
     "branch.switchedMessage": "Current branch switched to {branch}",
     "branch.switchFailedTitle": "Failed to switch branch",
+    "branch.switchBlockedByLocalChanges":
+      "Cannot switch to {branch}. Local uncommitted changes would be overwritten by the target branch. Git blocked the switch. Commit, stage, stash, or discard those changes and try again.",
+    "branch.switchBlockedByUntrackedFiles":
+      "Cannot switch to {branch}. Untracked files would be overwritten by the target branch. Git blocked the switch. Move, delete, add to version control, or stash those files and try again.",
     "branch.detachedPushDisabled":
       "The current repository is in detached HEAD state. Push actions are disabled.",
     "branch.missingOriginPushDisabled":
@@ -389,6 +393,10 @@ export const resources = {
     "branch.switchedTitle": "分支已切换",
     "branch.switchedMessage": "当前已切换到 {branch}",
     "branch.switchFailedTitle": "切换分支失败",
+    "branch.switchBlockedByLocalChanges":
+      "无法切换到 {branch}。本地未提交修改会被目标分支覆盖，Git 已阻止切换。请先提交、暂存、stash 或丢弃这些修改后重试。",
+    "branch.switchBlockedByUntrackedFiles":
+      "无法切换到 {branch}。未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
     "branch.detachedPushDisabled":
       "当前仓库处于 detached HEAD 状态，已禁用推送动作。",
     "branch.missingOriginPushDisabled":

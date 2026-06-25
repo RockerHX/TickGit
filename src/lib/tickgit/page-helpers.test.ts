@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CommitListItem } from "$lib/types";
-import { getErrorMessage, pickSelectedCommit } from "$lib/tickgit/page-helpers";
+import {
+  getBranchSwitchErrorMessage,
+  getErrorMessage,
+  pickSelectedCommit,
+} from "$lib/tickgit/page-helpers";
 
 function commit(hash: string, isPushed = false): CommitListItem {
   return {
@@ -41,6 +45,33 @@ describe("page helpers", () => {
     );
     expect(getErrorMessage(null)).toBe("Unknown error");
     expect(getErrorMessage(undefined, "zh-CN")).toBe("未知错误");
+  });
+
+  it("builds branch switch messages for structured checkout blockers", () => {
+    expect(
+      getBranchSwitchErrorMessage(
+        { code: "checkout_blocked_by_local_changes", message: "fallback" },
+        "feature/login",
+      ),
+    ).toBe(
+      "Cannot switch to feature/login. Local uncommitted changes would be overwritten by the target branch. Git blocked the switch. Commit, stage, stash, or discard those changes and try again.",
+    );
+    expect(
+      getBranchSwitchErrorMessage(
+        { code: "checkout_blocked_by_untracked_files", message: "fallback" },
+        "release",
+        "zh-CN",
+      ),
+    ).toBe(
+      "无法切换到 release。未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
+    );
+    expect(
+      getBranchSwitchErrorMessage(
+        { code: "unknown_code", message: "fallback" },
+        "main",
+        "zh-CN",
+      ),
+    ).toBe("fallback");
   });
 
   it("picks selected commit with optional keep-selection behavior", () => {

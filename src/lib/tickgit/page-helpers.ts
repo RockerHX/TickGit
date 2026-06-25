@@ -32,6 +32,30 @@ export function getErrorMessage(
   return translate(locale, "common.unknownError");
 }
 
+export function getBranchSwitchErrorMessage(
+  error: unknown,
+  branch: string,
+  locale: Locale = FALLBACK_LOCALE,
+) {
+  if (error && typeof error === "object") {
+    const appError = error as Partial<AppError>;
+
+    if (appError.code === "checkout_blocked_by_local_changes") {
+      return translate(locale, "branch.switchBlockedByLocalChanges", {
+        branch,
+      });
+    }
+
+    if (appError.code === "checkout_blocked_by_untracked_files") {
+      return translate(locale, "branch.switchBlockedByUntrackedFiles", {
+        branch,
+      });
+    }
+  }
+
+  return getErrorMessage(error, locale);
+}
+
 export function pickSelectedCommit(
   commits: CommitListItem[],
   previousSelectedHash: string | null,
