@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::Path, process::Command};
+use std::{collections::HashSet, path::Path, process::Command, time::Instant};
 
 use crate::{
     error::{AppError, AppResult},
@@ -13,6 +13,30 @@ use super::{
     },
     BRANCH_BEHIND_REMOTE_MESSAGE, REMOTE_NAME, UNSAFE_PUSH_TARGET_MESSAGE,
 };
+
+fn step_push_plan_perf_enabled() -> bool {
+    std::env::var("TICKGIT_PERF").is_ok_and(|value| value == "1")
+}
+
+fn log_step_push_plan_stage(
+    stage: &str,
+    started_at: Instant,
+    target_hash: &str,
+    branch: Option<&str>,
+    upstream: Option<&str>,
+    result: &str,
+) {
+    if !step_push_plan_perf_enabled() {
+        return;
+    }
+
+    eprintln!(
+        "[tickgit:perf] step_push_plan stage={stage} target_hash={target_hash} branch={} upstream={} result={result} elapsed_ms={:.1}",
+        branch.unwrap_or("-"),
+        upstream.unwrap_or("-"),
+        started_at.elapsed().as_secs_f64() * 1000.0,
+    );
+}
 
 fn is_ancestor(repo_path: &Path, ancestor: &str, descendant: &str) -> AppResult<bool> {
     let output = Command::new("git")
@@ -305,10 +329,54 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
         return Err(AppError::new("invalid_hash", "目标 Commit 不能为空"));
     }
 
-    sync_origin_tracking(&repo_path)?;
+    let sync_started_at = Instant::now();
+    match sync_origin_tracking(&repo_path) {
+        Ok(()) => log_step_push_plan_stage(
+            "sync_origin_tracking",
+            sync_started_at,
+            target_hash,
+            None,
+            None,
+            "ok",
+        ),
+        Err(error) => {
+            log_step_push_plan_stage(
+                "sync_origin_tracking",
+                sync_started_at,
+                target_hash,
+                None,
+                None,
+                "error",
+            );
+            return Err(error);
+        }
+    }
 
-    let branch_status = branch_status_for_path(&repo_path)?;
+    let branch_status_started_at = Instant::now();
+    let branch_status = match branch_status_for_path(&repo_path) {
+        Ok(branch_status) => branch_status,
+        Err(error) => {
+            log_step_push_plan_stage(
+                "branch_status_for_path",
+                branch_status_started_at,
+                target_hash,
+                None,
+                None,
+                "error",
+            );
+            return Err(error);
+        }
+    };
+    let upstream = branch_status.upstream.as_deref();
     if let Some(reason) = step_push_branch_blocked_reason(&branch_status) {
+        log_step_push_plan_stage(
+            "branch_status_for_path",
+            branch_status_started_at,
+            target_hash,
+            Some(branch_status.branch.as_str()),
+            upstream,
+            "blocked",
+        );
         return Ok(blocked_step_push_plan(
             branch_status.branch,
             target_hash.to_string(),
@@ -316,13 +384,43 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
             reason.message,
         ));
     }
+    log_step_push_plan_stage(
+        "branch_status_for_path",
+        branch_status_started_at,
+        target_hash,
+        Some(branch_status.branch.as_str()),
+        upstream,
+        "ok",
+    );
 
-    let upstream = branch_status.upstream.as_deref().ok_or_else(|| {
+    let upstream = upstream.ok_or_else(|| {
         AppError::new("push_unavailable", "当前分支没有上游跟踪分支，无法执行推送")
     })?;
 
-    let safe_hashes = safe_unpushed_hashes_in_push_order(&repo_path, upstream)?;
+    let safe_hashes_started_at = Instant::now();
+    let safe_hashes = match safe_unpushed_hashes_in_push_order(&repo_path, upstream) {
+        Ok(safe_hashes) => safe_hashes,
+        Err(error) => {
+            log_step_push_plan_stage(
+                "safe_unpushed_hashes_in_push_order",
+                safe_hashes_started_at,
+                target_hash,
+                Some(branch_status.branch.as_str()),
+                Some(upstream),
+                "error",
+            );
+            return Err(error);
+        }
+    };
     let Some(target_index) = safe_hashes.iter().position(|hash| hash == target_hash) else {
+        log_step_push_plan_stage(
+            "safe_unpushed_hashes_in_push_order",
+            safe_hashes_started_at,
+            target_hash,
+            Some(branch_status.branch.as_str()),
+            Some(upstream),
+            "blocked",
+        );
         return Ok(blocked_step_push_plan(
             branch_status.branch,
             target_hash.to_string(),
@@ -330,11 +428,27 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
             UNSAFE_PUSH_TARGET_MESSAGE,
         ));
     };
+    log_step_push_plan_stage(
+        "safe_unpushed_hashes_in_push_order",
+        safe_hashes_started_at,
+        target_hash,
+        Some(branch_status.branch.as_str()),
+        Some(upstream),
+        "ok",
+    );
 
-    if let Err(error) =
-        ensure_remote_fast_forward_target(&repo_path, &branch_status.branch, target_hash)
+    let ensure_remote_started_at = Instant::now();
+    if let Err(error) = ensure_remote_fast_forward_target(&repo_path, &branch_status.branch, target_hash)
     {
         if error.code == "push_unavailable" {
+            log_step_push_plan_stage(
+                "ensure_remote_fast_forward_target",
+                ensure_remote_started_at,
+                target_hash,
+                Some(branch_status.branch.as_str()),
+                Some(upstream),
+                "blocked",
+            );
             return Ok(blocked_step_push_plan(
                 branch_status.branch,
                 target_hash.to_string(),
@@ -343,10 +457,48 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
             ));
         }
 
+        log_step_push_plan_stage(
+            "ensure_remote_fast_forward_target",
+            ensure_remote_started_at,
+            target_hash,
+            Some(branch_status.branch.as_str()),
+            Some(upstream),
+            "error",
+        );
         return Err(error);
     }
+    log_step_push_plan_stage(
+        "ensure_remote_fast_forward_target",
+        ensure_remote_started_at,
+        target_hash,
+        Some(branch_status.branch.as_str()),
+        Some(upstream),
+        "ok",
+    );
 
-    let items = step_push_plan_items(&repo_path, &safe_hashes[..=target_index])?;
+    let items_started_at = Instant::now();
+    let items = match step_push_plan_items(&repo_path, &safe_hashes[..=target_index]) {
+        Ok(items) => items,
+        Err(error) => {
+            log_step_push_plan_stage(
+                "step_push_plan_items",
+                items_started_at,
+                target_hash,
+                Some(branch_status.branch.as_str()),
+                Some(upstream),
+                "error",
+            );
+            return Err(error);
+        }
+    };
+    log_step_push_plan_stage(
+        "step_push_plan_items",
+        items_started_at,
+        target_hash,
+        Some(branch_status.branch.as_str()),
+        Some(upstream),
+        "ok",
+    );
 
     Ok(StepPushPlan {
         branch: branch_status.branch,
