@@ -242,6 +242,17 @@ pub fn start_step_push(
             return;
         }
 
+        let _ = app.emit(
+            STEP_PUSH_PROGRESS_EVENT,
+            StepPushProgress {
+                job_id,
+                current: 0,
+                total,
+                hash: first_hash,
+                status: "running".to_string(),
+            },
+        );
+
         for (index, hash) in hashes.iter().enumerate() {
             if let Err(error) = git::push_to_commit_prechecked(&repo_path, &branch, hash) {
                 let _ = app.emit(
