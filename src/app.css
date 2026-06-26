@@ -154,6 +154,11 @@ body {
   user-select: text;
 }
 
+.tg-diff-selectable,
+.tg-diff-selectable :where(*) {
+  user-select: text;
+}
+
 .tg-panel {
   border: 1px solid var(--tg-border-soft);
   background: var(--tg-bg-panel);

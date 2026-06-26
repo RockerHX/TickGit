@@ -30,7 +30,7 @@ export const resources = {
     "settings.textSelection": "Text selection",
     "settings.textSelectionEnabled": "Allow dragging to select page text",
     "settings.textSelectionEnabledDescription":
-      "When enabled, you can drag to select repository, branch, commit, and diff text. When disabled, TickGit keeps a more desktop-app-like control interaction.",
+      "When enabled, you can drag to select repository, branch, commit, and diff text. When disabled, only diff code content remains selectable while other controls keep a desktop-app-like interaction.",
     "settings.close": "Close settings",
     "repository.current": "Current Repository",
     "repository.select": "Select repository",
@@ -331,7 +331,7 @@ export const resources = {
     "settings.textSelection": "文本选择",
     "settings.textSelectionEnabled": "允许拖拽选择页面文字",
     "settings.textSelectionEnabledDescription":
-      "开启后可以拖动选择仓库、分支、Commit 和 Diff 等页面文字；关闭后保持更接近桌面应用控件的交互。",
+      "开启后可以拖动选择仓库、分支、Commit 和 Diff 等页面文字；关闭后仅 Diff 代码内容可选，其他控件保持更接近桌面应用的交互。",
     "settings.close": "关闭设置",
     "repository.current": "当前仓库",
     "repository.select": "选择仓库",

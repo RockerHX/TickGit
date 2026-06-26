@@ -679,7 +679,7 @@
                     {line ? formatLineNumber(line.newLineNumber) : ""}
                   </div>
                   <div
-                    class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
+                    class="tg-diff-selectable overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
                   >
                     <span class="block whitespace-pre-wrap break-all">
                       {@html line ? line.html : " "}
@@ -757,7 +757,7 @@
                 {formatLineNumber(line.newLineNumber)}
               </div>
               <div
-                class="overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
+                class="tg-diff-selectable overflow-x-hidden px-2 py-0 font-mono text-[11px] leading-5"
               >
                 <span class="block whitespace-pre-wrap break-all">
                   {@html line.html}
