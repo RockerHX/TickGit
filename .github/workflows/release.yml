@@ -1,10 +1,12 @@
 name: Release
-run-name: Release v1.7.0
+run-name: ${{ github.ref_type == 'tag' && format('Release {0}', github.ref_name) || github.event.head_commit.message }}
 
 on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.sha }}
@@ -90,7 +92,18 @@ jobs:
 
           fetch_release_refs
 
-          if [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            require_release_tag
+
+            if ! git merge-base --is-ancestor "${TAG_SHA}" "refs/remotes/origin/main"; then
+              skip_release "Skipped release build because ${TAG_NAME} is not reachable from origin/main."
+            fi
+
+            if release_exists; then
+              skip_release "Skipped release build because GitHub Release ${TAG_NAME} already exists."
+            fi
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
             PACKAGE_VERSION="$(node -p "require('./package.json').version")"
             TAG_NAME="v${PACKAGE_VERSION}"
 
