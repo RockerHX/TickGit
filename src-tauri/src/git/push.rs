@@ -438,7 +438,8 @@ pub fn get_step_push_plan(repo_path: &str, target_hash: &str) -> AppResult<StepP
     );
 
     let ensure_remote_started_at = Instant::now();
-    if let Err(error) = ensure_remote_fast_forward_target(&repo_path, &branch_status.branch, target_hash)
+    if let Err(error) =
+        ensure_remote_fast_forward_target(&repo_path, &branch_status.branch, target_hash)
     {
         if error.code == "push_unavailable" {
             log_step_push_plan_stage(

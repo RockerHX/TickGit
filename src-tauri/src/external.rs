@@ -177,7 +177,9 @@ fn open_terminal(repo_path: &Path) -> AppResult<()> {
     xfce.arg("--working-directory").arg(repo_path);
 
     let mut xterm = command("xterm");
-    xterm.arg("-e").arg(format!("cd '{}' && exec $SHELL", repo_path.display()));
+    xterm
+        .arg("-e")
+        .arg(format!("cd '{}' && exec $SHELL", repo_path.display()));
 
     run_first_available(
         vec![gnome, konsole, xfce, xterm],

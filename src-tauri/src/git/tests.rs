@@ -1714,7 +1714,12 @@ fn blocks_checkout_when_untracked_files_would_be_overwritten() {
     run_git(&repo.path, &["branch", "feature"]);
 
     run_git(&repo.path, &["checkout", "feature"]);
-    commit_file(&repo.path, "conflict.txt", "tracked on feature\n", "feature file");
+    commit_file(
+        &repo.path,
+        "conflict.txt",
+        "tracked on feature\n",
+        "feature file",
+    );
     run_git(&repo.path, &["checkout", &current_branch]);
 
     write_file(&repo.path, "conflict.txt", "local untracked\n");

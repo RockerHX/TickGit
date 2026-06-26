@@ -41,6 +41,9 @@ const stagedFiles = gitNameList([
   "--name-only",
   "--diff-filter=ACMR",
 ]).filter((file) => existsSync(file));
+const stagedRustFiles = stagedFiles.filter(
+  (file) => file.startsWith("src-tauri/") && file.endsWith(".rs"),
+);
 
 if (stagedFiles.length === 0) {
   console.log("No staged files. Skipping pre-commit checks.");
@@ -77,6 +80,11 @@ run("pnpm", [
   ...stagedFiles,
 ]);
 run("git", ["add", "--", ...stagedFiles]);
+
+if (stagedRustFiles.length > 0) {
+  console.log("Checking Rust formatting with cargo fmt...");
+  run("pnpm", ["format:rust:check"]);
+}
 
 console.log("Running local code checks...");
 run("pnpm", ["check"]);

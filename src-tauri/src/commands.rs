@@ -170,10 +170,7 @@ pub fn save_window_size(
 }
 
 #[tauri::command]
-pub async fn get_step_push_plan(
-    repo_path: String,
-    target_hash: String,
-) -> AppResult<StepPushPlan> {
+pub async fn get_step_push_plan(repo_path: String, target_hash: String) -> AppResult<StepPushPlan> {
     tauri::async_runtime::spawn_blocking(move || git::get_step_push_plan(&repo_path, &target_hash))
         .await
         .map_err(|_| AppError::new("step_push_plan_task_failed", "生成分步推送预览任务失败"))?
