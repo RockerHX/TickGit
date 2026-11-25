@@ -145,6 +145,12 @@ const ERROR_CODE_KEYS: Partial<Record<string, TranslationKey>> = {
   empty_hashes: "push.emptyHashes",
   invalid_hash: "push.invalidHash",
   unsafe_push_target: "push.unsafeTarget",
+  rebase_operation_in_progress: "rebase.operationInProgress",
+  rebase_backup_failed: "rebase.backupFailed",
+  rebase_upstream_mismatch: "rebase.upstreamMismatch",
+  rebase_remote_advanced: "rebase.remoteAdvanced",
+  rebase_no_commits: "rebase.noCommits",
+  rebase_not_needed: "rebase.notNeeded",
 };
 
 const BRANCH_DISABLED_REASON_KEYS: Partial<Record<string, TranslationKey>> = {

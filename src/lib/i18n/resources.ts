@@ -230,13 +230,42 @@ export const resources = {
     "push.invalidHash": "Target Commit cannot be empty",
     "push.emptyHashes": "No commits are available to push",
     "push.unsafeTarget":
-      "This local commit is not on the first-parent safe path, so it cannot be used as a step push / push to commit target.",
+      "This commit is not on TickGit's safe push path. If it does not include the latest remote commit, Git will reject pushing it alone. To push local commits separately, rebase or cherry-pick them onto the latest remote commit first; this rewrites commit IDs and may cause conflicts. To preserve the existing history, push the current branch as a whole.",
     "push.missingUpstream":
       "The current branch has no upstream tracking branch, so it cannot be pushed.",
     "push.detachedHead":
       "The current repository is in detached HEAD state, so the current branch cannot be pushed.",
     "push.branchMismatch":
       "Target branch does not match the currently checked out branch. Push was rejected.",
+    "rebase.action": "Prepare for step push",
+    "rebase.runningShort": "Preparing…",
+    "rebase.running": "Rebasing local commits…",
+    "rebase.confirm": "Rebase commits",
+    "rebase.confirmTitle": "Prepare local commits for step push?",
+    "rebase.target": "Rebase {branch} onto {upstream}.",
+    "rebase.confirmDescription":
+      "TickGit will create a temporary backup branch, stash your working changes, replay local commits onto the remote branch, then restore the changes and verify each commit can be pushed in order. It will not push anything.",
+    "rebase.historyWarning":
+      "This creates new commit IDs and removes the merge commit from the current branch history. The final file contents must match the current merge result; otherwise TickGit restores the original branch and keeps the backup.",
+    "rebase.backupAndConflict":
+      "Staged, unstaged, and untracked changes are temporarily stashed and restored afterwards. If a conflict occurs, TickGit cancels the rebase and restores your changes. If restoring them fails, the stash and backup branch are kept.",
+    "rebase.successTitle": "Commits are ready for step push",
+    "rebase.success":
+      "Prepared {count} commits. Select a commit in History to push step by step.",
+    "rebase.backupRetained":
+      "Prepared {count} commits, but the backup branch {branch} could not be removed.",
+    "rebase.failedTitle": "Could not prepare commits for step push",
+    "rebase.operationInProgress":
+      "A merge, rebase, or cherry-pick is already in progress. Finish or abort it first.",
+    "rebase.backupFailed":
+      "TickGit could not create a temporary backup branch.",
+    "rebase.upstreamMismatch":
+      "The current branch does not track the matching branch on origin.",
+    "rebase.remoteAdvanced":
+      "Origin has new commits since the last sync. Sync and resolve them in GitHub Desktop or another Git tool, then retry.",
+    "rebase.noCommits": "There are no local commits to rebase.",
+    "rebase.notNeeded":
+      "All unpushed commits are already safe to push one by one.",
     "stepPush.finished": "Step push finished",
     "stepPush.failed": "Step push failed",
     "stepPush.preparing": "Checking branch and remote status",
@@ -514,10 +543,37 @@ export const resources = {
     "push.invalidHash": "目标 Commit 不能为空",
     "push.emptyHashes": "没有可推送的 Commit",
     "push.unsafeTarget":
-      "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标。",
+      "该 Commit 不在 TickGit 的安全推送路径上。若它不包含远端最新提交，Git 会拒绝单独推送。想分批推送这些本地提交，需要先将它们 rebase/cherry-pick 到远端最新提交之后；这会重写 Commit ID，也可能产生冲突。若要保留现有历史，可以直接推送当前分支。",
     "push.missingUpstream": "当前分支没有上游跟踪分支，无法执行推送。",
     "push.detachedHead": "当前仓库处于 detached HEAD 状态，无法推送当前分支。",
     "push.branchMismatch": "目标分支与当前检出分支不一致，已拒绝推送。",
+    "rebase.action": "整理提交以便分步推送",
+    "rebase.runningShort": "整理中...",
+    "rebase.running": "正在重新整理本地提交...",
+    "rebase.confirm": "确认整理",
+    "rebase.confirmTitle": "将本地提交整理为可分步推送？",
+    "rebase.target": "将 {branch} 变基到 {upstream} 之上。",
+    "rebase.confirmDescription":
+      "TickGit 会先创建临时备份分支并暂存工作区改动，再把本地提交重新应用到远端分支之后，随后恢复改动并检查提交是否可以逐条推送。此操作不会推送代码。",
+    "rebase.historyWarning":
+      "这会生成新的 Commit ID，并从当前分支历史中移除 merge commit。整理后的文件内容必须与当前 merge 结果一致；否则 TickGit 会恢复原分支并保留备份。",
+    "rebase.backupAndConflict":
+      "已暂存、未暂存和未跟踪的改动都会临时 stash，并在整理后恢复。如果发生冲突，TickGit 会取消 rebase 并恢复改动；如果恢复失败，会保留 stash 和备份分支。",
+    "rebase.successTitle": "提交已准备好分步推送",
+    "rebase.success":
+      "已整理 {count} 个提交。请在历史列表选择 Commit 分步推送。",
+    "rebase.backupRetained":
+      "已整理 {count} 个提交，但未能删除备份分支 {branch}。",
+    "rebase.failedTitle": "无法整理提交",
+    "rebase.operationInProgress":
+      "仓库已有 merge、rebase 或 cherry-pick 操作正在进行，请先完成或取消后重试。",
+    "rebase.backupFailed": "无法创建临时备份分支。",
+    "rebase.upstreamMismatch":
+      "当前分支的上游不是 origin 上的同名分支，无法安全整理提交。",
+    "rebase.remoteAdvanced":
+      "origin 在上次同步后又有新提交。请先在 GitHub Desktop 或其他 Git 工具中同步并解决冲突，再重新整理。",
+    "rebase.noCommits": "当前分支没有未推送的本地提交。",
+    "rebase.notNeeded": "当前未推送提交已经可以安全分步推送，无需整理。",
     "stepPush.finished": "分步推送完成",
     "stepPush.failed": "分步推送失败",
     "stepPush.preparing": "正在校验分支和远端状态",

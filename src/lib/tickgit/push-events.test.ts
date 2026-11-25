@@ -183,7 +183,7 @@ describe("push events", () => {
       hash: "def",
       status: "failed",
       message:
-        "该 Commit 未推送，但不在 first-parent 安全路径上，不能作为 step push / push to commit 目标。",
+        "该 Commit 不在 TickGit 的安全推送路径上。若它不包含远端最新提交，Git 会拒绝单独推送。想分批推送这些本地提交，需要先将它们 rebase/cherry-pick 到远端最新提交之后；这会重写 Commit ID，也可能产生冲突。若要保留现有历史，可以直接推送当前分支。",
       code: "unsafe_push_target",
     });
   });

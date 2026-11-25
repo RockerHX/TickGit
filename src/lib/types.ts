@@ -21,6 +21,13 @@ export type BranchStatus = {
   disabledReasonCode?: string | null;
 };
 
+export type RebaseResult = {
+  branch: string;
+  rebasedCommitCount: number;
+  backupBranch: string;
+  backupBranchDeleted: boolean;
+};
+
 export type RepositoryRevision = {
   head: string;
   branch: string;

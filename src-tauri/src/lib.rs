@@ -37,6 +37,7 @@ pub fn run() {
             commands::refresh_remote_tracking,
             commands::list_local_branches,
             commands::checkout_branch,
+            commands::rebase_branch_onto_upstream,
             commands::get_commit_history,
             commands::get_commit_files,
             commands::get_commit_meta,

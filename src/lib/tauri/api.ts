@@ -10,6 +10,7 @@ import type {
   PushToCommitRequest,
   RepositoryRevision,
   RepositorySummary,
+  RebaseResult,
   StepPushJobStarted,
   StepPushPlan,
   StepPushRequest,
@@ -45,6 +46,8 @@ export const api = {
     invoke<string[]>("list_local_branches", { repoPath }),
   checkoutBranch: (repoPath: string, branch: string) =>
     invoke<void>("checkout_branch", { repoPath, branch }),
+  rebaseBranchOntoUpstream: (repoPath: string, branch: string) =>
+    invoke<RebaseResult>("rebase_branch_onto_upstream", { repoPath, branch }),
   getCommitHistory: (
     repoPath: string,
     skip: number,

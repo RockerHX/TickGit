@@ -1,6 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { locale, translate, translateBranchDisabledReason } from "$lib/i18n";
+  import {
+    locale,
+    translate,
+    translateBranchDisabledReason,
+    translateErrorCode,
+  } from "$lib/i18n";
   import HistoryFilters from "$lib/components/HistoryFilters.svelte";
   import type {
     BranchStatus,
@@ -21,6 +26,9 @@
   export let pageIndex = 0;
   export let pageSize = HISTORY_PAGE_SIZE;
   export let branchStatus: BranchStatus | null = null;
+  export let rebaseNeeded = false;
+  export let rebaseDisabled = false;
+  export let rebaseLoading = false;
   export let filters: CommitHistoryFilters = EMPTY_HISTORY_FILTERS;
   export let activeFilterCount = 0;
 
@@ -30,6 +38,7 @@
     openMenu: { commit: CommitListItem; x: number; y: number };
     filterChange: { filters: CommitHistoryFilters };
     clearFilters: void;
+    rebase: void;
   }>();
 
   $: pagination = getPaginationState(totalCount, pageIndex, pageSize);
@@ -58,17 +67,51 @@
       <div class="text-[12px] font-semibold text-tg-text-primary">
         {translate($locale, "history.title")}
       </div>
-      {#if activeFilterCount > 0}
-        <button
-          type="button"
-          class="tg-control tg-focus-ring px-1.5 py-0.5 text-[9px] font-medium"
-          on:click={() => dispatch("clearFilters")}
-        >
-          {translate($locale, "history.clearFilters", {
-            count: activeFilterCount,
-          })}
-        </button>
-      {/if}
+      <div class="flex min-w-0 items-center gap-1.5">
+        {#if rebaseNeeded}
+          <button
+            type="button"
+            class="tg-control tg-focus-ring flex h-6 items-center gap-1.5 px-2 text-[9px] font-semibold text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={rebaseDisabled}
+            title={translate($locale, "rebase.action")}
+            on:click={() => dispatch("rebase")}
+          >
+            {#if rebaseLoading}
+              <svg
+                viewBox="0 0 16 16"
+                class="h-3 w-3 animate-spin fill-current"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5.75.75 0 0 0-1.5 0 5 5 0 1 1-1.46-3.54.75.75 0 1 0 1.06-1.06A6.48 6.48 0 0 0 8 1.5Z"
+                ></path>
+              </svg>
+            {:else}
+              <svg
+                viewBox="0 0 16 16"
+                class="h-3 w-3 fill-current"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 2.75A1.75 1.75 0 1 1 6.5 2.75 1.75 1.75 0 0 1 3 2.75ZM9.5 2.75a1.75 1.75 0 1 1 3.5 0 1.75 1.75 0 0 1-3.5 0ZM6.5 2.75H9.5v1.5H6.5v-1.5Zm-1 1.5v2.5a2 2 0 0 0 2 2h1v1.5h-1a3.5 3.5 0 0 1-3.5-3.5v-2.5h1.5Zm4 4.5h1.5v2.5a1 1 0 0 0 1 1h.25v1.5H12a2.5 2.5 0 0 1-2.5-2.5v-2.5Z"
+                ></path>
+              </svg>
+            {/if}
+            <span class="truncate">{translate($locale, "rebase.action")}</span>
+          </button>
+        {/if}
+        {#if activeFilterCount > 0}
+          <button
+            type="button"
+            class="tg-control tg-focus-ring shrink-0 px-1.5 py-0.5 text-[9px] font-medium"
+            on:click={() => dispatch("clearFilters")}
+          >
+            {translate($locale, "history.clearFilters", {
+              count: activeFilterCount,
+            })}
+          </button>
+        {/if}
+      </div>
     </div>
     <div class="mt-0.5 text-[10px] text-tg-text-secondary/80">
       {#if branchStatus?.pushAvailable}
@@ -111,8 +154,15 @@
           ? translate($locale, "history.pushedCommit")
           : commit.isSafePushTarget
             ? translate($locale, "history.safeStepPush")
-            : (commit.pushBlockedReason ??
-              translate($locale, "history.unsafeStepPushFallback"))}
+            : commit.pushBlockedReasonCode
+              ? translateErrorCode(
+                  $locale,
+                  commit.pushBlockedReasonCode,
+                  commit.pushBlockedReason ??
+                    translate($locale, "history.unsafeStepPushFallback"),
+                )
+              : (commit.pushBlockedReason ??
+                translate($locale, "history.unsafeStepPushFallback"))}
         <button
           type="button"
           class={`tg-focus-ring group relative min-h-[62px] w-full overflow-hidden rounded-lg border px-2.5 py-2 text-left shadow-sm transition duration-150 ${

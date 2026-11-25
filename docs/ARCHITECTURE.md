@@ -175,7 +175,8 @@ Git 命令执行规则：
 - 只支持当前检出分支
 - 远端固定为 `origin`
 - 未推送判断依赖 upstream
-- 仅通过 `fetch --prune origin` 刷新远端跟踪信息；不内置 `git pull` / `merge` / `rebase`
+- 仅通过 `fetch --prune origin` 刷新远端跟踪信息；不内置 `git pull` / `merge`
+- 提供用户显式确认的“rebase 当前分支到 origin 同名 upstream”整理操作，仅用于恢复分步推送能力；先备份 HEAD 并 stash 工作区改动，rebase 后验证 safe push targets 与最终 tree 保持一致、恢复 stash 成功后才删除临时备份
 - 不内置 `git commit` / `stage` / `unstage`，不提供工作区 Changes 视图
 - 本地分支落后远端或与远端分叉时禁用推送，并引导用户使用 GitHub Desktop / SourceTree 等外部工具同步
 - `origin` 缺失、upstream 缺失或 detached HEAD 时禁用推送
@@ -267,11 +268,25 @@ A --- B --- M   (当前分支 HEAD)
 - 前端刷新仓库状态后，重新计算剩余未推送 Commit 列表
 - 用户可基于剩余未推送部分重新发起分步推送
 
+### 整理提交以便分步推送
+
+当 merge 使本地提交不再是远端提交的后代时，用户可在历史栏显式发起整理：
+
+1. 前端要求用户确认提交 ID 将变化
+2. 后端 fetch `origin`，只允许当前分支跟踪 `origin/<当前分支>`，并要求当前分支已包含最新 upstream
+3. 后端在原 HEAD 创建临时备份分支，再 stash 已暂存、未暂存和未跟踪的文件，并保留原有暂存状态；stash 说明以 `!!GitHub_Desktop<当前分支>` 结尾，使它也能出现在 GitHub Desktop 的 stash 列表中
+4. 运行 `git -c rebase.updateRefs=false rebase --no-autosquash origin/<当前分支>`，只移动当前分支并保留用户逐个选择推送所需的提交边界
+5. rebase 失败时执行 `git rebase --abort` 并恢复 stash；如果无法自动 abort 或恢复 stash，也保留现场、stash 和备份
+6. rebase 成功后比较整理前后的 tree，刷新 upstream，dry-run 检查最终提交可快进推送，并确认所有未推送提交都在 safe step-push 路径上；验证失败则恢复备份 HEAD 并恢复 stash
+7. 验证成功后用 `git stash pop --index` 恢复工作区，只有恢复成功才删除临时备份分支；推送仍由用户选择目标 Commit 并确认
+
+tree 比较避免普通 rebase 跳过 merge commit 时丢掉仅存在于 merge 结果中的冲突解决内容。此操作不推送代码；Git 忽略的文件不纳入 stash。
+
 ---
 
 ## 7. 新功能放置规则
 
-- 新的 Git 查询或安全推送操作：`src-tauri/src/git/`，按 command / repository / history / diff / push / parse 职责放置；除非先更新架构边界，否则不得新增 pull / merge / rebase / commit / stage / unstage
+- 新的 Git 查询、重放整理或安全推送操作：`src-tauri/src/git/`；不得新增 pull / merge / commit / stage / unstage
 - 新的后台异步任务：`src-tauri/src/jobs.rs`
 - 新的持久化配置：优先 `src-tauri/src/repo_store.rs`
 - 新的前后端接口：同步修改 `commands.rs`、`models.rs`、`api.ts`、`types.ts`

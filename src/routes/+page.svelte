@@ -14,6 +14,7 @@
   import CommitDetailPanel from "$lib/components/CommitDetailPanel.svelte";
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
+  import RebaseForStepPushDialog from "$lib/components/RebaseForStepPushDialog.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
@@ -171,6 +172,8 @@
   let stepPushPlanErrorMessage: string | null = null;
   let stepPushPlanRepoPath: string | null = null;
   let stepPushPlanRequestId = 0;
+  let rebaseDialogOpen = false;
+  let rebaseLoading = false;
 
   let contextMenu = {
     open: false,
@@ -205,6 +208,23 @@
     isPushing: isPushing || syncingRemoteStatus,
     stepPushState,
   });
+  $: rebaseNeeded = Boolean(
+    branchStatus?.aheadCount &&
+    branchStatus.upstream === `origin/${branchStatus.branch}` &&
+    branchStatus.behindCount === 0 &&
+    branchStatus.safeAheadCount < branchStatus.aheadCount,
+  );
+  $: canRebaseForStepPush =
+    rebaseNeeded &&
+    canRefreshBlockedBranchStatus({
+      currentRepository,
+      loadingRepository,
+      switchingBranch,
+      isPushing,
+      stepPushState,
+    }) &&
+    !syncingRemoteStatus &&
+    !rebaseLoading;
   $: pushCardAheadCount = branchStatus?.aheadCount ?? 0;
   $: pushCardTitle = switchingBranch
     ? translate($locale, "push.switching")
@@ -298,6 +318,8 @@
     switchingBranch = false;
     pushToCommitState = null;
     stepPushState = null;
+    rebaseDialogOpen = false;
+    rebaseLoading = false;
     contextMenu = { open: false, x: 0, y: 0, commit: null };
     repositoryPendingRemoval = null;
     resetRepositoryRevisionState();
@@ -679,6 +701,62 @@
     } finally {
       loadingRepository = false;
       switchingBranch = false;
+    }
+  }
+
+  function requestRebaseForStepPush() {
+    if (canRebaseForStepPush) {
+      rebaseDialogOpen = true;
+    }
+  }
+
+  function closeRebaseDialog() {
+    if (!rebaseLoading) {
+      rebaseDialogOpen = false;
+    }
+  }
+
+  async function confirmRebaseForStepPush() {
+    const repository = currentRepository;
+    const status = branchStatus;
+    if (!repository || !status || !canRebaseForStepPush) {
+      return;
+    }
+
+    rebaseLoading = true;
+    loadingRepository = true;
+
+    try {
+      const result = await api.rebaseBranchOntoUpstream(
+        repository.path,
+        status.branch,
+      );
+      rebaseDialogOpen = false;
+      historyPageIndex = 0;
+      invalidateRepositoryCache(repository.path);
+      await loadRepositoryState(repository.path);
+
+      const message = result.backupBranchDeleted
+        ? translate($locale, "rebase.success", {
+            count: result.rebasedCommitCount,
+          })
+        : translate($locale, "rebase.backupRetained", {
+            count: result.rebasedCommitCount,
+            branch: result.backupBranch,
+          });
+      notify(translate($locale, "rebase.successTitle"), message, "success");
+    } catch (error) {
+      rebaseDialogOpen = false;
+      invalidateRepositoryCache(repository.path);
+      await loadRepositoryState(repository.path, true);
+      notify(
+        translate($locale, "rebase.failedTitle"),
+        getErrorMessage(error, $locale),
+        "error",
+      );
+    } finally {
+      loadingRepository = false;
+      rebaseLoading = false;
     }
   }
 
@@ -1548,6 +1626,14 @@
   on:confirm={confirmStepPushPlan}
   on:cancel={closeStepPushPlanDialog}
 />
+<RebaseForStepPushDialog
+  open={rebaseDialogOpen}
+  loading={rebaseLoading}
+  branch={branchStatus?.branch ?? ""}
+  upstream={branchStatus?.upstream ?? ""}
+  on:confirm={confirmRebaseForStepPush}
+  on:cancel={closeRebaseDialog}
+/>
 <ConfirmRepositoryRemoveDialog
   repository={repositoryPendingRemoval}
   loading={Boolean(managingRepositoryPath)}
@@ -1796,12 +1882,16 @@
         pageIndex={historyPageIndex}
         pageSize={PAGE_SIZE}
         {branchStatus}
+        {rebaseNeeded}
+        rebaseDisabled={!canRebaseForStepPush}
+        {rebaseLoading}
         on:select={(event) => selectCommit(event.detail.commit)}
         on:pageChange={(event) => changeHistoryPage(event.detail.pageIndex)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
         on:filterChange={(event) => setHistoryFilters(event.detail.filters)}
         on:clearFilters={clearHistoryFilters}
+        on:rebase={requestRebaseForStepPush}
       />
 
       <ResizeHandle

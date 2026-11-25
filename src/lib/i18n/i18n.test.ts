@@ -82,4 +82,13 @@ describe("i18n resources", () => {
       "未跟踪文件会被目标分支覆盖，Git 已阻止切换。请先移动、删除、加入版本控制或 stash 这些文件后重试。",
     );
   });
+
+  it("translates rebase preparation errors", () => {
+    expect(
+      translateErrorCode("en-US", "rebase_operation_in_progress"),
+    ).toContain("merge, rebase, or cherry-pick is already in progress");
+    expect(translateErrorCode("zh-CN", "rebase_remote_advanced")).toContain(
+      "origin 在上次同步后又有新提交",
+    );
+  });
 });

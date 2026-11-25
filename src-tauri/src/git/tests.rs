@@ -1,10 +1,11 @@
+use super::rebase::stash_worktree_changes;
 use super::repository::branch_status_for_path;
 use super::{
     checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
     list_local_branches, push_current_branch_checked, push_to_commit, push_to_commit_prechecked,
-    refresh_remote_tracking, resolve_repository_path, validate_current_branch,
-    validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE, BRANCH_MISMATCH_MESSAGE,
-    UNSAFE_PUSH_TARGET_MESSAGE,
+    rebase_branch_onto_upstream, refresh_remote_tracking, resolve_repository_path,
+    validate_current_branch, validate_step_push_hashes, BRANCH_BEHIND_REMOTE_MESSAGE,
+    BRANCH_MISMATCH_MESSAGE, UNSAFE_PUSH_TARGET_MESSAGE,
 };
 use crate::{error::AppError, models::CommitHistoryFilters};
 use std::{
@@ -1327,6 +1328,17 @@ fn limits_safe_step_push_targets_to_fast_forwardable_suffix_when_remote_is_merge
     assert_eq!(status.ahead_count, 2);
     assert_eq!(status.safe_ahead_count, 1);
 
+    let merge_plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &merge_hash).unwrap();
+    assert!(merge_plan.available);
+    assert_eq!(merge_plan.items.len(), 1);
+    assert_eq!(merge_plan.items[0].hash, merge_hash);
+
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &local_main_hash).unwrap();
+    let reason = plan.blocked_reason.expect("blocked reason");
+    assert!(!plan.available);
+    assert_eq!(reason.code, "unsafe_push_target");
+    assert!(reason.message.contains("rebase/cherry-pick"));
+
     let history = get_commit_history(repo.path.to_string_lossy().as_ref(), 0, 10, None).unwrap();
     let merge_item = history
         .items
@@ -1356,6 +1368,362 @@ fn limits_safe_step_push_targets_to_fast_forwardable_suffix_when_remote_is_merge
     .unwrap_err();
     assert_eq!(error.code, "unsafe_push_target");
     assert_eq!(error.message, UNSAFE_PUSH_TARGET_MESSAGE);
+}
+
+#[test]
+fn rebases_merged_local_commits_onto_origin_and_removes_backup_after_verification() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "rebase-peer");
+    let remote_hash = commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+
+    let old_local_hash = commit_file(&repo.path, "local.txt", "local\n", "local");
+    run_git(&repo.path, &["branch", "keep-old-commit", &old_local_hash]);
+    run_git(&repo.path, &["config", "rebase.updateRefs", "true"]);
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+    run_git(
+        &repo.path,
+        &[
+            "merge",
+            "--no-ff",
+            &format!("origin/{branch}"),
+            "-m",
+            "merge remote",
+        ],
+    );
+
+    write_file(
+        &repo.path,
+        "older-stash.txt",
+        "keep in the existing stash\n",
+    );
+    run_git(&repo.path, &["add", "older-stash.txt"]);
+    run_git(
+        &repo.path,
+        &["stash", "push", "--message", "existing user stash"],
+    );
+    let stash_before = run_git(&repo.path, &["stash", "list", "--format=%H"]);
+    write_file(&repo.path, "working.txt", "staged\n");
+    run_git(&repo.path, &["add", "working.txt"]);
+    write_file(&repo.path, "working.txt", "staged\nunstaged\n");
+    write_file(&repo.path, "untracked.txt", "untracked\n");
+    write_file(&repo.path, ".codegraph/.gitignore", "*\n!.gitignore\n");
+    run_git(&repo.path, &["add", ".codegraph/.gitignore"]);
+    write_file(
+        &repo.path,
+        ".codegraph/codegraph.db",
+        "generated database\n",
+    );
+    write_file(&repo.path, ".codegraph/daemon.log", "generated log\n");
+
+    let result =
+        rebase_branch_onto_upstream(repo.path.to_string_lossy().as_ref(), &branch).unwrap();
+    let status = branch_status_for_path(&repo.path).unwrap();
+    let new_head = run_git(&repo.path, &["rev-parse", "HEAD"]);
+    let plan = get_step_push_plan(repo.path.to_string_lossy().as_ref(), &new_head).unwrap();
+
+    assert_eq!(result.branch, branch);
+    assert_eq!(result.rebased_commit_count, 1);
+    assert!(result.backup_branch_deleted);
+    assert!(result.backup_branch.starts_with("tickgit-backup-"));
+    assert_ne!(new_head, old_local_hash);
+    assert_eq!(status.ahead_count, 1);
+    assert_eq!(status.safe_ahead_count, 1);
+    assert_eq!(status.behind_count, 0);
+    assert!(plan.available);
+    assert_eq!(plan.items.len(), 1);
+    assert_eq!(plan.items[0].hash, new_head);
+    assert_eq!(
+        run_git(&repo.path, &["rev-parse", "keep-old-commit"]),
+        old_local_hash
+    );
+    assert!(run_git(&repo.path, &["branch", "--list", &result.backup_branch]).is_empty());
+    assert_eq!(
+        run_git(
+            &origin.path,
+            &["rev-parse", &format!("refs/heads/{branch}")]
+        ),
+        remote_hash
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join("working.txt")).unwrap(),
+        "staged\nunstaged\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join("untracked.txt")).unwrap(),
+        "untracked\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join(".codegraph/codegraph.db")).unwrap(),
+        "generated database\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join(".codegraph/daemon.log")).unwrap(),
+        "generated log\n"
+    );
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).contains("AM working.txt"));
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).contains("?? untracked.txt"));
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).contains("A  .codegraph/.gitignore"));
+    assert_eq!(
+        run_git(&repo.path, &["stash", "list", "--format=%H"]),
+        stash_before
+    );
+    assert_eq!(run_git(&repo.path, &["show", "HEAD:remote.txt"]), "remote");
+    assert_eq!(run_git(&repo.path, &["show", "HEAD:local.txt"]), "local");
+}
+
+#[test]
+fn tickgit_recovery_stash_message_is_visible_to_github_desktop() {
+    let repo = init_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    write_file(&repo.path, "working.txt", "working change\n");
+
+    let stash_hash = stash_worktree_changes(&repo.path, "tickgit-backup-test", &branch)
+        .unwrap()
+        .unwrap();
+    let subject = run_git(&repo.path, &["stash", "list", "--format=%gs"]);
+
+    assert!(
+        subject.contains("TickGit rebase recovery tickgit-backup-test"),
+        "stash subject was {subject:?}"
+    );
+    assert!(
+        subject.ends_with(&format!("!!GitHub_Desktop<{branch}>")),
+        "stash subject was {subject:?}"
+    );
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).is_empty());
+}
+
+#[test]
+fn refuses_to_rebase_if_origin_advanced_since_last_fetch() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "advanced-peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+    let local_head = commit_file(&repo.path, "local.txt", "local\n", "local");
+
+    let error =
+        rebase_branch_onto_upstream(repo.path.to_string_lossy().as_ref(), &branch).unwrap_err();
+
+    assert_eq!(error.code, "rebase_remote_advanced");
+    assert_eq!(run_git(&repo.path, &["rev-parse", "HEAD"]), local_head);
+    assert!(run_git(&repo.path, &["branch", "--list", "tickgit-backup-*"]).is_empty());
+}
+
+#[test]
+fn detects_git_operation_in_progress_when_repository_path_is_nested() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "shared.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "operation-peer");
+    commit_file(&peer.path, "shared.txt", "remote\n", "remote change");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+    commit_file(&repo.path, "shared.txt", "local\n", "local change");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+    let merge = Command::new("git")
+        .arg("-C")
+        .arg(&repo.path)
+        .args([
+            "merge",
+            "--no-ff",
+            &format!("origin/{branch}"),
+            "-m",
+            "merge remote",
+        ])
+        .output()
+        .unwrap();
+    assert!(!merge.status.success());
+    fs::create_dir(repo.path.join("nested")).unwrap();
+
+    let error =
+        rebase_branch_onto_upstream(repo.path.join("nested").to_string_lossy().as_ref(), &branch)
+            .unwrap_err();
+
+    assert_eq!(error.code, "rebase_operation_in_progress");
+    assert!(run_git(&repo.path, &["branch", "--list", "tickgit-backup-*"]).is_empty());
+}
+
+#[test]
+fn restores_merge_tree_and_keeps_backup_when_rebase_would_drop_resolution_changes() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "resolution-peer");
+    commit_file(&peer.path, "remote.txt", "remote\n", "remote");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+    commit_file(&repo.path, "local.txt", "local\n", "local");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+    run_git(
+        &repo.path,
+        &[
+            "merge",
+            "--no-ff",
+            &format!("origin/{branch}"),
+            "-m",
+            "merge remote",
+        ],
+    );
+    write_file(
+        &repo.path,
+        "resolution-only.txt",
+        "manual merge resolution\n",
+    );
+    run_git(&repo.path, &["add", "resolution-only.txt"]);
+    run_git(
+        &repo.path,
+        &["commit", "--amend", "--no-gpg-sign", "--no-edit"],
+    );
+    let original_head = run_git(&repo.path, &["rev-parse", "HEAD"]);
+    let stash_before = run_git(&repo.path, &["stash", "list", "--format=%H"]);
+    write_file(&repo.path, "pending.txt", "keep this change\n");
+
+    let error =
+        rebase_branch_onto_upstream(repo.path.to_string_lossy().as_ref(), &branch).unwrap_err();
+    let backup_branch = error
+        .message
+        .split("备份分支 ")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+
+    assert_eq!(error.code, "rebase_tree_changed");
+    assert_eq!(run_git(&repo.path, &["rev-parse", "HEAD"]), original_head);
+    assert_eq!(
+        fs::read_to_string(repo.path.join("resolution-only.txt")).unwrap(),
+        "manual merge resolution\n"
+    );
+    assert_eq!(
+        run_git(&repo.path, &["branch", "--list", backup_branch]),
+        backup_branch
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join("pending.txt")).unwrap(),
+        "keep this change\n"
+    );
+    assert_eq!(
+        run_git(&repo.path, &["stash", "list", "--format=%H"]),
+        stash_before
+    );
+}
+
+#[test]
+fn aborts_conflicting_rebase_and_keeps_original_branch_and_backup() {
+    let repo = init_repo();
+    let origin = init_bare_repo();
+    commit_file(&repo.path, "shared.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    let refspec = format!("HEAD:refs/heads/{branch}");
+    run_git(
+        &repo.path,
+        &["remote", "add", "origin", origin.path.to_str().unwrap()],
+    );
+    run_git(&repo.path, &["push", "-u", "origin", &refspec]);
+
+    let peer = clone_repo(&origin.path, "conflict-peer");
+    commit_file(&peer.path, "shared.txt", "remote\n", "remote change");
+    run_git(&peer.path, &["push", "origin", &format!("HEAD:{branch}")]);
+    commit_file(&repo.path, "shared.txt", "local\n", "local change");
+    refresh_remote_tracking(repo.path.to_string_lossy().as_ref()).unwrap();
+    let merge = Command::new("git")
+        .arg("-C")
+        .arg(&repo.path)
+        .args([
+            "merge",
+            "--no-ff",
+            &format!("origin/{branch}"),
+            "-m",
+            "merge remote",
+        ])
+        .output()
+        .unwrap();
+    assert!(!merge.status.success());
+    write_file(&repo.path, "shared.txt", "merge resolution\n");
+    run_git(&repo.path, &["add", "shared.txt"]);
+    run_git(
+        &repo.path,
+        &["commit", "--no-gpg-sign", "-m", "merge resolved"],
+    );
+    let original_head = run_git(&repo.path, &["rev-parse", "HEAD"]);
+    let stash_before = run_git(&repo.path, &["stash", "list", "--format=%H"]);
+    write_file(&repo.path, "pending.txt", "staged\n");
+    run_git(&repo.path, &["add", "pending.txt"]);
+    write_file(&repo.path, "pending.txt", "staged\nunstaged\n");
+    write_file(&repo.path, "pending-untracked.txt", "untracked\n");
+
+    let error =
+        rebase_branch_onto_upstream(repo.path.to_string_lossy().as_ref(), &branch).unwrap_err();
+    let backup_branch = error
+        .message
+        .split("备份分支 ")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+
+    assert_eq!(error.code, "rebase_conflict");
+    assert_eq!(run_git(&repo.path, &["rev-parse", "HEAD"]), original_head);
+    assert_eq!(
+        fs::read_to_string(repo.path.join("shared.txt")).unwrap(),
+        "merge resolution\n"
+    );
+    assert_eq!(
+        run_git(&repo.path, &["branch", "--list", backup_branch]),
+        backup_branch
+    );
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).contains("AM pending.txt"));
+    assert!(run_git(&repo.path, &["status", "--porcelain"]).contains("?? pending-untracked.txt"));
+    assert_eq!(
+        fs::read_to_string(repo.path.join("pending.txt")).unwrap(),
+        "staged\nunstaged\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repo.path.join("pending-untracked.txt")).unwrap(),
+        "untracked\n"
+    );
+    assert_eq!(
+        run_git(&repo.path, &["stash", "list", "--format=%H"]),
+        stash_before
+    );
 }
 
 #[test]

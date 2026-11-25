@@ -42,8 +42,9 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 - 未推送 Commit 的判断基于当前分支的 **upstream**
 - 顶部 Push 计数显示的是相对 upstream 的 **全量未推送 Commit 数**
 - “分步推送 / Push to Commit” 的可操作目标只来自 **first-parent 安全路径**
+- 自动暂存的恢复 stash 使用 GitHub Desktop 可识别的格式，可在该客户端的 stash 列表中查看
 - 分步推送任务为 **单任务、不可取消**
-- 当前不内置 `git pull` / `merge` / `rebase`，远端已有更新时只禁用推送并提示用户使用 GitHub Desktop 或 SourceTree 同步
+- 不内置 `git pull` / `merge`；当 merge 后的本地提交无法分步推送时，可手动确认将当前分支 rebase 到 `origin` 同名分支。此操作会先备份分支并暂存工作区改动，验证文件内容与分步推送安全性后恢复改动；成功后删除临时备份，冲突或内容不一致时恢复原分支并保留备份
 - 当前不内置 `git commit` / `stage` / `unstage`，不提供工作区 Changes 视图；需要整理工作区或创建提交时，请使用外部 Git 工具
 - 从 TickGit 移除仓库只删除列表记录，不删除本地仓库文件
 - 仓库路径失效时会保留列表项，并提供重新定位或移除入口
@@ -53,7 +54,7 @@ TickGit 是一款基于 **Tauri + Svelte + TypeScript + Rust** 的 Git 增强型
 
 TickGit 的核心目标是让“当前分支的安全推送”和“按 Commit 分步推送”更简单可控，不替代完整 Git 客户端。
 
-当远端分支已经有新提交，或本地与远端出现分叉时，TickGit 会禁用推送，避免产生不安全的 non-fast-forward 操作。此时请先使用 GitHub Desktop、SourceTree 或命令行完成拉取、合并、变基和冲突处理，再回到 TickGit 刷新状态后继续推送。
+当远端分支已经有新提交、尚未合并到当前分支时，TickGit 会禁用推送，避免产生不安全的 non-fast-forward 操作。请先使用 GitHub Desktop、SourceTree 或命令行同步。如果你已经 merge 了远端提交，当前分支不再落后，但旧的本地提交不能逐条推送，可以在 TickGit 历史栏选择“整理提交以便分步推送”。该操作只会在你确认后执行，不会推送代码。
 
 如果需要暂存文件、取消暂存或创建本地 Git commit，也请使用外部 Git 工具；TickGit 只负责读取历史与执行安全推送。
 
@@ -89,6 +90,10 @@ TickGit 也会自动避开那些不能直接线性推送的危险路径，保证
 而不会再因为 merge 后的穿插历史，莫名出现 `non-fast-forward` 这类错误。
 
 同时，历史列表会默认展示完整历史；如果某个未推送 Commit 不在这条 first-parent 安全路径上，TickGit 会把它标记为 **不可安全分步推送**，避免用户逐个尝试。
+
+如果远端的新提交已经通过 merge 进入本地分支，merge 之前的本地提交可能不是远端最新提交的后代。Git 不允许把这些提交单独快进到同一个远端分支；此时 merge commit 可能是唯一安全推送目标，推送它会一并上传它包含的本地历史。
+
+若要让本地提交分批出现在远端，应先把它们 rebase 或 cherry-pick 到远端最新提交之后，再使用 TickGit 分步推送。TickGit 的整理操作会先备份当前 HEAD，并暂存已暂存、未暂存和未跟踪的工作区改动；若 rebase 冲突或整理后文件内容与当前 merge 结果不同，会恢复原分支并恢复这些改动。恢复失败时 stash 和备份分支都会保留。操作会生成新的 Commit ID；若要保留现有提交拓扑，则只能整体推送可快进的 merge commit。
 
 ## 快速开始
 

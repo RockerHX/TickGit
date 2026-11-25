@@ -69,4 +69,23 @@ describe("step push plan", () => {
       "远端已有更新",
     );
   });
+
+  it("explains why unsafe commits cannot be pushed separately", () => {
+    const plan: StepPushPlan = {
+      ...availablePlan(),
+      available: false,
+      items: [],
+      blockedReason: {
+        code: "unsafe_push_target",
+        message: "fallback",
+      },
+    };
+
+    expect(getStepPushPlanBlockedMessage(plan, "zh-CN")).toContain(
+      "Git 会拒绝单独推送",
+    );
+    expect(getStepPushPlanBlockedMessage(plan, "en-US")).toContain(
+      "rebase or cherry-pick",
+    );
+  });
 });

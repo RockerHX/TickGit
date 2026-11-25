@@ -130,7 +130,7 @@ fn safe_unpushed_hashes_in_push_order(repo_path: &Path, upstream: &str) -> AppRe
         .collect())
 }
 
-fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
+pub(super) fn ensure_safe_push_target(repo_path: &Path, hash: &str) -> AppResult<()> {
     sync_origin_tracking(repo_path)?;
 
     let branch_status = branch_status_for_path(repo_path)?;

@@ -5,7 +5,7 @@ use crate::{
     external, git, jobs,
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
-        CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest,
+        CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest, RebaseResult,
         RepositoryRevision, RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
@@ -107,6 +107,18 @@ pub fn list_local_branches(repo_path: String) -> AppResult<Vec<String>> {
 #[tauri::command]
 pub fn checkout_branch(repo_path: String, branch: String) -> AppResult<()> {
     git::checkout_branch(&repo_path, &branch)
+}
+
+#[tauri::command]
+pub async fn rebase_branch_onto_upstream(
+    repo_path: String,
+    branch: String,
+) -> AppResult<RebaseResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        git::rebase_branch_onto_upstream(&repo_path, &branch)
+    })
+    .await
+    .map_err(|_| AppError::new("rebase_task_failed", "整理提交后台任务执行失败"))?
 }
 
 #[tauri::command]

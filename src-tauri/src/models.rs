@@ -51,6 +51,15 @@ pub struct BranchStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct RebaseResult {
+    pub branch: String,
+    pub rebased_commit_count: usize,
+    pub backup_branch: String,
+    pub backup_branch_deleted: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CommitListItem {
     pub hash: String,
     pub short_hash: String,
