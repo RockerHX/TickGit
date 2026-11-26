@@ -90,13 +90,18 @@ const cargoLock = fs.readFileSync(cargoLockPath, "utf8").replace(
 fs.writeFileSync(cargoLockPath, cargoLock);
 
 const releaseWorkflowSource = fs.readFileSync(releaseWorkflowPath, "utf8");
+const literalRunNamePattern = /^run-name: Release v[0-9]+\.[0-9]+\.[0-9]+$/m;
+const dynamicRunNamePattern = /^run-name:\s*\$\{\{/m;
 const releaseWorkflow = releaseWorkflowSource.replace(
-  /^run-name: Release v[0-9]+\.[0-9]+\.[0-9]+$/m,
+  literalRunNamePattern,
   `run-name: Release v${version}`,
 );
-if (releaseWorkflow === releaseWorkflowSource) {
+if (
+  releaseWorkflow === releaseWorkflowSource &&
+  !dynamicRunNamePattern.test(releaseWorkflowSource)
+) {
   throw new Error(
-    `${releaseWorkflowPath} is missing a literal "run-name: Release vX.Y.Z" line.`,
+    `${releaseWorkflowPath} is missing a literal or dynamic run-name line.`,
   );
 }
 fs.writeFileSync(releaseWorkflowPath, releaseWorkflow);
