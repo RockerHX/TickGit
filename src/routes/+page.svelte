@@ -15,7 +15,6 @@
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
   import RebaseForStepPushDialog from "$lib/components/RebaseForStepPushDialog.svelte";
-  import RepositoryTools from "$lib/components/RepositoryTools.svelte";
   import StashDialog from "$lib/components/StashDialog.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
@@ -1768,7 +1767,7 @@
   }`}
 >
   <header
-    class="relative z-30 shrink-0 border-b border-tg-border-soft bg-tg-bg-panel backdrop-blur-xl"
+    class="relative z-30 shrink-0 border-b border-tg-border-soft bg-[#090d16]"
   >
     <TopToolbar
       {repositories}
@@ -1793,7 +1792,10 @@
       pushAriaLabel={pushCardAriaLabel}
       refreshEnabled={canRefreshRemoteStatus}
       refreshLoading={syncingRemoteStatus}
-      {settingsOpen}
+      stashEnabled={canUseRepositoryTools}
+      rebaseEnabled={canRebaseForStepPush && canUseRepositoryTools}
+      {rebaseNeeded}
+      {rebaseReason}
       on:repositoryChange={(event) => switchRepository(event.detail.path)}
       on:repositoryRemove={(event) =>
         requestRepositoryRemoval(event.detail.path)}
@@ -1826,19 +1828,10 @@
       on:branchChange={(event) => switchBranch(event.detail.branch)}
       on:push={pushCurrentBranch}
       on:refresh={fetchRemoteStatusManually}
+      on:stash={openStashDialog}
+      on:rebase={requestRebaseForStepPush}
       on:openSettings={() => (settingsOpen = true)}
     />
-
-    {#if currentRepository?.status === "available" && branchStatus}
-      <RepositoryTools
-        enabled={canUseRepositoryTools}
-        rebaseEnabled={canRebaseForStepPush && canUseRepositoryTools}
-        {rebaseNeeded}
-        {rebaseReason}
-        on:stash={openStashDialog}
-        on:rebase={requestRebaseForStepPush}
-      />
-    {/if}
 
     {#if branchStatus && !branchStatus.pushAvailable}
       {#if branchStatus.behindCount > 0}
