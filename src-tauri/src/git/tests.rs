@@ -1,5 +1,5 @@
-use super::rebase::stash_worktree_changes;
 use super::repository::branch_status_for_path;
+use super::stash::stash_worktree_changes;
 use super::{
     checkout_branch, get_commit_file_diff, get_commit_history, get_commit_meta, get_step_push_plan,
     list_local_branches, push_current_branch_checked, push_to_commit, push_to_commit_prechecked,
@@ -1493,9 +1493,13 @@ fn tickgit_recovery_stash_message_is_visible_to_github_desktop() {
         .unwrap()
         .unwrap();
     let subject = run_git(&repo.path, &["stash", "list", "--format=%gs"]);
+    assert_eq!(
+        run_git(&repo.path, &["rev-parse", "refs/stash"]),
+        stash_hash
+    );
 
     assert!(
-        subject.contains("TickGit rebase recovery tickgit-backup-test"),
+        subject.contains("TickGit working changes tickgit-backup-test"),
         "stash subject was {subject:?}"
     );
     assert!(
@@ -1503,6 +1507,95 @@ fn tickgit_recovery_stash_message_is_visible_to_github_desktop() {
         "stash subject was {subject:?}"
     );
     assert!(run_git(&repo.path, &["status", "--porcelain"]).is_empty());
+}
+
+#[test]
+fn manual_stash_roundtrip_preserves_index_untracked_and_existing_stashes() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    write_file(&repo.path, "file.txt", "older stash\n");
+    run_git(&repo.path, &["stash", "push", "-m", "user stash"]);
+    let old_stashes = run_git(&repo.path, &["stash", "list", "--format=%H"]);
+    write_file(&repo.path, "file.txt", "staged\n");
+    run_git(&repo.path, &["add", "file.txt"]);
+    write_file(&repo.path, "file.txt", "staged\nunstaged\n");
+    write_file(&repo.path, "untracked.txt", "untracked\n");
+    write_file(&repo.path, ".codegraph/.gitignore", "*\n!.gitignore\n");
+    run_git(&repo.path, &["add", ".codegraph/.gitignore"]);
+    write_file(&repo.path, ".codegraph/database", "generated database\n");
+    let before = run_git(&repo.path, &["status", "--porcelain"]);
+    let before_index = run_git(&repo.path, &["diff", "--cached"]);
+    let before_diff = run_git(&repo.path, &["diff"]);
+
+    let hash = super::stash_current_worktree(repo.path.to_str().unwrap(), &branch).unwrap();
+    let state = super::get_stash_state(repo.path.to_str().unwrap(), &branch).unwrap();
+    assert!(state.has_changes);
+    assert!(state.can_restore);
+    assert_eq!(state.entries.len(), 1);
+    assert_eq!(state.entries[0].hash, hash);
+    assert!(state.entries[0]
+        .message
+        .ends_with(&format!("!!GitHub_Desktop<{branch}>")));
+
+    super::restore_worktree_stash(repo.path.to_str().unwrap(), &branch, &hash).unwrap();
+    assert_eq!(run_git(&repo.path, &["status", "--porcelain"]), before);
+    assert_eq!(run_git(&repo.path, &["diff", "--cached"]), before_index);
+    assert_eq!(run_git(&repo.path, &["diff"]), before_diff);
+    assert_eq!(
+        fs::read_to_string(repo.path.join("untracked.txt")).unwrap(),
+        "untracked\n"
+    );
+    assert_eq!(
+        run_git(&repo.path, &["stash", "list", "--format=%H"]),
+        old_stashes
+    );
+}
+
+#[test]
+fn manual_stash_restore_checks_branch_dirty_state_and_preserves_conflicting_stash() {
+    let repo = init_repo();
+    commit_file(&repo.path, "file.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    write_file(&repo.path, "file.txt", "saved change\n");
+    let hash = super::stash_current_worktree(repo.path.to_str().unwrap(), &branch).unwrap();
+    run_git(&repo.path, &["checkout", "-b", "other"]);
+    assert_eq!(
+        super::restore_worktree_stash(repo.path.to_str().unwrap(), "other", &hash)
+            .unwrap_err()
+            .code,
+        "stash_not_found"
+    );
+    run_git(&repo.path, &["checkout", &branch]);
+    write_file(&repo.path, "file.txt", "new work\n");
+    assert_eq!(
+        super::restore_worktree_stash(repo.path.to_str().unwrap(), &branch, &hash)
+            .unwrap_err()
+            .code,
+        "stash_dirty_worktree"
+    );
+    commit_file(&repo.path, "file.txt", "new committed work\n", "new work");
+    assert_eq!(
+        super::restore_worktree_stash(repo.path.to_str().unwrap(), &branch, &hash)
+            .unwrap_err()
+            .code,
+        "stash_restore_failed"
+    );
+    assert!(run_git(&repo.path, &["stash", "list", "--format=%H"]).contains(&hash));
+}
+
+#[test]
+fn manual_stash_reports_empty_worktree_without_creating_a_record() {
+    let repo = init_repo();
+    commit_file(&repo.path, "base.txt", "base\n", "base");
+    let branch = current_test_branch(&repo.path);
+    assert_eq!(
+        super::stash_current_worktree(repo.path.to_str().unwrap(), &branch)
+            .unwrap_err()
+            .code,
+        "stash_no_changes"
+    );
+    assert!(run_git(&repo.path, &["stash", "list"]).is_empty());
 }
 
 #[test]

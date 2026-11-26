@@ -60,6 +60,22 @@ pub struct RebaseResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct StashEntry {
+    pub hash: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StashState {
+    pub branch: String,
+    pub has_changes: bool,
+    pub can_restore: bool,
+    pub entries: Vec<StashEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CommitListItem {
     pub hash: String,
     pub short_hash: String,

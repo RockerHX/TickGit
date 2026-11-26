@@ -59,7 +59,24 @@ pub struct PushExecutionGate {
     running_task: Arc<Mutex<Option<String>>>,
 }
 
+pub struct RepositoryOperationGuard {
+    running_task: Arc<Mutex<Option<String>>>,
+}
+
+impl Drop for RepositoryOperationGuard {
+    fn drop(&mut self) {
+        clear_push_execution(&self.running_task, "repository-operation");
+    }
+}
+
 impl PushExecutionGate {
+    pub fn reserve_repository_operation(&self) -> AppResult<RepositoryOperationGuard> {
+        reserve_push_execution(&self.running_task, "repository-operation")?;
+        Ok(RepositoryOperationGuard {
+            running_task: Arc::clone(&self.running_task),
+        })
+    }
+
     pub fn new() -> Self {
         Self {
             running_task: Arc::new(Mutex::new(None)),
@@ -486,6 +503,17 @@ mod tests {
     };
     use crate::models::StepPushRequest;
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn repository_operations_share_the_push_gate_and_release_it_on_drop() {
+        let gate = super::PushExecutionGate::new();
+        let operation = gate.reserve_repository_operation().unwrap();
+        assert!(gate.reserve_repository_operation().is_err());
+        assert!(reserve_push_execution(&gate.running_task, "push").is_err());
+        drop(operation);
+        reserve_push_execution(&gate.running_task, "push").unwrap();
+        assert!(gate.reserve_repository_operation().is_err());
+    }
 
     #[test]
     fn rejects_empty_push_request_fields() {

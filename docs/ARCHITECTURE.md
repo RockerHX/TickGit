@@ -114,6 +114,7 @@ src-tauri/src/git/
   history.rs      # commit history / file list / meta
   diff.rs         # file diff / metadata / 大文件保护
   push.rs         # push current / push to commit / step push plan / safe target
+  stash.rs        # 手动与自动储藏、按分支查询和恢复
   parse.rs        # 文本解析函数
   tests.rs        # Git 行为集成测试
 ```
@@ -268,9 +269,15 @@ A --- B --- M   (当前分支 HEAD)
 - 前端刷新仓库状态后，重新计算剩余未推送 Commit 列表
 - 用户可基于剩余未推送部分重新发起分步推送
 
+### 手动储藏工作区
+
+顶部“储藏改动 Stash”打开当前分支的储藏面板，按需读取工作区状态与 Git stash reflog，不访问远端。手动操作与 rebase 共用 `stash.rs` 的创建和恢复方法；手动储藏使用唯一编号并保持 GitHub Desktop 的分支识别后缀。面板列出当前分支的兼容储藏及旧版 TickGit 恢复记录。
+
+恢复按 hash 查找当前 stash selector，成功后才移除记录并保留原 index 状态；已有 tracked 修改时拒绝恢复，未跟踪文件由 Git 检查是否会冲突，失败时保留 stash。手动 stash、恢复和 rebase 共用 push 执行 gate，避免应用内并发修改仓库。UI 同时禁用重复操作，错误保留在面板里供用户查看。
+
 ### 整理提交以便分步推送
 
-当 merge 使本地提交不再是远端提交的后代时，用户可在历史栏显式发起整理：
+当 merge 使本地提交不再是远端提交的后代时，用户可在顶部操作区显式发起整理：
 
 1. 前端要求用户确认提交 ID 将变化
 2. 后端 fetch `origin`，只允许当前分支跟踪 `origin/<当前分支>`，并要求当前分支已包含最新 upstream

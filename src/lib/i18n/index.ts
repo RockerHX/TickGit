@@ -151,6 +151,9 @@ const ERROR_CODE_KEYS: Partial<Record<string, TranslationKey>> = {
   rebase_remote_advanced: "rebase.remoteAdvanced",
   rebase_no_commits: "rebase.noCommits",
   rebase_not_needed: "rebase.notNeeded",
+  stash_no_changes: "stash.noChanges",
+  stash_dirty_worktree: "stash.dirtyWorktree",
+  stash_not_found: "stash.notFound",
 };
 
 const BRANCH_DISABLED_REASON_KEYS: Partial<Record<string, TranslationKey>> = {

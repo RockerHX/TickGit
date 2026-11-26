@@ -15,6 +15,8 @@
   import CommitHistoryList from "$lib/components/CommitHistoryList.svelte";
   import DropOverlay from "$lib/components/DropOverlay.svelte";
   import RebaseForStepPushDialog from "$lib/components/RebaseForStepPushDialog.svelte";
+  import RepositoryTools from "$lib/components/RepositoryTools.svelte";
+  import StashDialog from "$lib/components/StashDialog.svelte";
   import PushToCommitOverlay from "$lib/components/PushToCommitOverlay.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
@@ -103,6 +105,7 @@
   } from "$lib/tickgit/layout";
   import type {
     BranchStatus,
+    StashState,
     CommitHistoryFilters,
     CommitMeta,
     CommitFileChange,
@@ -174,6 +177,11 @@
   let stepPushPlanRequestId = 0;
   let rebaseDialogOpen = false;
   let rebaseLoading = false;
+  let stashDialogOpen = false;
+  let stashLoading = false;
+  let stashState: StashState | null = null;
+  let stashError: string | null = null;
+  let stashNotice: string | null = null;
 
   let contextMenu = {
     open: false,
@@ -205,7 +213,8 @@
   $: canPushBranch = canPushCurrentBranch({
     branchStatus,
     switchingBranch,
-    isPushing: isPushing || syncingRemoteStatus,
+    isPushing:
+      isPushing || syncingRemoteStatus || stashLoading || rebaseLoading,
     stepPushState,
   });
   $: rebaseNeeded = Boolean(
@@ -224,7 +233,21 @@
       stepPushState,
     }) &&
     !syncingRemoteStatus &&
-    !rebaseLoading;
+    !rebaseLoading &&
+    !stashLoading;
+  $: canUseRepositoryTools =
+    canRefreshRemoteStatus &&
+    !stashLoading &&
+    !rebaseLoading &&
+    !loadingStepPushPlan &&
+    !submittingStepPushPlan &&
+    !managingRepositoryPath &&
+    !branchStatus?.detached;
+  $: rebaseReason = rebaseNeeded
+    ? translate($locale, "rebase.neededHint")
+    : branchStatus?.behindCount
+      ? translate($locale, "rebase.syncFirstHint")
+      : translate($locale, "rebase.readyHint");
   $: pushCardAheadCount = branchStatus?.aheadCount ?? 0;
   $: pushCardTitle = switchingBranch
     ? translate($locale, "push.switching")
@@ -707,6 +730,64 @@
   function requestRebaseForStepPush() {
     if (canRebaseForStepPush) {
       rebaseDialogOpen = true;
+    }
+  }
+
+  async function openStashDialog() {
+    if (!canUseRepositoryTools) return;
+    stashDialogOpen = true;
+    stashState = null;
+    stashError = null;
+    stashNotice = null;
+    await refreshStashState();
+  }
+
+  async function refreshStashState() {
+    const repository = currentRepository;
+    const branch = branchStatus?.branch;
+    if (!repository || !branch || stashLoading) return;
+    stashLoading = true;
+    stashError = null;
+    try {
+      stashState = await api.getStashState(repository.path, branch);
+    } catch (error) {
+      stashError = getErrorMessage(error, $locale);
+    } finally {
+      stashLoading = false;
+    }
+  }
+
+  async function changeWorktreeStash(hash: string | null = null) {
+    const repository = currentRepository;
+    const branch = branchStatus?.branch;
+    if (!repository || !branch || stashLoading || !stashState) return;
+    stashLoading = true;
+    loadingRepository = true;
+    stashError = null;
+    stashNotice = null;
+    try {
+      if (hash) {
+        await api.restoreWorktreeStash(repository.path, branch, hash);
+        stashNotice = translate($locale, "stash.restored");
+      } else {
+        await api.stashCurrentWorktree(repository.path, branch);
+        stashNotice = translate($locale, "stash.created");
+      }
+    } catch (error) {
+      stashError = getErrorMessage(error, $locale);
+    } finally {
+      invalidateRepositoryCache(repository.path);
+      await loadRepositoryState(repository.path, true);
+      try {
+        stashState = await api.getStashState(repository.path, branch);
+      } catch (error) {
+        stashState = null;
+        stashError = [stashError, getErrorMessage(error, $locale)]
+          .filter(Boolean)
+          .join("\n");
+      }
+      stashLoading = false;
+      loadingRepository = false;
     }
   }
 
@@ -1634,6 +1715,19 @@
   on:confirm={confirmRebaseForStepPush}
   on:cancel={closeRebaseDialog}
 />
+<StashDialog
+  open={stashDialogOpen}
+  loading={stashLoading}
+  state={stashState}
+  errorMessage={stashError}
+  notice={stashNotice}
+  on:close={() => {
+    if (!stashLoading) stashDialogOpen = false;
+  }}
+  on:refresh={refreshStashState}
+  on:create={() => changeWorktreeStash()}
+  on:restore={(event) => changeWorktreeStash(event.detail.hash)}
+/>
 <ConfirmRepositoryRemoveDialog
   repository={repositoryPendingRemoval}
   loading={Boolean(managingRepositoryPath)}
@@ -1734,6 +1828,17 @@
       on:refresh={fetchRemoteStatusManually}
       on:openSettings={() => (settingsOpen = true)}
     />
+
+    {#if currentRepository?.status === "available" && branchStatus}
+      <RepositoryTools
+        enabled={canUseRepositoryTools}
+        rebaseEnabled={canRebaseForStepPush && canUseRepositoryTools}
+        {rebaseNeeded}
+        {rebaseReason}
+        on:stash={openStashDialog}
+        on:rebase={requestRebaseForStepPush}
+      />
+    {/if}
 
     {#if branchStatus && !branchStatus.pushAvailable}
       {#if branchStatus.behindCount > 0}
@@ -1882,16 +1987,12 @@
         pageIndex={historyPageIndex}
         pageSize={PAGE_SIZE}
         {branchStatus}
-        {rebaseNeeded}
-        rebaseDisabled={!canRebaseForStepPush}
-        {rebaseLoading}
         on:select={(event) => selectCommit(event.detail.commit)}
         on:pageChange={(event) => changeHistoryPage(event.detail.pageIndex)}
         on:openMenu={(event) =>
           openContextMenu(event.detail.commit, event.detail.x, event.detail.y)}
         on:filterChange={(event) => setHistoryFilters(event.detail.filters)}
         on:clearFilters={clearHistoryFilters}
-        on:rebase={requestRebaseForStepPush}
       />
 
       <ResizeHandle

@@ -28,6 +28,18 @@ export type RebaseResult = {
   backupBranchDeleted: boolean;
 };
 
+export type StashEntry = {
+  hash: string;
+  message: string;
+};
+
+export type StashState = {
+  branch: string;
+  hasChanges: boolean;
+  canRestore: boolean;
+  entries: StashEntry[];
+};
+
 export type RepositoryRevision = {
   head: string;
   branch: string;

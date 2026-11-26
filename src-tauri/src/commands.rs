@@ -6,7 +6,8 @@ use crate::{
     models::{
         BranchStatus, CommitFileChange, CommitFileDiffResult, CommitHistoryFilters,
         CommitHistoryPage, CommitMeta, PushToCommitJobStarted, PushToCommitRequest, RebaseResult,
-        RepositoryRevision, RepositorySummary, StepPushJobStarted, StepPushPlan, StepPushRequest,
+        RepositoryRevision, RepositorySummary, StashState, StepPushJobStarted, StepPushPlan,
+        StepPushRequest,
     },
     repo_store::{self, RepositoryStoreState},
 };
@@ -111,14 +112,55 @@ pub fn checkout_branch(repo_path: String, branch: String) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn rebase_branch_onto_upstream(
+    gate: State<'_, jobs::PushExecutionGate>,
     repo_path: String,
     branch: String,
 ) -> AppResult<RebaseResult> {
+    let operation = gate.reserve_repository_operation()?;
     tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
         git::rebase_branch_onto_upstream(&repo_path, &branch)
     })
     .await
     .map_err(|_| AppError::new("rebase_task_failed", "整理提交后台任务执行失败"))?
+}
+
+#[tauri::command]
+pub async fn get_stash_state(repo_path: String, branch: String) -> AppResult<StashState> {
+    tauri::async_runtime::spawn_blocking(move || git::get_stash_state(&repo_path, &branch))
+        .await
+        .map_err(|_| AppError::new("stash_task_failed", "读取储藏状态失败"))?
+}
+
+#[tauri::command]
+pub async fn stash_current_worktree(
+    gate: State<'_, jobs::PushExecutionGate>,
+    repo_path: String,
+    branch: String,
+) -> AppResult<String> {
+    let operation = gate.reserve_repository_operation()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        git::stash_current_worktree(&repo_path, &branch)
+    })
+    .await
+    .map_err(|_| AppError::new("stash_task_failed", "储藏改动任务失败"))?
+}
+
+#[tauri::command]
+pub async fn restore_worktree_stash(
+    gate: State<'_, jobs::PushExecutionGate>,
+    repo_path: String,
+    branch: String,
+    hash: String,
+) -> AppResult<()> {
+    let operation = gate.reserve_repository_operation()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        git::restore_worktree_stash(&repo_path, &branch, &hash)
+    })
+    .await
+    .map_err(|_| AppError::new("stash_task_failed", "恢复储藏任务失败"))?
 }
 
 #[tauri::command]

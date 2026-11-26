@@ -11,6 +11,7 @@ import type {
   RepositoryRevision,
   RepositorySummary,
   RebaseResult,
+  StashState,
   StepPushJobStarted,
   StepPushPlan,
   StepPushRequest,
@@ -48,6 +49,12 @@ export const api = {
     invoke<void>("checkout_branch", { repoPath, branch }),
   rebaseBranchOntoUpstream: (repoPath: string, branch: string) =>
     invoke<RebaseResult>("rebase_branch_onto_upstream", { repoPath, branch }),
+  getStashState: (repoPath: string, branch: string) =>
+    invoke<StashState>("get_stash_state", { repoPath, branch }),
+  stashCurrentWorktree: (repoPath: string, branch: string) =>
+    invoke<string>("stash_current_worktree", { repoPath, branch }),
+  restoreWorktreeStash: (repoPath: string, branch: string, hash: string) =>
+    invoke<void>("restore_worktree_stash", { repoPath, branch, hash }),
   getCommitHistory: (
     repoPath: string,
     skip: number,

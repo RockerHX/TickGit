@@ -5,6 +5,7 @@ mod parse;
 mod push;
 mod rebase;
 mod repository;
+mod stash;
 
 pub use diff::get_commit_file_diff;
 pub use history::{get_commit_files, get_commit_history, get_commit_meta};
@@ -17,6 +18,7 @@ pub use repository::{
     checkout_branch, get_branch_status, get_repository_revision, list_local_branches,
     refresh_remote_tracking, resolve_repository_path, validate_current_branch,
 };
+pub use stash::{get_stash_state, restore_worktree_stash, stash_current_worktree};
 
 const REMOTE_NAME: &str = "origin";
 const UNSAFE_PUSH_TARGET_MESSAGE: &str =
